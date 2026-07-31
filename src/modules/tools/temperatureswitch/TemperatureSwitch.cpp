@@ -36,6 +36,7 @@ Author: Michael Hackney, mhackney@eclecticangler.com
 #define temperatureswitch_cooldown_power_init_checksum  CHECKSUM("cooldown_power_init")
 #define temperatureswitch_cooldown_power_step_checksum  CHECKSUM("cooldown_power_step")
 #define temperatureswitch_cooldown_power_laser_checksum CHECKSUM("cooldown_power_laser")
+#define play_spindle_fan_value_checksum        CHECKSUM("playspindlefanvalue")
 #define temperatureswitch_cooldown_delay_checksum       CHECKSUM("cooldown_delay")
 
 #define temperatureswitch_switch_checksum               CHECKSUM("switch")
@@ -89,6 +90,10 @@ TemperatureSwitch* TemperatureSwitch::load_config(uint16_t modcs)
     ts->temperatureswitch_cooldown_power_init = THEKERNEL->config->value(temperatureswitch_checksum, modcs, temperatureswitch_cooldown_power_init_checksum)->by_default(50.0f)->as_number();
     ts->temperatureswitch_cooldown_power_step = THEKERNEL->config->value(temperatureswitch_checksum, modcs, temperatureswitch_cooldown_power_step_checksum)->by_default(10.0f)->as_number();
     ts->temperatureswitch_cooldown_power_laser = THEKERNEL->config->value(temperatureswitch_checksum, modcs, temperatureswitch_cooldown_power_laser_checksum)->by_default(80.0f)->as_number();
+    // A single top-level key, not one of this module's own, and it is published
+    // to the kernel as an integer for the M331.1 blowing path to share.
+    ts->play_spindle_fan_value = THEKERNEL->config->value(play_spindle_fan_value_checksum)->by_default(30)->as_number();
+    THEKERNEL->play_spindle_fan_value = ts->play_spindle_fan_value;
     ts->temperatureswitch_cooldown_delay = THEKERNEL->config->value(temperatureswitch_checksum, modcs, temperatureswitch_cooldown_delay_checksum)->by_default(180)->as_number();
 
     // set initial state
@@ -131,10 +136,50 @@ void TemperatureSwitch::on_second_tick(void *argument)
 	    {
 	    	current_temp = this->get_highest_temperature();
 	    }
-	    else if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
+        else if(THEKERNEL->factory_set->MachineModel >= CARVERA_AIR
+                && THEKERNEL->factory_set->MachineModel <= Z1PRO)
 	    {
 	    	current_temp = this->get_temperature();
 	    }
+
+        if (this->temperatureswitch_switch_cs == spindlefan_checksum
+                && THEKERNEL->factory_set->MachineModel >= Z1
+                && THEKERNEL->factory_set->MachineModel <= Z1PRO)
+        {
+            if (THEKERNEL->is_bed_cleaning()) {
+                struct pad_switch pad;
+                pad.state = true;
+                pad.value = 100.0;
+                ok = PublicData::set_value(switch_checksum, this->temperatureswitch_switch_cs, state_value_checksum, &pad);
+                if (!ok) {
+                    THEKERNEL->streams->printf("Error turn on fan.\r\n");
+                }
+                cooldown_delay_counter = -77;
+                return;
+            }
+            if (THEKERNEL->is_auto_blowing()) {
+                // The thermal ramp may raise M331.1's blowing power but not
+                // drop it, so read the current setting and only write a higher one.
+                if (current_temp < this->temperatureswitch_threshold_temp) {
+                    return;
+                }
+                struct pad_switch pad;
+                if (!PublicData::get_value(switch_checksum, this->temperatureswitch_switch_cs, 0, &pad)) {
+                    return;
+                }
+                float power = temperatureswitch_cooldown_power_init
+                        + (current_temp - temperatureswitch_threshold_temp) * temperatureswitch_cooldown_power_step;
+                if (power <= pad.value) {
+                    return;
+                }
+                pad.state = true;
+                pad.value = power;
+                PublicData::set_value(switch_checksum, this->temperatureswitch_switch_cs, state_value_checksum, &pad);
+                cooldown_delay_counter = -77;
+                return;
+            }
+        }
+
 	    if (current_temp >= this->temperatureswitch_threshold_temp) {
 //	    	if (cooldown_delay_counter != -99 && !THEKERNEL->is_uploading())
 //	    		THEKERNEL->streams->printf("Spindle temp: [%.2f], Turn on spindle fan...\r\n", current_temp);
@@ -143,19 +188,21 @@ void TemperatureSwitch::on_second_tick(void *argument)
 	    	pad.value = temperatureswitch_cooldown_power_init + (current_temp - temperatureswitch_threshold_temp) * temperatureswitch_cooldown_power_step;
 		    ok = PublicData::set_value(switch_checksum, this->temperatureswitch_switch_cs, state_value_checksum, &pad);
 		    if (!ok) {
-		    	if(CARVERA == THEKERNEL->factory_set->MachineModel)
-	    		{
-		        	THEKERNEL->streams->printf("Error turn on spindle fan.\r\n");
-		        }
-			    else if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
-			    {
 			    	THEKERNEL->streams->printf("Error turn on fan.\r\n");
-			    }
-		        
 		    }
 	    	cooldown_delay_counter = -99;
 	    } else {
-	    	if (cooldown_delay_counter == -88 || cooldown_delay_counter == -99) {
+            // -77 is left by the blowing and bed-cleaning paths above. It skips
+            // the cooldown delay, so the fan stops on the first tick after those
+            // modes release it.
+            if (cooldown_delay_counter == -77) {
+                bool switch_state = false;
+                ok = PublicData::set_value(switch_checksum, this->temperatureswitch_switch_cs, state_checksum, &switch_state);
+                if (!ok) {
+                    THEKERNEL->streams->printf("Error turn off fan.\r\n");
+                }
+                cooldown_delay_counter = -1;
+            } else if (cooldown_delay_counter == -88 || cooldown_delay_counter == -99) {
 	    		cooldown_delay_counter = 0;
 	    	} else if (cooldown_delay_counter >= 0) {
 	    		cooldown_delay_counter ++;
@@ -165,14 +212,7 @@ void TemperatureSwitch::on_second_tick(void *argument)
 	    			bool switch_state = false;
 	    		    ok = PublicData::set_value(switch_checksum, this->temperatureswitch_switch_cs, state_checksum, &switch_state);
 	    		    if (!ok) {
-				    	if(CARVERA == THEKERNEL->factory_set->MachineModel)
-			    		{
-	    		        	THEKERNEL->streams->printf("Error turn off spindle fan.\r\n");
-	    		        }
-					    else if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
-					    {
 					    	THEKERNEL->streams->printf("Error turn off fan.\r\n");
-					    }
 	    		    }
 	    			cooldown_delay_counter = -1;
 	    		}

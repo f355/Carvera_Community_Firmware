@@ -36,6 +36,7 @@
 #define    input_pin_behavior_checksum  CHECKSUM("input_pin_behavior")
 #define    toggle_checksum              CHECKSUM("toggle")
 #define    momentary_checksum           CHECKSUM("momentary")
+#define    freq_count_checksum          CHECKSUM("freq_count")
 #define    command_subcode_checksum     CHECKSUM("subcode")
 #define    input_on_command_checksum    CHECKSUM("input_on_command")
 #define    input_off_command_checksum   CHECKSUM("input_off_command")
@@ -82,6 +83,9 @@ void Switch::on_halt(void *arg)
 void Switch::on_module_loaded()
 {
     this->switch_changed = false;
+    this->freq_measuring = false;
+    this->freq_poll_count = 0;
+    this->freq_edge_count = 0;
 
     this->register_for_event(ON_GCODE_RECEIVED);
     this->register_for_event(ON_MAIN_LOOP);
@@ -110,7 +114,9 @@ void Switch::on_config_reload(void *argument)
 
     if(this->input_pin->connected()) {
         std::string ipb = THEKERNEL->config->value(switch_checksum, this->name_checksum, input_pin_behavior_checksum )->by_default("momentary")->as_string();
-        this->input_pin_behavior = (ipb == "momentary") ? momentary_checksum : toggle_checksum;
+        if (ipb == "momentary")       this->input_pin_behavior = momentary_checksum;
+        else if (ipb == "freq_count") this->input_pin_behavior = freq_count_checksum;
+        else                          this->input_pin_behavior = toggle_checksum;
         is_input= true;
         this->ignore_on_halt= true;
 
@@ -559,6 +565,14 @@ uint32_t Switch::pinpoll_tick(uint32_t dummy)
             // if switch is a toggle switch
             if( this->input_pin_behavior == toggle_checksum ) {
                 this->flip();
+            } else if( this->input_pin_behavior == freq_count_checksum ) {
+                // a rising edge: open the window if it is not already open,
+                // then count the edge
+                if (!this->freq_measuring) {
+                    this->freq_measuring = true;
+                    this->freq_poll_count = 0;
+                }
+                this->freq_edge_count++;
             } else {
                 // else default is momentary
                 this->switch_state = this->input_pin_state;
@@ -572,6 +586,22 @@ uint32_t Switch::pinpoll_tick(uint32_t dummy)
                 this->switch_state = this->input_pin_state;
                 this->switch_changed = true;
             }
+        }
+    }
+
+    if (this->input_pin_behavior == freq_count_checksum) {
+        this->freq_poll_count++;
+
+        if (this->freq_measuring) {
+            if (this->freq_poll_count > 209) {
+                this->switch_value = (float)this->freq_edge_count / 2.1;
+                this->freq_measuring = false;
+                this->freq_poll_count = 0;
+                this->freq_edge_count = 0;
+            }
+        } else if (this->freq_poll_count > 209) {
+            this->freq_poll_count = 210;
+            this->switch_value = 0;
         }
     }
     return 0;
@@ -590,4 +620,3 @@ void Switch::send_gcode(std::string msg, StreamOutput *stream)
     message.stream = stream;
     THEKERNEL->call_event(ON_CONSOLE_LINE_RECEIVED, &message );
 }
-

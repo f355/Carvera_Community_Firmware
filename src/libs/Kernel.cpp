@@ -78,6 +78,8 @@ Kernel::Kernel()
     laser_mode = false;
     vacuum_mode = false;
     extout_mode = false;
+    bed_cleaning = false;
+    static_electricity_removal = false;
     sleeping = false;
     waiting = false;
     tool_waiting = false;
@@ -94,7 +96,7 @@ Kernel::Kernel()
     b_3DProbeMode = false;
     position_reset_pending = false;
     auto_blowing = false;
-    bed_cleaning = false;
+    reserved_df1 = false;
     discard_filter_secondary = false;
     abort_line = 0;
     current_line = 0;
@@ -387,15 +389,15 @@ std::string Kernel::get_query_string()
     // get power temperature
     ok = PublicData::get_value( temperature_control_checksum, current_temperature_checksum, power_temperature_checksum, &temp );
     if (ok) {
-        n= snprintf(buf, sizeof(buf), ",%1.1f", temp.current_temperature);
+    n= snprintf(buf, sizeof(buf), ",%1.1f", temp.current_temperature);
     if(n > sizeof(buf)) n= sizeof(buf);
     str.append(buf, n);
     }
 	
     // Auxiliary status fields.
     n= snprintf(buf, sizeof(buf), ",%d,%d,%d,%d",
-                int(this->get_extout_mode()), int(reserved_dd3), 0,
-                int(reserved_dd4));
+                int(this->get_extout_mode()), int(bed_cleaning), 0,
+                int(static_electricity_removal));
     if(n > sizeof(buf)) n= sizeof(buf);
     str.append(buf, n);
 

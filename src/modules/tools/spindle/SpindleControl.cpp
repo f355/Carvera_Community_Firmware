@@ -43,7 +43,9 @@ void SpindleControl::on_gcode_received(void *argument)
         }
         else if (gcode->m == 3)
         {
+            if (handling_gcode) return;
         	if(THEKERNEL->is_halted()) return; // if in halted state ignore any commands
+            handling_gcode = true;
         	if (!THEKERNEL->get_laser_mode()) {
                 // current tool number and tool offset
                 struct tool_status tool;
@@ -76,26 +78,36 @@ void SpindleControl::on_gcode_received(void *argument)
         	if (THEKERNEL->get_vacuum_mode()) {
         		// open vacuum
         		bool b = true;
-        		PublicData::set_value( switch_checksum, vacuum_checksum, state_checksum, &b );
+                PublicData::set_value(
+                    switch_checksum,
+                    CARVERA == THEKERNEL->factory_set->MachineModel ?
+                        vacuum_checksum : extendout_checksum,
+                    state_checksum, &b);
         	}
         	
             // open extout if set
         	if (THEKERNEL->get_extout_mode()) {
-        		// open extout
-        		bool b = true;
+                bool b = false;
         		struct pad_switch pad;
-			    bool ok = false;
-            	PublicData::set_value( switch_checksum, extendout_checksum, state_checksum, &b );
-			    ok = PublicData::get_value(switch_checksum, vacuum_checksum, 0, &pad);
+                PublicData::set_value(
+                    switch_checksum, spindlefan_checksum, state_checksum, &b);
+                bool ok = PublicData::get_value(
+                    switch_checksum, spindlefan_checksum, 0, &pad);
 			    if (ok) {
 			    	pad.state = true;
-			    	pad.value = pad.defaultvalue;
-			    	PublicData::set_value( switch_checksum, extendout_checksum, state_value_checksum, &pad );
+                    pad.value = THEKERNEL->play_spindle_fan_value;
+                    PublicData::set_value(
+                        switch_checksum, spindlefan_checksum,
+                        state_value_checksum, &pad);
 			    }
+                THEKERNEL->set_auto_blowing(true);
         	}
+            handling_gcode = false;
         }
         else if (gcode->m == 5)
         {
+            if (handling_gcode) return;
+            handling_gcode = true;
         	if (!THEKERNEL->get_laser_mode()) {
                 THECONVEYOR->wait_for_idle();
                 // M5: spindle off
@@ -108,15 +120,24 @@ void SpindleControl::on_gcode_received(void *argument)
         	if (THEKERNEL->get_vacuum_mode()) {
         		// close vacuum
         		bool b = false;
-                PublicData::set_value( switch_checksum, vacuum_checksum, state_checksum, &b );
+                PublicData::set_value(
+                    switch_checksum,
+                    CARVERA == THEKERNEL->factory_set->MachineModel ?
+                        vacuum_checksum : extendout_checksum,
+                    state_checksum, &b);
         	}
         	
             // close extout if set
         	if (THEKERNEL->get_extout_mode()) {
-        		// close extout
-        		bool b = false;
-                PublicData::set_value( switch_checksum, extendout_checksum, state_checksum, &b );
-        	}
+                struct pad_switch pad;
+                pad.state = true;
+                pad.value = 0;
+                PublicData::set_value(
+                    switch_checksum, spindlefan_checksum,
+                    state_value_checksum, &pad);
+                THEKERNEL->set_auto_blowing(false);
+            }
+            handling_gcode = false;
         }
         else if (gcode->m == 223)
         {	// M222 - rpm override percentage

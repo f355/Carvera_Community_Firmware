@@ -44,6 +44,13 @@
 #define laser_module_max_power_checksum         CHECKSUM("laser_module_max_power")
 #define laser_module_maximum_s_value_checksum   CHECKSUM("laser_module_maximum_s_value")
 
+// True for the Air and for both Z1 models.
+static inline bool is_air_or_z1()
+{
+    return THEKERNEL->factory_set->MachineModel >= CARVERA_AIR
+        && THEKERNEL->factory_set->MachineModel <= Z1PRO;
+}
+
 Laser::Laser()
 {
     laser_on = false;
@@ -61,7 +68,11 @@ void Laser::on_module_loaded()
 
     // Get smoothie-style pin from config
     this->laser_pin = new Pin();
+    if (THEKERNEL->factory_set->MachineModel >= Z1 && THEKERNEL->factory_set->MachineModel <= Z1PRO) {
+        this->laser_pin->from_string(THEKERNEL->config->value(laser_module_pin_checksum)->by_default("0.11")->as_string())->as_output();
+    } else {
     this->laser_pin->from_string(THEKERNEL->config->value(laser_module_pin_checksum)->by_default("2.12")->as_string())->as_output();
+    }
     if (!this->laser_pin->connected()) {
         delete this->laser_pin;
         this->laser_pin= nullptr;
@@ -150,7 +161,7 @@ void Laser::on_console_line_received( void *argument )
         if (laser_cmd == "on") {
         	THEKERNEL->set_laser_mode(true);
 			
-        	if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
+            if(is_air_or_z1())
         	{
 	        	// turn off power fan 
 	            char buf[32];
@@ -172,11 +183,6 @@ void Laser::on_console_line_received( void *argument )
 	            string g3(buf, n);
 	            Gcode gc3(g3, &(StreamOutput::NullStream));
 	            THEKERNEL->call_event(ON_GCODE_RECEIVED, &gc3);
-				// turn on spindle fan 
-	            n = snprintf(buf, sizeof(buf), "M811S40");
-	            string g4(buf, n);
-	            Gcode gc4(g4, &(StreamOutput::NullStream));
-	            THEKERNEL->call_event(ON_GCODE_RECEIVED, &gc4);
 	        } 
  	
         	// turn on laser pin
@@ -185,7 +191,7 @@ void Laser::on_console_line_received( void *argument )
         } else if (laser_cmd == "off") {
         	THEKERNEL->set_laser_mode(false);
         	
-        	if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
+            if(is_air_or_z1())
         	{
 	        	// turn off power fan 
 	            char buf[32];
@@ -200,7 +206,10 @@ void Laser::on_console_line_received( void *argument )
 	            THEKERNEL->call_event(ON_GCODE_RECEIVED, &gc2);
 				this->pwm_pin->period_us(THEKERNEL->Spindle_period_us);
 	        }
+            // held on while static electricity removal mode is active
+            if (!THEKERNEL->is_static_electricity_removal()) {
         	this->laser_pin->set(false);
+            }
         	this->testing = false;
         	this->set_laser_power(0);
         	// turn off laser pin
@@ -210,6 +219,8 @@ void Laser::on_console_line_received( void *argument )
         } else if (laser_cmd == "test" && THEKERNEL->get_laser_mode()) {
         	this->testing = true;
         }
+    } else if (cmd == "laserabort") {
+        this->on_halt(nullptr);
     }
 }
 
@@ -239,8 +250,9 @@ void Laser::on_gcode_received(void *argument)
 
     // M codes execute immediately
     if (gcode->has_m) {
-    	if (gcode->m == 3 && THEKERNEL->get_laser_mode())
+        if (gcode->m == 3 && THEKERNEL->get_laser_mode() && !this->handling_gcode)
 		{
+            this->handling_gcode = true;
     		THECONVEYOR->wait_for_idle();
             // M3 with S value provided: set speed
             if (gcode->has_letter('S'))
@@ -251,18 +263,23 @@ void Laser::on_gcode_received(void *argument)
         	this->laser_pin->set(true);
     		this->laser_on = true;
     		this->testing = false;
+            this->handling_gcode = false;
     		// THEKERNEL->streams->printf("Laser on, S: %1.4f\n", THEROBOT->get_s_value());
-		} else if (gcode->m == 5) {
+        } else if (gcode->m == 5 && THEKERNEL->get_laser_mode() && !this->handling_gcode) {
+            this->handling_gcode = true;
     		THECONVEYOR->wait_for_idle();
 			this->laser_on = false;
 			this->testing = false;
         	// turn on laser pin
+            if (!THEKERNEL->is_static_electricity_removal()) {
         	this->laser_pin->set(false);
+            }
+            this->handling_gcode = false;
 		} else if (gcode->m == 321 && !THEKERNEL->get_laser_mode()) { // change to laser mode
 			THECONVEYOR->wait_for_idle();
         	THEKERNEL->set_laser_mode(true);
         	
-        	if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
+            if(is_air_or_z1())
         	{
 	        	// turn off power fan 
 	            char buf[32];
@@ -284,11 +301,6 @@ void Laser::on_gcode_received(void *argument)
 	            string g3(buf, n);
 	            Gcode gc3(g3, &(StreamOutput::NullStream));
 	            THEKERNEL->call_event(ON_GCODE_RECEIVED, &gc3);
-				// turn on spindle fan 
-	            n = snprintf(buf, sizeof(buf), "M811S40");
-	            string g4(buf, n);
-	            Gcode gc4(g4, &(StreamOutput::NullStream));
-	            THEKERNEL->call_event(ON_GCODE_RECEIVED, &gc4);
 	        }
     	
         	
@@ -304,7 +316,7 @@ void Laser::on_gcode_received(void *argument)
 	        	{
 	                n = snprintf(buf, sizeof(buf), "M6T-1");
 	            }
-	            else if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
+                else if(is_air_or_z1())
         		{
                 	n = snprintf(buf, sizeof(buf), "M6T8888");
         		}
@@ -324,7 +336,7 @@ void Laser::on_gcode_received(void *argument)
         	THECONVEYOR->wait_for_idle();
         	THEKERNEL->set_laser_mode(false);
 			
-        	if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
+            if(is_air_or_z1())
         	{
 	        	// turn off power fan 
 	            char buf[32];
@@ -339,7 +351,9 @@ void Laser::on_gcode_received(void *argument)
 	            THEKERNEL->call_event(ON_GCODE_RECEIVED, &gc2);
 				this->pwm_pin->period_us(THEKERNEL->Spindle_period_us);
 	        }
+            if (!THEKERNEL->is_static_electricity_removal()) {
         	this->laser_pin->set(false);
+            }
         	this->testing = false;
         	if (gcode->subcode == 2) {
             	THEKERNEL->streams->printf("turning laser mode off and return to CNC mode\n");
@@ -361,7 +375,9 @@ void Laser::on_gcode_received(void *argument)
         	THEKERNEL->streams->printf("turning laser test mode on\n");
         } else if (gcode->m == 324) {
         	this->testing = false;
+            if (!THEKERNEL->is_static_electricity_removal()) {
 			this->laser_pin->set(false);
+            }
 			// turn off test mode
         	THEKERNEL->streams->printf("turning laser test mode off\n");
         } else if (gcode->m == 325) { // M223 S100 change laser power by percentage S
@@ -369,6 +385,17 @@ void Laser::on_gcode_received(void *argument)
                 this->scale = gcode->get_value('S') / 100.0F;
             } else {
             	THEKERNEL->streams->printf("Laser power scale at %6.2f %%\n", this->scale * 100.0F);
+            }
+        } else if (gcode->m == 331 && (gcode->subcode & 0xf) == 4) {
+            THEKERNEL->set_static_electricity_removal(true);
+            this->laser_pin->set(true);
+            THEKERNEL->streams->printf("turning static electricity removal mode on\r\n");
+        } else if (gcode->m == 332 && (gcode->subcode & 0xf) == 4) {
+            THEKERNEL->set_static_electricity_removal(false);
+            THEKERNEL->streams->printf("turning static electricity removal mode off\r\n");
+            // Only drop the pin if the laser is not otherwise in use.
+            if (!THEKERNEL->get_laser_mode()) {
+                this->laser_pin->set(false);
             }
         }
     }
@@ -490,7 +517,7 @@ void Laser::on_halt(void *argument)
         set_laser_power(0);
         this->laser_on = false;
     	THEKERNEL->set_laser_mode(false);
-    	if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
+        if(is_air_or_z1())
     	{
         	// turn off power fan 
             char buf[32];
@@ -506,6 +533,7 @@ void Laser::on_halt(void *argument)
 			this->pwm_pin->period_us(THEKERNEL->Spindle_period_us);
         }
     	this->laser_pin->set(false);
+        THEKERNEL->set_static_electricity_removal(false);
     	this->testing = false;
     	THEROBOT->clearLaserOffset();
     }

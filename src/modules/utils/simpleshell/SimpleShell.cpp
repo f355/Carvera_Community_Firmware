@@ -43,7 +43,6 @@
 // #include "NetworkPublicAccess.h"
 #include "platform_memory.h"
 #include "SwitchPublicAccess.h"
-#include "SDFAT.h"
 #include "Thermistor.h"
 #include "md5.h"
 #include "utils.h"
@@ -57,11 +56,8 @@
 #include "mbed.h" // for wait_ms()
 
 extern unsigned int g_maximumHeapAddress;
-extern const unsigned short crc_table[256];
+extern unsigned short crc_table[256];
 
-#define XBUFF_LENGTH	8208
-extern unsigned char xbuff[XBUFF_LENGTH];
-extern unsigned char fbuff[4096];
 
 #define EOT  0x04
 #define CAN  0x16 //0x18
@@ -78,8 +74,6 @@ extern "C" uint32_t  _sbrk(int size);
 
 // support upload file type definition
 #define FILETYPE	"lz"		//compressed by quicklz
-// version definition
-#define VERSION "1.0.6"
 
 // command lookup table
 const SimpleShell::ptentry_t SimpleShell::commands_table[] = {
@@ -105,8 +99,6 @@ const SimpleShell::ptentry_t SimpleShell::commands_table[] = {
     {"set_temp", SimpleShell::set_temp_command},
     {"switch",   SimpleShell::switch_command},
     {"net",      SimpleShell::net_command},
-	{"ap",     SimpleShell::ap_command},
-	{"wlan",     SimpleShell::wlan_command},
 	{"diagnose",   SimpleShell::diagnose_command},
 	{"sleep",   SimpleShell::sleep_command},
 	{"power",   SimpleShell::power_command},
@@ -125,6 +117,7 @@ const SimpleShell::ptentry_t SimpleShell::commands_table[] = {
     {"fset",  SimpleShell::fset_command},
     {"enable_4th_hd", SimpleShell::enable_4th_hd},
     {"disable_4th_hd", SimpleShell::disable_4th_hd},
+    {"fget",  SimpleShell::fget_command},
 
     // unknown command
     {NULL, NULL}
@@ -223,64 +216,53 @@ void SimpleShell::on_gcode_received(void *argument)
                 rm_command("/sd/" + args, gcode->stream);
         } else if (gcode->m == 331) { // change to vacuum mode
         	if (gcode->subcode == 0) {
+                bool is_carvera = (CARVERA == THEKERNEL->factory_set->MachineModel);
 				THEKERNEL->set_vacuum_mode(true);
 			    // get spindle state
 			    struct spindle_status ss;
 			    bool ok = PublicData::get_value(pwm_spindle_control_checksum, get_spindle_status_checksum, &ss);
 			    if (ok) {
 			    	if (ss.state) {
-		        		// open vacuum
 		        		bool b = true;
-		        		PublicData::set_value( switch_checksum, vacuum_checksum, state_checksum, &b );
+                        PublicData::set_value( switch_checksum, is_carvera ? vacuum_checksum : extendout_checksum, state_checksum, &b );
 			    	}
 	        	}
-	        	PacketMessage(PTYPE_NORMAL_INFO, "turning vacuum mode on\r\n", 0, gcode->stream);
+                PacketMessage(PTYPE_NORMAL_INFO, is_carvera ? "turning vacuum mode on\r\n" : "turning extend out mode on\r\n", 0, gcode->stream);
 			}
-			else if (gcode->subcode == 3) {
+            else if (gcode->subcode == 1) {
 				THEKERNEL->set_extout_mode(true);
-			    // get spindle state
-			    struct spindle_status ss;
-			    bool ok = PublicData::get_value(pwm_spindle_control_checksum, get_spindle_status_checksum, &ss);
-			    if (ok) {
-			    	if (ss.state) {
-		        		// open vacuum
-		        		bool b = true;
-		        		PublicData::set_value( switch_checksum, extendout_checksum, state_checksum, &b );
+                if (gcode->has_letter('S')) {
+                    uint16_t s = gcode->get_uint('S');
+                    if (s < 101) THEKERNEL->play_spindle_fan_value = s;
 			    	}
+                PacketMessage(PTYPE_NORMAL_INFO, "turning auto blowing mode on\r\n", 0, gcode->stream);
 	        	}
-	        	PacketMessage(PTYPE_NORMAL_INFO, "turning extend out mode on\r\n", 0, gcode->stream);
-				
+            else if (gcode->subcode == 2) {
+                THEKERNEL->set_bed_cleaning(true);
+                PacketMessage(PTYPE_NORMAL_INFO, "turning auto bed cleaning mode on\r\n", 0, gcode->stream);
 			}
 		} else if (gcode->m == 332) { // change to CNC mode			
 			if (gcode->subcode == 0) {
+                bool is_carvera = (CARVERA == THEKERNEL->factory_set->MachineModel);
 				THEKERNEL->set_vacuum_mode(false);
 			    // get spindle state
 			    struct spindle_status ss;
 			    bool ok = PublicData::get_value(pwm_spindle_control_checksum, get_spindle_status_checksum, &ss);
 			    if (ok) {
 			    	if (ss.state) {
-		        		// close vacuum
 		        		bool b = false;
-		        		PublicData::set_value( switch_checksum, vacuum_checksum, state_checksum, &b );
+                        PublicData::set_value( switch_checksum, is_carvera ? vacuum_checksum : extendout_checksum, state_checksum, &b );
 			    	}
 	        	}
-				// turn off vacuum mode
-				PacketMessage(PTYPE_NORMAL_INFO, "turning vacuum mode off\r\n", 0, gcode->stream);
+                PacketMessage(PTYPE_NORMAL_INFO, is_carvera ? "turning vacuum mode off\r\n" : "turning extend out mode off\r\n", 0, gcode->stream);
 			}
-			else if (gcode->subcode == 3) {
+            else if (gcode->subcode == 1) {
 				THEKERNEL->set_extout_mode(false);
-			    // get spindle state
-			    struct spindle_status ss;
-			    bool ok = PublicData::get_value(pwm_spindle_control_checksum, get_spindle_status_checksum, &ss);
-			    if (ok) {
-			    	if (ss.state) {
-		        		// close vacuum
-		        		bool b = false;
-		        		PublicData::set_value( switch_checksum, extendout_checksum, state_checksum, &b );
+                PacketMessage(PTYPE_NORMAL_INFO, "turning auto blowing mode off\r\n", 0, gcode->stream);
 			    	}
-	        	}
-				// turn on extend out mode
-				PacketMessage(PTYPE_NORMAL_INFO, "turning extend out mode off\r\n", 0, gcode->stream);
+            else if (gcode->subcode == 2) {
+                THEKERNEL->set_bed_cleaning(false);
+                PacketMessage(PTYPE_NORMAL_INFO, "turning auto bed cleaning mode off\r\n", 0, gcode->stream);
 			}
 		}
     }
@@ -407,75 +389,12 @@ void SimpleShell::on_console_line_received( void *argument )
 // Convert the first parameter into an absolute path, then list the files in that path
 void SimpleShell::ls_command( string parameters, StreamOutput *stream )
 {
-    string path, opts;
-    while(!parameters.empty()) {
-        string s = shift_parameter( parameters );
-        if(s.front() == '-') {
-            opts.append(s);
-        } else {
-            path = s;
-            if(!parameters.empty()) {
-                path.append(" ");
-                path.append(parameters);
+    // Compatibility no-op; M20 still emits its Begin/End markers.
             }
-            break;
-        }
-    }
-
-    path = absolute_from_relative(path);
-
-    DIR *d;
-    struct dirent *p;
-    struct tm timeinfo;
-    char dirTmp[256]; 
-    unsigned int npos=0;
-    d = opendir(path.c_str());
-    if (d != NULL) {
-        while ((p = readdir(d)) != NULL) {
-        	if (p->d_name[0] == '.') {
-        		continue;
-        	}
-        	for (int i = 0; i < NAME_MAX; i ++) {
-        		if (p->d_name[i] == ' ') p->d_name[i] = 0x01;
-        	}
-        	if (opts.find("-s", 0, 2) != string::npos) {
-        	    get_fftime(p->d_date, p->d_time, &timeinfo);
-        		// name size date
-                memset(dirTmp, 0, sizeof(dirTmp));
-                sprintf(dirTmp, "%s%s %d %04d%02d%02d%02d%02d%02d\r\n", string(p->d_name).c_str(),  p->d_isdir ? "/" : "",
-                		p->d_isdir ? 0 : p->d_fsize, timeinfo.tm_year + 1980, timeinfo.tm_mon, timeinfo.tm_mday,
-                				timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
-        	} else {
-        		// only name
-                memset(dirTmp, 0, sizeof(dirTmp));
-                sprintf(dirTmp, "%s%s\r\n", string(p->d_name).c_str(), p->d_isdir ? "/" : "");
-        	}
-        	memcpy(&xbuff[npos], dirTmp, strlen(dirTmp));
-        	npos += strlen(dirTmp);
-        	if(npos >= 4000)
-        	{
-        		PacketMessage(PTYPE_LOAD_INFO, (char *)xbuff, npos, stream);
-        		npos = 0;
-        	}
-        	
-        }
-        if( npos != 0)
-        {
-        	PacketMessage(PTYPE_LOAD_INFO, (char *)xbuff, npos, stream);
-        }
-        closedir(d);        
-        PacketMessage(PTYPE_LOAD_FINISH, "Load directory finished.\r\n", 0, stream);
-    } else {
-		PacketMessage(PTYPE_LOAD_ERROR, "Could not open directory!\r\n", 0, stream);
-    }
-}
-
-extern SDFAT mounter;
 
 void SimpleShell::remount_command( string parameters, StreamOutput *stream )
 {
-    mounter.remount();
-	PacketMessage(PTYPE_NORMAL_INFO, "remounted\r\n", 0, stream);
+    // Compatibility no-op.
 }
 
 // Delete a file
@@ -789,144 +708,6 @@ void SimpleShell::net_command( string parameters, StreamOutput *stream)
 }
 
 // get or set ap channel config
-void SimpleShell::ap_command( string parameters, StreamOutput *stream)
-{
-	uint8_t channel;
-	char buff[32];
-	memset(buff, 0, sizeof(buff));
-    if (!parameters.empty() ) {
-    	string s = shift_parameter( parameters );
-    	if (s == "channel") {
-    		if (!parameters.empty()) {
-    			channel = strtol(parameters.c_str(), NULL, 10);
-    	    	if (channel < 1 || channel > 14) {
-    	    		stream->printf("WiFi AP Channel should between 1 to 14\n");
-    	    	} else {
-    	            PublicData::set_value( wlan_checksum, ap_set_channel_checksum, &channel );
-    	    	}
-    		}
-    	} else if (s == "ssid") {
-    		if (!parameters.empty()) {
-    	    	if (parameters.length() > 32) {
-    	    		stream->printf("WiFi AP SSID length should between 1 to 32\n");
-    	    	} else {
-    	    		strcpy(buff, parameters.c_str());
-    	            PublicData::set_value( wlan_checksum, ap_set_ssid_checksum, buff );
-    	    	}
-    		}
-    	} else if (s == "password") {
-    		if (!parameters.empty()) {
-    	    	if (parameters.length() < 8) {
-    	    		stream->printf("WiFi AP password length should more than 7\n");
-    	    		return;
-    	    	} else {
-    	    		strcpy(buff, parameters.c_str());
-    	    	}
-    		}
-	        PublicData::set_value( wlan_checksum, ap_set_password_checksum, buff );
-    	} else if (s == "enable") {
-    		bool b = true;
-	        PublicData::set_value( wlan_checksum, ap_enable_checksum, &b );
-    	} else if (s == "disable") {
-    		bool b = false;
-	        PublicData::set_value( wlan_checksum, ap_enable_checksum, &b );
-    	} else {
-    		stream->printf("ERROR: Invalid AP Command!\n");
-    	}
-    }
-}
-
-
-// wlan config
-void SimpleShell::wlan_command( string parameters, StreamOutput *stream)
-{
-	bool send_eof = false;
-	bool disconnect = false;
-    string ssid, password;
-	ssid = "";
-	password = "";
-	
-    while (!parameters.empty()) {
-        string s = shift_parameter( parameters );
-        if(s == "-e") {
-        	send_eof = true;
-        } else if (s == "-d") {
-        	disconnect = true;
-        } else {
-        	if (ssid.empty()) {
-            	ssid = s;
-            } else if (password.empty()) {
-            	password = s;
-            }
-        }
-    }
-
-    void *returned_data;
-    if (ssid.empty()) {
-    	if (!send_eof)
-    		stream->printf("Scanning wifi signals...\n");
-        bool ok = PublicData::get_value( wlan_checksum, get_wlan_checksum, &returned_data );
-        if (ok) {
-            char *str = (char *)returned_data;
-			PacketMessage(PTYPE_LOAD_INFO, str, 0, stream);
-            free(str);
-        	if (send_eof) {
-				PacketMessage(PTYPE_LOAD_FINISH, "ok\r\n", 0, stream);
-        	}
-
-        } else {
-        	if (send_eof) {
-        		PacketMessage(PTYPE_LOAD_ERROR, "No wlan detected\r\n", 0, stream);
-        	} else {
-                stream->printf("No wlan detected\n");
-        	}
-        }
-    } else {
-    	if (!send_eof) {
-    		if (disconnect) {
-    			stream->printf("Disconnecting from wifi...\n");
-    		} else {
-    			stream->printf("Connecting to wifi: %s...\n", ssid.c_str());
-    		}
-    	}
-    	ap_conn_info t;
-    	t.disconnect = disconnect;
-    	if (!t.disconnect) {
-        	snprintf(t.ssid, sizeof(t.ssid), "%s", ssid.c_str());
-        	snprintf(t.password, sizeof(t.password), "%s", password.c_str());
-    	}
-        bool ok = PublicData::set_value( wlan_checksum, set_wlan_checksum, &t );
-        if (ok) {
-        	if (t.has_error) {
-        		char error_msg[64];
-				memset(error_msg, 0, sizeof(error_msg));
-        		sprintf(error_msg, "Error: %s\n", t.error_info );
-        		PacketMessage(PTYPE_LOAD_INFO, error_msg, 0, stream);
-            	if (send_eof) {
-            		PacketMessage(PTYPE_LOAD_ERROR, "Connect or Disconnect error.\r\n", 0, stream);
-            	}
-        	} else {
-        		if (t.disconnect) {
-            		PacketMessage(PTYPE_LOAD_INFO, "Wifi Disconnected!\n", 0, stream);
-        		} else {
-            		char error_msg[64];
-					memset(error_msg, 0, sizeof(error_msg));
-	        		sprintf(error_msg, "Wifi connected, ip: %s\n", t.ip_address );
-	        		PacketMessage(PTYPE_LOAD_INFO, error_msg, 0, stream);
-        		}
-            	if (send_eof) {
-                	PacketMessage(PTYPE_LOAD_FINISH, "ok\r\n", 0, stream);
-            	}
-        	}
-        } else {
-            PacketMessage(PTYPE_LOAD_INFO, "Parameter error when setting wlan!\n", 0, stream);
-        	if (send_eof) {
-        		PacketMessage(PTYPE_LOAD_ERROR, "Parameter error when setting wlan!\r\n", 0, stream);
-        	}
-        }
-    }
-}
-
 // wlan config
 void SimpleShell::diagnose_command( string parameters, StreamOutput *stream)
 {
@@ -941,7 +722,12 @@ void SimpleShell::diagnose_command( string parameters, StreamOutput *stream)
     struct spindle_status ss;
     ok = PublicData::get_value(pwm_spindle_control_checksum, get_spindle_status_checksum, &ss);
     if (ok) {
-        n = snprintf(buf, sizeof(buf), "S:%d,%d", (int)ss.state, (int)ss.target_rpm);
+        // Append spindle and power temperatures as integer fields.
+        struct pad_temperature spindle_temp, power_temp;
+        PublicData::get_value( temperature_control_checksum, current_temperature_checksum, spindle_temperature_checksum, &spindle_temp );
+        PublicData::get_value( temperature_control_checksum, current_temperature_checksum, power_temperature_checksum, &power_temp );
+        n = snprintf(buf, sizeof(buf), "S:%d,%d,0,0,%d,%d", (int)ss.state, (int)ss.target_rpm,
+                     (int)spindle_temp.current_temperature, (int)power_temp.current_temperature);
         if(n > sizeof(buf)) n= sizeof(buf);
         str.append(buf, n);
     }
@@ -984,18 +770,41 @@ void SimpleShell::diagnose_command( string parameters, StreamOutput *stream)
         str.append(buf, n);
     }
     
-    bool ok2 = false;
-	bool ok3 = false;
+    if (THEKERNEL->factory_set->MachineModel >= CARVERA_AIR &&
+        THEKERNEL->factory_set->MachineModel <= Z1PRO) {
 	struct pad_switch pad2,pad3;
-    ok = PublicData::get_value(switch_checksum, get_checksum("beep"), 0, &pad);
-    ok2 = PublicData::get_value(switch_checksum, get_checksum("extendin"), 0, &pad2);
-   	ok3 = PublicData::get_value(switch_checksum, get_checksum("extendout"), 0, &pad3);
+        ok = PublicData::get_value(
+            switch_checksum, get_checksum("beep"), 0, &pad);
+        bool ok2 = PublicData::get_value(
+            switch_checksum, get_checksum("extendin"), 0, &pad2);
+        bool ok3 = PublicData::get_value(
+            switch_checksum, get_checksum("extendout"), 0, &pad3);
+
     if(!ok) pad.state = false;
-    if(!ok2) pad2.state = false;
-    if(!ok3) {pad3.state = false; pad3.value = 0;}
-    n = snprintf(buf, sizeof(buf), ",%d,%d,%d,%d", (int)pad.state, (int)pad2.state, (int)pad3.state, (int)pad3.value);
+        int extendin_state = 0;
+        if (ok2) {
+            if (pad2.value > 19.0F && pad2.value <= 21.0F) {
+                extendin_state = 1;
+            } else if (pad2.value >= 9.0F && pad2.value <= 11.0F) {
+                extendin_state = 2;
+            } else if (pad2.value >= 4.0F && pad2.value <= 6.0F) {
+                extendin_state = 3;
+            } else if (pad2.value > 2.0F && pad2.value < 3.0F) {
+                extendin_state = 4;
+            } else if (pad2.value > 1.5F && pad2.value <= 2.5F) {
+                extendin_state = 5;
+            }
+        }
+        if (!ok3) {
+            pad3.state = false;
+            pad3.value = 0;
+        }
+        n = snprintf(
+            buf, sizeof(buf), ",%d,%d,%d,%d", (int)pad.state,
+            extendin_state, (int)pad3.state, (int)pad3.value);
     if(n > sizeof(buf)) n = sizeof(buf);
     str.append(buf, n);
+    }
     
     ok = PublicData::get_value(switch_checksum, get_checksum("toolsensor"), 0, &pad);
     if (ok) {
@@ -1060,16 +869,6 @@ void SimpleShell::diagnose_command( string parameters, StreamOutput *stream)
         if(n > sizeof(buf)) n = sizeof(buf);
         str.append(buf, n);
     }
-    
-    // get wifi rssi
-    signed char rssidata;
-    ok = PublicData::get_value(wlan_checksum, get_rssi_checksum, 0, &rssidata);
-    if (ok) {
-        n = snprintf(buf, sizeof(buf), "|RSSI:%d", rssidata);
-        if(n > sizeof(buf)) n = sizeof(buf);
-        str.append(buf, n);
-    }
-
     str.append("}\n");
     stream->printfcmd(PTYPE_DIAG_RES, "%s", str.c_str());
 
@@ -1118,19 +917,82 @@ void SimpleShell::ftype_command( string parameters, StreamOutput *stream )
 {
 	stream->printf("ftype = %s\n", FILETYPE);
 }
+// Return the machine-state label used by status reporting.
+static std::string machine_state_string()
+{
+    std::string str;
+
+    uint8_t state = THEKERNEL->get_state();
+
+    if (state == SLEEP) {
+        str.append("Sleep");
+    } else if (state == SUSPEND) {
+        str.append("Pause");
+    } else if (state == WAIT) {
+        str.append("Wait");
+    } else if (state == TOOL) {
+        str.append("Tool");
+    } else if (state == ALARM) {
+        str.append("Alarm");
+    } else if (state == HOME) {
+        str.append("Home");
+    } else if (state == HOLD) {
+        str.append("Hold");
+    } else if (state == IDLE) {
+        str.append("Idle");
+    } else if (state == RUN) {
+        str.append("Run");
+    } else {
+        str.append("NAN");
+    }
+
+    return str;
+}
+
 // print out build model
 void SimpleShell::model_command( string parameters, StreamOutput *stream )
 {		    	
+    std::string state = machine_state_string();
 	switch (THEKERNEL->factory_set->MachineModel)
 	{
 		case CARVERA:
-			stream->printf("model = %s, %d, %d, %d\n", "C1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
+            stream->printf("model = %s, %d, %d, %u, %s\n", "C1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr, state.c_str());
 			break;
 		case CARVERA_AIR:
-			stream->printf("model = %s, %d, %d, %d\n", "CA1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
+            stream->printf("model = %s, %d, %d, %u, %s\n", "CA1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr, state.c_str());
+            break;
+        case Z1:
+            stream->printf("model = %s, %d, %d, %u, %s\n", "Z1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr, state.c_str());
+            break;
+        case Z1PRO:
+            stream->printf("model = %s, %d, %d, %u, %s\n", "Z1Pro", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr, state.c_str());
 			break;
 		default:
-			stream->printf("model = %s, %d, %d, %d\n", "C1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
+            stream->printf("model = %s, %d, %d, %u, %s\n", "C1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr, state.c_str());
+            break;
+    }
+}
+
+// Print factory settings.
+void SimpleShell::fget_command( string parameters, StreamOutput *stream )
+{
+    std::string state = machine_state_string();
+	switch (THEKERNEL->factory_set->MachineModel)
+	{
+		case CARVERA:
+            stream->printf("machine = %s, %d, %d, %u, %s\n", "C1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr, state.c_str());
+			break;
+		case CARVERA_AIR:
+            stream->printf("machine = %s, %d, %d, %u, %s\n", "CA1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr, state.c_str());
+            break;
+        case Z1:
+            stream->printf("machine = %s, %d, %d, %u, %s\n", "Z1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr, state.c_str());
+            break;
+        case Z1PRO:
+            stream->printf("machine = %s, %d, %d, %u, %s\n", "Z1Pro", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr, state.c_str());
+			break;
+		default:
+            stream->printf("machine = %s, %d, %d, %u, %s\n", "C1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr, state.c_str());
 			break;
 	}
 }
@@ -1285,26 +1147,33 @@ void SimpleShell::fset_command( string parameters, StreamOutput *stream)
     	string s = shift_parameter( parameters );
     	if (s == "model") {
     		if (!parameters.empty()) {
-    			if (parameters.length() > 3) {
+                if (parameters.length() > 5) {
     	    		stream->printf("model length should no more than 3\n");
     	    	} else {
     	    		if (parameters == "C1")
         			{
     					THEKERNEL->factory_set->MachineModel = 1;
     					THEKERNEL->factory_set->FuncSetting |= 0x04;
-	            		THEKERNEL->write_Factory_data();
-    	    			stream->printf("fset model ok!\n");
         			}
         			else if (parameters == "CA1")
     				{
     					THEKERNEL->factory_set->MachineModel = 2;
-	            		THEKERNEL->write_Factory_data();
-    	    			stream->printf("fset model ok!\n");
+                    }
+                    else if (parameters == "Z1")
+                    {
+                        THEKERNEL->factory_set->MachineModel = 3;
+                    }
+                    else if (parameters == "Z1Pro")
+                    {
+                        THEKERNEL->factory_set->MachineModel = 4;
         			}
         			else
         			{
         				stream->printf("Unable to recognize parameter model. \n");
+                        return;
         			}
+                    THEKERNEL->write_Factory_data();
+                    stream->printf("fset model ok!\n");
     	    	}
     		}
     	} else if (s == "func") {
@@ -1324,9 +1193,9 @@ void SimpleShell::fset_command( string parameters, StreamOutput *stream)
     }
 }
 // print out build version
+// Compatibility no-op.
 void SimpleShell::version_command( string parameters, StreamOutput *stream )
 {
-	stream->printf("version = %s\n", VERSION);
 }
 
 // Reset the system
@@ -1638,7 +1507,8 @@ void SimpleShell::get_command( string parameters, StreamOutput *stream)
 		if(THEROBOT->compensationTransform) THEROBOT->compensationTransform(mpos, true, true); // get inverse compensation transform
 		stream->printf("Curr: %1.3f,%1.3f,%1.3f, Comp: %1.3f,%1.3f,%1.3f\n", old_mpos[0], old_mpos[1], old_mpos[2], mpos[0], mpos[1], mpos[2]);
     } else if (what == "wp" || what == "wp_state") {
-    	PublicData::get_value(atc_handler_checksum, show_wp_state_checksum, NULL);
+        // Report the stored probe address.
+        stream->printf("Probe Addr:[%u]\r\n", THEKERNEL->probe_addr);
     } else if (what == "msc") {
     	PublicData::get_value(msc_file_system_checksum, check_usb_host_checksum, NULL);
     } else {
@@ -2186,25 +2056,7 @@ void SimpleShell::config_default_command( string parameters, StreamOutput *strea
 
 void SimpleShell::PacketMessage(char cmd, const char* s, int size, StreamOutput *stream)
 {
-	int crc = 0;
-    unsigned int len = 0;
-	size_t total_length = size == 0 ? strlen(s) : size;
-	
-	fbuff[0] = (HEADER>>8)&0xFF;
-	fbuff[1] = HEADER&0xFF;
-	fbuff[4] = cmd;
-	
-	memcpy(&fbuff[5], s, total_length);
-	len = total_length + 3;
-	fbuff[2] = (len>>8)&0xFF;
-	fbuff[3] = len&0xFF;
-	crc = crc16_ccitt(&fbuff[2], len);
-	fbuff[total_length+5] = (crc>>8)&0xFF;
-	fbuff[total_length+6] = crc&0xFF;
-	fbuff[total_length+7] = (FOOTER>>8)&0xFF;
-	fbuff[total_length+8] = FOOTER&0xFF;
-	
-	stream->puts((char *)fbuff, len+6);
+    stream->PacketMessage(cmd, s, size);
 }
 
 unsigned int SimpleShell::crc16_ccitt(unsigned char *data, unsigned int len)

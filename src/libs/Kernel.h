@@ -202,6 +202,8 @@ class Kernel {
 
         void set_bed_cleaning(bool f) { bed_cleaning = f; }
         bool is_bed_cleaning() const { return bed_cleaning; }
+        void set_static_electricity_removal(bool f) { static_electricity_removal = f; }
+        bool is_static_electricity_removal() const { return static_electricity_removal; }
         void set_suspending(bool f) { suspending = f; }
         bool is_suspending() const { return suspending; }
 
@@ -311,8 +313,8 @@ class Kernel {
             bool laser_mode:1;
             bool vacuum_mode:1;
             bool extout_mode:1;
-            bool reserved_dd3:1;
-            bool reserved_dd4:1;
+            bool bed_cleaning:1;
+            bool static_electricity_removal:1;
             bool sleeping:1;
             bool suspending: 1;
             bool waiting: 1;
@@ -322,7 +324,7 @@ class Kernel {
             bool probeLaserOn:1;
             volatile bool cachewait:1;
             bool auto_blowing:1;
-            bool bed_cleaning:1;
+            bool reserved_df1:1;
             bool b_3DProbeMode:1;
             bool position_reset_pending:1;
             bool discard_filter_secondary:1;

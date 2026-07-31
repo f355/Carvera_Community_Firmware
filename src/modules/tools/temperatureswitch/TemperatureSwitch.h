@@ -43,6 +43,8 @@ class TemperatureSwitch : public Module
         float temperatureswitch_cooldown_power_init;
         float temperatureswitch_cooldown_power_step;
         float temperatureswitch_cooldown_power_laser;
+        // playspindlefanvalue, a top-level key rather than a per-module one
+        float play_spindle_fan_value;
         uint16_t temperatureswitch_cooldown_delay;
         uint16_t module_checksum;
 

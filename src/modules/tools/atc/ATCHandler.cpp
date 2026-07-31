@@ -252,9 +252,13 @@ void ATCHandler::fill_cali_scripts(bool is_probe, bool clear_z) {
     {
 		snprintf(buff, sizeof(buff), "G53 G0 X%.3f Y%.3f", THEROBOT->from_millimeters(probe_mx_mm), THEROBOT->from_millimeters(probe_my_mm));
 	}
-	else	//Manual Tool Change
+    else if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)    //Manual Tool Change
 	{
 		snprintf(buff, sizeof(buff), "G53 G0 X%.3f Y%.3f", THEROBOT->from_millimeters(anchor1_x + 280), THEROBOT->from_millimeters(anchor1_y + 196));
+	}
+    else if(Z1 == THEKERNEL->factory_set->MachineModel || Z1PRO == THEKERNEL->factory_set->MachineModel)
+    {
+        snprintf(buff, sizeof(buff), "G53 G0 X%.3f Y%.3f", THEROBOT->from_millimeters(anchor1_x + 181), THEROBOT->from_millimeters(anchor1_y + 181));
 	}
 	this->script_queue.push(buff);
 	// do calibrate with fast speed
@@ -1372,6 +1376,62 @@ void ATCHandler::fill_OutPocket_scripts(float tool_dia, float X_distance, float 
     THEKERNEL->set_3DProbeMode(false);
 }
 
+// Sweeps the whole work area with the air on to blow chips off the bed.
+// TemperatureSwitch holds the spindle fan at full while is_bed_cleaning() is
+// set, so the fan blows for the whole sweep whatever the spindle temperature.
+// M486.1 is the only caller.
+void ATCHandler::fill_Autoclean_scripts(float Clean_cycles, float Clean_tap)
+{
+    // Seeded outside the cycle loop, so a second cycle finds Y already at the
+    // near edge and only repeats the corner moves.
+    float y = this->anchor1_y;
+
+    bool b = true;
+    PublicData::set_value(switch_checksum, extendout_checksum, state_checksum, &b);
+
+    this->rapid_move(true, this->clearance_x, this->clearance_y, NAN, NAN, NAN);
+    this->rapid_move(true, NAN, this->anchor1_y, NAN, NAN, NAN);
+
+    THEKERNEL->set_bed_cleaning(true);
+
+    // Creep out of the clearance corner in 0.1mm steps, then return to it.
+    float x = this->clearance_x;
+    while (x < -2.0F) {
+        x += 0.1F;
+        this->rapid_move(true, x, NAN, NAN, NAN, NAN);
+    }
+    this->rapid_move(true, this->clearance_x, NAN, NAN, NAN, NAN);
+
+    if (Clean_cycles > 0) {
+        uint8_t cycle = 0;
+        do {
+            this->rapid_move(true, NAN, this->anchor1_y, NAN, NAN, NAN);
+
+            // Zig-zag: across to the anchor side, step Y, back to the
+            // clearance side, step Y, until Y reaches the near edge.
+            while (y < -1.0F) {
+                this->rapid_move(true, this->anchor1_x, NAN, NAN, NAN, NAN);
+                y += Clean_tap;
+                if (y > -1.0F) y = -1.0F;
+                this->rapid_move(true, NAN, y, NAN, NAN, NAN);
+
+                if (!(y < -1.0F)) break;
+
+                this->rapid_move(true, this->clearance_x, NAN, NAN, NAN, NAN);
+                y += Clean_tap;
+                if (y > -1.0F) y = -1.0F;
+                this->rapid_move(true, NAN, y, NAN, NAN, NAN);
+            }
+
+            cycle++;
+            this->rapid_move(true, this->clearance_x, this->clearance_y, NAN, NAN, NAN);
+        } while ((float) cycle < Clean_cycles);
+    }
+
+    b = false;
+    PublicData::set_value(switch_checksum, extendout_checksum, state_checksum, &b);
+    THEKERNEL->set_bed_cleaning(false);
+}
 
 
 void ATCHandler::fill_autolevel_scripts(float x_pos, float y_pos,
@@ -1484,6 +1544,12 @@ void ATCHandler::on_config_reload(void *argument)
 		this->toolrack_offset_x = THEKERNEL->config->value(coordinate_checksum, toolrack_offset_x_checksum)->by_default(126  )->as_number();
 		this->toolrack_offset_y = THEKERNEL->config->value(coordinate_checksum, toolrack_offset_y_checksum)->by_default(196  )->as_number();
 	}
+    else if(Z1 == THEKERNEL->factory_set->MachineModel || Z1PRO == THEKERNEL->factory_set->MachineModel)
+    {
+        this->toolrack_z = THEKERNEL->config->value(coordinate_checksum, toolrack_z_checksum)->by_default(-108  )->as_number();
+        this->toolrack_offset_x = THEKERNEL->config->value(coordinate_checksum, toolrack_offset_x_checksum)->by_default(126  )->as_number();
+        this->toolrack_offset_y = THEKERNEL->config->value(coordinate_checksum, toolrack_offset_y_checksum)->by_default(196  )->as_number();
+    }
 	
 	atc_tools.clear();
 	if(THEKERNEL->factory_set->FuncSetting & (1<<3))	//for CE1 expand
@@ -1538,6 +1604,16 @@ void ATCHandler::on_config_reload(void *argument)
 		this->clearance_x = THEKERNEL->config->value(coordinate_checksum, clearance_x_checksum)->by_default(-5  )->as_number();
 		this->clearance_y = THEKERNEL->config->value(coordinate_checksum, clearance_y_checksum)->by_default(-21  )->as_number();
 		this->clearance_z = THEKERNEL->config->value(coordinate_checksum, clearance_z_checksum)->by_default(-5  )->as_number();
+	}
+    else if(Z1 == THEKERNEL->factory_set->MachineModel || Z1PRO == THEKERNEL->factory_set->MachineModel)
+    {
+        this->rotation_offset_x = THEKERNEL->config->value(coordinate_checksum, rotation_offset_x_checksum)->by_default(27.0F  )->as_number();
+        this->rotation_offset_y = THEKERNEL->config->value(coordinate_checksum, rotation_offset_y_checksum)->by_default(100.5F  )->as_number();
+        this->rotation_offset_z = THEKERNEL->config->value(coordinate_checksum, rotation_offset_z_checksum)->by_default(17.0F  )->as_number();
+
+        this->clearance_x = THEKERNEL->config->value(coordinate_checksum, clearance_x_checksum)->by_default(-11.6F  )->as_number();
+        this->clearance_y = THEKERNEL->config->value(coordinate_checksum, clearance_y_checksum)->by_default(-14.6F  )->as_number();
+        this->clearance_z = THEKERNEL->config->value(coordinate_checksum, clearance_z_checksum)->by_default(-1  )->as_number();
 	}
 }
 
@@ -2386,6 +2462,28 @@ void ATCHandler::on_gcode_received(void *argument)
 	            this->fill_OutPocket_scripts(tool_dia, X_distance, Y_distance, Z_distance);
 				
 			}
+        } else if (gcode->m == 486) {
+            if (!THEROBOT->is_homed_all_axes()) {
+                this->atc_status = NONE;
+                this->clear_script_queue();
+                this->set_inner_playing(false);
+                return;
+            };
+            if (gcode->subcode == 1) {
+                float Clean_cycles = 1.0;
+                float Clean_tap = 40.0;
+                if (gcode->has_letter('N')) {
+                    Clean_cycles = gcode->get_value('N');
+                }
+                if (gcode->has_letter('T')) {
+                    Clean_tap = gcode->get_value('T');
+                }
+                THEROBOT->push_state();
+                set_inner_playing(true);
+                atc_status = AUTOMATION;
+                this->clear_script_queue();
+                this->fill_Autoclean_scripts(Clean_cycles, Clean_tap);
+			}
 		} else if (gcode->m == 495) {
 			if (!THEROBOT->is_homed_all_axes()) {
 				this->atc_status = NONE;
@@ -2663,7 +2761,8 @@ void ATCHandler::on_main_loop(void *argument)
 	    }
 	    else	//Manual Tool Change
 	    {
-	    	if (THEKERNEL->is_suspending() || THEKERNEL->is_waiting() || THEKERNEL->is_tool_waiting()) 
+            if (THEKERNEL->is_suspending() || THEKERNEL->is_waiting() ||
+                THEKERNEL->is_tool_waiting() || THEKERNEL->is_3DProbeMode())
 	    	{
 	        	return;
 	        }
@@ -2734,9 +2833,18 @@ void ATCHandler::on_main_loop(void *argument)
 		g28_triggered = false;
     } else if (goto_position > -1) {
         rapid_move(true, NAN, NAN, this->clearance_z, NAN, NAN);
+            const bool split_xy =
+                THEKERNEL->factory_set->MachineModel >= Z1
+                && THEKERNEL->factory_set->MachineModel <= Z1PRO
+                && THEKERNEL->axis_is_on[A_AXIS];
 		if (goto_position == 0 || goto_position == 1) {
 			// goto clearance
+                if (split_xy) {
+                    rapid_move(true, NAN, this->clearance_y, NAN, NAN, NAN);
+                    rapid_move(true, this->clearance_x, NAN, NAN, NAN, NAN);
+                } else {
 	        rapid_move(true, this->clearance_x, this->clearance_y, NAN, NAN, NAN);
+                }
 		} else if (goto_position == 2) {
 			// goto work origin
 			float mpos[5];
@@ -2758,13 +2866,28 @@ void ATCHandler::on_main_loop(void *argument)
 				THEROBOT->reset_axis_position(ma, A_AXIS);
 			}
 			
+                if (split_xy) {
+                    rapid_move(false, 0, NAN, NAN, NAN, NAN);
+                    rapid_move(false, NAN, 0, NAN, 0, NAN);
+                } else {
 			rapid_move(false, 0, 0, NAN, 0, NAN);
+                }
 		} else if (goto_position == 3) {
 			// goto anchor 1
 			rapid_move(true, this->anchor1_x, this->anchor1_y, NAN, NAN, NAN);
 		} else if (goto_position == 4) {
 			// goto anchor 2
-			rapid_move(true, this->anchor1_x + this->anchor2_offset_x, this->anchor1_y + this->anchor2_offset_y, NAN, NAN, NAN);
+                if (split_xy) {
+                    rapid_move(true, this->anchor1_x + this->anchor2_offset_x,
+                               NAN, NAN, NAN, NAN);
+                    rapid_move(true, NAN,
+                               this->anchor1_y + this->anchor2_offset_y,
+                               NAN, NAN, NAN);
+                } else {
+                    rapid_move(true, this->anchor1_x + this->anchor2_offset_x,
+                               this->anchor1_y + this->anchor2_offset_y,
+                               NAN, NAN, NAN);
+                }
 		} else if (goto_position == 5) {
 			// goto designative work position
 			if (position_x < 8888 && position_y < 8888 && position_a < 88888888 && position_b < 88888888) {
@@ -3044,12 +3167,17 @@ void ATCHandler::on_set_public_data(void* argument)
         pdr->set_taken();
     }
 	
-	if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
-	{
-		if(pdr->second_element_is(set_job_complete_checksum)) 
-		{
+    if(THEKERNEL->factory_set->MachineModel >= CARVERA_AIR
+       && THEKERNEL->factory_set->MachineModel <= Z1PRO
+       && pdr->second_element_is(set_job_complete_checksum)) {
 	        this->beep_complete();
 	        pdr->set_taken();
+
+        if(THEKERNEL->is_sleeping()) {
+            struct SerialMessage message;
+            message.message.assign("M486.1", 6);
+            message.stream = THEKERNEL->streams;
+            THEKERNEL->call_event(ON_CONSOLE_LINE_RECEIVED, &message);
 	    }
 	}    
 }
@@ -3210,5 +3338,3 @@ void ATCHandler::beep_tool_change(int tool) {
 	this->beep_state = BP_TOOL;
 	this->beep_count = 0;
 }
-
-
