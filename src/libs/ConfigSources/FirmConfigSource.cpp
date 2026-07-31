@@ -15,28 +15,29 @@
 using namespace std;
 #include <string>
 
-// we use objdump in the Makefile to import your config.default file into the compiled code
-// Since the two symbols below are derived from the filename, we need to change them if the filename changes
-extern char _binary_config_default_start;
-extern char _binary_config_default_end;
-extern char _binary_config2_default_start;
-extern char _binary_config2_default_end;
+// Linker symbols for the embedded machine configuration files.
+extern char _binary_config_carvera_default_start;
+extern char _binary_config_carvera_default_end;
+extern char _binary_config_z1pro_default_start;
+extern char _binary_config_z1pro_default_end;
+extern char _binary_config_z1_default_start;
+extern char _binary_config_z1_default_end;
 
 FirmConfigSource::FirmConfigSource(const char* name){
     this->name_checksum = get_checksum(name);
 	switch (THEKERNEL->factory_set->MachineModel)
 	{
-		case CARVERA:
-			this->start= &_binary_config_default_start;
-    		this->end= &_binary_config_default_end;
+        case Z1:
+            this->start= &_binary_config_z1_default_start;
+            this->end= &_binary_config_z1_default_end;
 			break;
-		case CARVERA_AIR:
-			this->start= &_binary_config2_default_start;
-    		this->end= &_binary_config2_default_end;
+        case Z1PRO:
+            this->start= &_binary_config_z1pro_default_start;
+            this->end= &_binary_config_z1pro_default_end;
 			break;
 		default:
-			this->start= &_binary_config_default_start;
-    		this->end= &_binary_config_default_end;
+            this->start= &_binary_config_carvera_default_start;
+            this->end= &_binary_config_carvera_default_end;
 			break;
 	}
     
@@ -98,4 +99,3 @@ string FirmConfigSource::read( uint16_t check_sums[3] ){
 
     return value;
 }
-

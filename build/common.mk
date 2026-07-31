@@ -77,6 +77,11 @@ OUTDIR=../$(DEVICE)
 
 # List of sources to be compiled/assembled
 CSRCS1 = $(wildcard $(SRC)/*.c $(SRC)/*/*.c $(SRC)/*/*/*.c $(SRC)/*/*/*/*.c $(SRC)/*/*/*/*/*.c $(SRC)/*/*/*/*/*/*.c)
+# The M8266 Wi-Fi driver is only needed when the Wi-Fi module is built.
+ifeq (,$(findstring utils/wifi,$(EXCLUDED_MODULES)))
+M8266_LIB = ../build/M8266WIFIDrv_LPC17xx.a
+endif
+
 # Totally exclude network if NONETWORK is defined
 ifeq "$(NONETWORK)" "1"
 CSRCS2 = $(filter-out $(SRC)/libs/Network/%,$(CSRCS1))
@@ -133,9 +138,11 @@ OBJECTS = $(patsubst %.c,$(OUTDIR)/%.o,$(CSRCS)) $(patsubst %.s,$(OUTDIR)/%.o,$(
 # Add in the MBED customization stubs which allow hooking in the MRI debug monitor.
 OBJECTS += $(OUTDIR)/mbed_custom.o
 
-OBJECTS += $(OUTDIR)/configdefault.o
+OBJECTS += $(OUTDIR)/config_carveradefault.o
 
-OBJECTS += $(OUTDIR)/config2default.o
+OBJECTS += $(OUTDIR)/config_z1prodefault.o
+
+OBJECTS += $(OUTDIR)/config_z1default.o
 
 # List of the header dependency files, one per object file.
 DEPFILES = $(patsubst %.o,%.d,$(OBJECTS))
@@ -278,7 +285,7 @@ $(OUTDIR)/$(PROJECT).disasm: $(OUTDIR)/$(PROJECT).elf
 $(OUTDIR)/$(PROJECT).elf: $(LSCRIPT) $(OBJECTS)
 	@echo Linking $@
 	$(Q) $(MKDIR) $(call convert-slash,$(dir $@)) $(QUIET)
-	$(Q) $(LD) $(LDFLAGS) $(OBJECTS) ../build/M8266WIFIDrv_LPC17xx.a $(LIBS) -o $@
+	$(Q) $(LD) $(LDFLAGS) $(OBJECTS) $(M8266_LIB) $(LIBS) -o $@
 
 size: $(OUTDIR)/$(PROJECT).elf
 	$(Q) $(SIZE) $<
@@ -319,10 +326,13 @@ $(OUTDIR)/%.o : %.s makefile
 	$(Q) $(MKDIR) $(call convert-slash,$(dir $@)) $(QUIET)
 	$(Q) $(AS) $(AS_FLAGS) -o $@ $<
 
-$(OUTDIR)/configdefault.o : config.default
+$(OUTDIR)/config_carveradefault.o : config_carvera.default
 	$(Q) $(OBJCOPY) -I binary -O elf32-littlearm -B arm --readonly-text --rename-section .data=.rodata.configdefault $< $@
 
-$(OUTDIR)/config2default.o : config2.default
+$(OUTDIR)/config_z1prodefault.o : config_z1pro.default
 	$(Q) $(OBJCOPY) -I binary -O elf32-littlearm -B arm --readonly-text --rename-section .data=.rodata.config2default $< $@
+
+$(OUTDIR)/config_z1default.o : config_z1.default
+	$(Q) $(OBJCOPY) -I binary -O elf32-littlearm -B arm --readonly-text --rename-section .data=.rodata.config3default $< $@
 
 #########################################################################

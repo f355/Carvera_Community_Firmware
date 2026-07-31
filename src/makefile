@@ -43,12 +43,9 @@ MRI_BREAK_ON_INIT=0
 MRI_SEMIHOST_STDIO=0
 endif
 
-# generate a git version string
-ifneq "$(OS)" "Windows_NT"
-DEFINES += -D__GITVERSIONSTRING__=\"$(shell ./generate-version.sh)\"
-else
-DEFINES += -D__GITVERSIONSTRING__=\"$(shell generate-version.bat)\"
-endif
+# Values reported by M115. Override them for a distinct release build.
+FIRMWARE_BUILD_VERSION ?= 1.0.15
+DEFINES += -D__GITVERSIONSTRING__=\"$(FIRMWARE_BUILD_VERSION)\"
 
 # use c++11 features for the checksums and set default baud rate for serial uart
 DEFINES += -DCHECKSUM_USE_CPP -DDEFAULT_SERIAL_BAUD_RATE=$(DEFAULT_SERIAL_BAUD_RATE)

@@ -27,7 +27,7 @@ Config::Config()
 {
     this->config_cache = NULL;
 
-    // Config source for firm config found in src/config.default
+    // Config source for the selected embedded machine configuration.
     this->config_sources.push_back( new FirmConfigSource("firm") );
 
     // Config source for */config files
@@ -125,6 +125,5 @@ ConfigValue *Config::value(uint16_t check_sums[])
 
     return result;
 }
-
 
 
