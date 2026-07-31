@@ -16,3 +16,8 @@ struct pad_progress {
     std::string filename;
 };
 #endif
+
+#define link_cmd_checksum           CHECKSUM("play_cmd")        // 0x094c
+#define link_file_size_checksum     CHECKSUM("play_filesize")   // 0x1275
+#define link_name_crc_checksum      0xe3be
+#define link_line_queued_checksum   0xd2cc

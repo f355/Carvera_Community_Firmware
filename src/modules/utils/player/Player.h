@@ -10,6 +10,7 @@
 
 #include "Module.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string>
 #include <map>
@@ -18,6 +19,33 @@
 using std::string;
 
 class StreamOutput;
+
+// One received job line: 64 bytes of text and a validity flag.
+struct job_line {
+    char    text[0x40];
+    uint8_t valid;
+};
+
+struct job_line_queue {
+    struct job_line *slots;
+    uint32_t capacity;
+    uint32_t tail;
+    uint32_t head;
+    uint32_t count;
+};
+
+extern struct job_line_queue job_lines;
+// Expected sequence number for the next received job line.
+extern uint32_t job_expected_line;
+// Sequence-error flag for received job lines.
+extern uint8_t job_line_error;
+// End-of-file flag latched by the streaming peer.
+extern uint8_t job_eof;
+// Playback completion is pending.
+extern uint8_t job_complete_pending;
+// Most recently requested line index and time.
+extern uint32_t job_last_request;
+extern uint32_t job_last_request_us;
 
 class Player : public Module {
     public:
@@ -34,6 +62,18 @@ class Player : public Module {
 
     private:
         void play_command( string parameters, StreamOutput* stream );
+        void reset_position_if_pending();
+        void request_job_lines();
+        void maybe_request_job_lines();
+        bool next_job_line(char *buf, unsigned int size);
+        void handle_pending_link_cmd();
+        void cancel_job_stream();
+        void stop_job_outputs();
+        void complete_abort();
+        void abort_finish_tick();
+        void broadcast_status();
+        void reset_job_state();
+        void finish_job();
         void progress_command( string parameters, StreamOutput* stream );
         void abort_command( string parameters, StreamOutput* stream );
         void suspend_command( string parameters, StreamOutput* stream );
@@ -45,17 +85,10 @@ class Player : public Module {
         void test_command(string parameters, StreamOutput* stream );
         string extract_options(string& args);
 
-        void set_serial_rx_irq(bool enable);
-        int inbyte(StreamOutput *stream, unsigned int timeout_ms);
-        int inbytes(StreamOutput *stream, char **buf, int size, unsigned int timeout_ms);
-        unsigned int crc16_ccitt(unsigned char *data, unsigned int len);
-        int check_crc(int crc, unsigned char *data, unsigned int len);
 		
-		int decompress(string sfilename, string dfilename, uint32_t sfilesize, StreamOutput* stream);
 //		int compressfile(string sfilename, string dfilename, StreamOutput* stream);
         // 2024
         // bool check_cluster(const char *gcode_str, float *x_value, float *y_value, float *distance, float *slope, float *s_value);
-        void SendMessage(char cmd, char* s, int size , StreamOutput *stream);
 
         string filename;
         string last_filename;
@@ -76,12 +109,25 @@ class Player : public Module {
         unsigned long played_cnt;
         unsigned long elapsed_secs;
         unsigned long played_lines;
+        // Count of queued job lines reported by the streaming peer.
+        unsigned long queued_lines;
         unsigned long goto_line;
         unsigned int playing_lines;
+        // Filename CRC-16 and the peer's echoed value.
+        uint16_t name_crc;
+        uint16_t host_name_crc;
         uint8_t current_motion_mode;
         float saved_position[3]; // only saves XYZ
         float slope;
         std::map<uint16_t, float> saved_temperatures;
+        // Link message deferred to the main loop.
+        uint8_t pending_link_cmd;
+        // Deferred playback completion state.
+        uint8_t job_ending;
+        uint32_t final_lines;
+        uint32_t final_percent;
+        uint32_t final_playing;
+        uint32_t stop_at_us;
         struct {
             bool on_boot_gcode_enable:1;
             bool booted:1;
