@@ -51,7 +51,9 @@ class Endstops : public Module{
 
         float trim_mm[3];
 
+        // Two switches on the cover; it counts as closed only when both read.
         Pin cover_endstop_pin;
+        Pin cover_endstop2_pin;
 
         // per endstop settings
         using endstop_info_t = struct {

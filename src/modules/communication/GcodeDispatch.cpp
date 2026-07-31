@@ -343,7 +343,9 @@ try_again:
 							// replace stream with one that writes to config-override file
 							gcode->stream = new AppendFileStream(THEKERNEL->config_override_filename());
 							// dispatch the M500 here so we can free up the stream when done
+                            THEKERNEL->push_line(gcode->line);
 							THEKERNEL->call_event(ON_GCODE_RECEIVED, gcode );
+                            THEKERNEL->pop_line();
 							delete gcode->stream;
 							delete gcode;
 							__enable_irq();
@@ -387,7 +389,9 @@ try_again:
 
 				// new_message.stream->printf("dispatch gcode command: '%s' G%d M%d...", gcode->get_command(), gcode->g, gcode->m);
 				//Dispatch message!
+                THEKERNEL->push_line(gcode->line);
 				THEKERNEL->call_event(ON_GCODE_RECEIVED, gcode );
+                THEKERNEL->pop_line();
 
 				if (gcode->is_error) {
 					// report error

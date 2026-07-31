@@ -1148,6 +1148,8 @@ int Robot::get_active_extruder() const
 // process a G0/G1/G2/G3
 void Robot::process_move(Gcode *gcode, enum MOTION_MODE_T motion_mode)
 {
+    if (THEKERNEL->is_tool_waiting() || THEKERNEL->is_aborted()) return;
+
     // we have a G0/G1/G2/G3 so extract parameters and apply offsets to get machine coordinate target
     // get XYZ and one E (which goes to the selected extruder)/A and B
     float param[5]{NAN, NAN, NAN, NAN, NAN};
@@ -1361,6 +1363,10 @@ void Robot::process_move(Gcode *gcode, enum MOTION_MODE_T motion_mode)
             break;
     }
 
+    // A move the abort filter dropped never ran, so the recorded position must
+    // not advance to its target.
+    if(THEKERNEL->discard_line(gcode->line)) return;
+
     // needed to act as start of next arc command
     memcpy(arc_milestone, target, sizeof(arc_milestone));
 
@@ -1491,6 +1497,13 @@ bool Robot::append_milestone(const float target[], float rate_mm_s, unsigned int
 
     // check soft endstops only for homed axis that are enabled
     if(soft_endstop_enabled && !THEKERNEL->is_zprobing()) {
+        float saved_y_min = soft_endstop_min[Y_AXIS];
+        if(THEKERNEL->factory_set->MachineModel >= Z1
+           && THEKERNEL->factory_set->MachineModel <= Z1PRO
+           && THEKERNEL->axis_is_on[A_AXIS]) {
+            soft_endstop_min[Y_AXIS] = -160.0F;
+        }
+
         for (int i = 0; i <= Z_AXIS; ++i) {
             if(!is_homed(i)) continue;
             if( (!isnan(soft_endstop_min[i]) && transformed_target[i] < soft_endstop_min[i]) || (!isnan(soft_endstop_max[i]) && transformed_target[i] > soft_endstop_max[i]) ) {
@@ -1522,6 +1535,8 @@ bool Robot::append_milestone(const float target[], float rate_mm_s, unsigned int
                 }
             }
         }
+
+        soft_endstop_min[Y_AXIS] = saved_y_min;
     }
 
 
@@ -1708,6 +1723,8 @@ bool Robot::append_milestone(const float target[], float rate_mm_s, unsigned int
         // if we also got a HALT then break out of this
         if(THEKERNEL->is_halted()) return false;
     }
+
+    if(THEKERNEL->discard_line(line)) return false;
 
     // Append the block to the planner
     // NOTE that distance here should be either the distance travelled by the XYZ axis, or the E mm travel if a solo E move
@@ -1961,7 +1978,10 @@ bool Robot::append_arc(Gcode * gcode, const float target[], const float offset[]
         arc_target[this->plane_axis_2] = this->machine_position[this->plane_axis_2];
 
         for (i = 1; i < segments; i++) { // Increment (segments-1)
-            if(THEKERNEL->is_halted()) return false; // don't queue any more segments
+            if(THEKERNEL->is_halted() ||
+               THEKERNEL->discard_line(gcode->line)) {
+                return false;
+            }
 
             if (count < this->arc_correction ) {
                 // Apply vector rotation matrix
@@ -1991,6 +2011,7 @@ bool Robot::append_arc(Gcode * gcode, const float target[], const float offset[]
     }
 
     // Ensure last segment arrives at target location.
+    if (THEKERNEL->discard_line(gcode->line)) return false;
     if(this->append_milestone(target, rate_mm_s, gcode->line)) moved= true;
 
     return moved;

@@ -24,6 +24,8 @@ public:
 
     void wait_for_idle(bool wait_for_motors=true);
     bool is_queue_empty() { return queue.is_empty(); };
+    // The line the block now at the tail came from, or zero when nothing is queued.
+    unsigned int queued_line();
     bool is_queue_full() { return queue.is_full(); };
     bool is_idle() const;
 
@@ -33,6 +35,7 @@ public:
 
     void dump_queue(void);
     void flush_queue(void);
+    void discard_queued_blocks_after(unsigned int line);
     float get_current_feedrate() const { return current_feedrate; }
     void force_queue() { check_queue(true); }
 

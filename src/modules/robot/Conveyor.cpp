@@ -151,10 +151,43 @@ void Conveyor::wait_for_idle(bool wait_for_motors)
 /*
  * push the pre-prepared head block onto the queue
  */
+unsigned int Conveyor::queued_line()
+{
+    if (queue.is_empty()) return 0;
+    return queue.tail_ref()->line;
+}
+
+void Conveyor::discard_queued_blocks_after(unsigned int line)
+{
+    running = false;
+    allow_fetch = true;
+
+    bool discarded = false;
+    do {
+        while (queue.isr_tail_i != queue.head_i
+               && queue.item_ref(queue.isr_tail_i)->line > line) {
+            queue.isr_tail_i = queue.next(queue.isr_tail_i);
+            discarded = true;
+        }
+        THEKERNEL->call_event(ON_IDLE, this);
+    } while (discarded
+             && (discarded = false, queue.isr_tail_i != queue.head_i));
+
+    if (queue.head_ref()->line > line) {
+        queue.head_ref()->clear();
+    }
+    running = true;
+}
+
 void Conveyor::queue_head_block()
 {
-    // upstream caller will block on this until there is room in the queue
-    while (queue.is_full() && !THEKERNEL->is_halted()) {
+    // upstream caller will block on this until there is room in the queue.
+    // An abort landing while the queue is full has to break the spin: this loop
+    // only pumps ON_IDLE, so the wind-down that would flush the queue cannot
+    // run from here.
+    while (queue.is_full()
+           && !THEKERNEL->is_halted()
+           && !THEKERNEL->discard_line(queue.head_ref()->line)) {
         //check_queue();
         THEKERNEL->call_event(ON_IDLE, this); // will call check_queue();
     }
@@ -164,6 +197,12 @@ void Conveyor::queue_head_block()
         // clear and release the block on the head
         queue.head_ref()->clear();
         return; // if we got a halt then we are done here
+    }
+
+    if(THEKERNEL->discard_line(queue.head_ref()->line)) {
+        // an abort landed before this line, so the move never runs
+        queue.head_ref()->clear();
+        return;
     }
 
     queue.produce_head();

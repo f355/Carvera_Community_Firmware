@@ -25,6 +25,7 @@
 #include "libs/StreamOutput.h"
 #include "PublicDataRequest.h"
 #include "EndstopsPublicAccess.h"
+#include "us_ticker_api.h"
 #include "StreamOutputPool.h"
 #include "StepTicker.h"
 #include "BaseSolution.h"
@@ -91,6 +92,7 @@ enum DEFNS { MIN_PIN, MAX_PIN, MAX_TRAVEL, FAST_RATE, SLOW_RATE, RETRACT, DIRECT
 #define motor_alarm_checksum               CHECKSUM("limit_enable")
 
 #define cover_endstop_checksum              CHECKSUM("cover_endstop")
+#define cover_endstop2_checksum             CHECKSUM("cover_endstop2")
 
 #define STEPPER THEROBOT->actuators
 #define STEPS_PER_MM(a) (STEPPER[a]->get_steps_per_mm())
@@ -493,7 +495,8 @@ void Endstops::get_global_configs()
     this->trim_mm[1] = THEKERNEL->config->value(beta_trim_checksum)->by_default(0)->as_number();
     this->trim_mm[2] = THEKERNEL->config->value(gamma_trim_checksum)->by_default(0)->as_number();
 
-	this->cover_endstop_pin.from_string( THEKERNEL->config->value(cover_endstop_checksum)->by_default("1.9^" )->as_string())->as_input();
+    this->cover_endstop_pin.from_string( THEKERNEL->config->value(cover_endstop_checksum)->by_default("1.9v" )->as_string())->as_input();
+    this->cover_endstop2_pin.from_string( THEKERNEL->config->value(cover_endstop2_checksum)->by_default("1.14v" )->as_string())->as_input();
 
     // see if an order has been specified, must be three or more characters, XYZABC or ABYXZ etc
     string order = THEKERNEL->config->value(homing_order_checksum)->by_default("")->as_string();
@@ -560,6 +563,9 @@ void Endstops::on_idle(void *argument)
     
     if(THEKERNEL->is_halted()) return;
     
+    // Leave the drivers alone until they have settled after power-up. Only the
+    // alarm walk waits; the limit scan below still runs.
+    if((us_ticker_read() - THEKERNEL->motor_alarm_epoch_us) > 300000) {
     for(auto& i : motor_alarms) {
 		// check min and max endstops
 		if(debounced_get(&i->pin)) {
@@ -574,6 +580,7 @@ void Endstops::on_idle(void *argument)
 			THEKERNEL->set_halt_reason(MOTOR_ERROR_X + i->axis_index);
 			THEKERNEL->call_event(ON_HALT, nullptr);
 			return;
+            }
 		}
 	}
 	
@@ -765,6 +772,23 @@ uint32_t Endstops::read_endstops(uint32_t dummy)
 void Endstops::home_xy()
 {
     if(axis_to_home[X_AXIS] && axis_to_home[Y_AXIS]) {
+        bool z1 = THEKERNEL->factory_set->MachineModel >= Z1
+                  && THEKERNEL->factory_set->MachineModel <= Z1PRO;
+        if(z1 && THEKERNEL->axis_is_on[A_AXIS]) {
+            // One axis at a time, Y first.
+            float dy[3] {0, homing_axis[Y_AXIS].max_travel, 0};
+            if(homing_axis[Y_AXIS].home_direction) dy[Y_AXIS]= -dy[Y_AXIS];
+            THEROBOT->delta_move(dy, homing_axis[Y_AXIS].fast_rate, 3);
+
+            float dx[3] {homing_axis[X_AXIS].max_travel, 0, 0};
+            if(homing_axis[X_AXIS].home_direction) dx[X_AXIS]= -dx[X_AXIS];
+            THEROBOT->delta_move(dx, homing_axis[X_AXIS].fast_rate, 3);
+
+            // Falls into the shared tail, so the wait below still runs.
+            THECONVEYOR->wait_for_idle();
+            return;
+        }
+
         // Home XY first so as not to slow them down by homing Z at the same time
         float delta[3] {homing_axis[X_AXIS].max_travel, homing_axis[Y_AXIS].max_travel, 0};
         if(homing_axis[X_AXIS].home_direction) delta[X_AXIS]= -delta[X_AXIS];
@@ -853,10 +877,9 @@ void Endstops::check_4th(char *data)
 }
 void Endstops::home(axis_bitmap_t a)
 {
-	bool axis_is_on[homing_axis.size()];
 	for (size_t i = X_AXIS; i < homing_axis.size(); ++i)
 	{
-		axis_is_on[i] = false;
+        THEKERNEL->axis_is_on[i] = false;
 	}
 	
     // reset debounce counts for all endstops
@@ -916,12 +939,12 @@ void Endstops::home(axis_bitmap_t a)
 		                THECONVEYOR->wait_for_idle();
 		                if(!homing_axis[i].pin_info->pin.get())
 		                {
-		                	axis_is_on[i] = true;
+                            THEKERNEL->axis_is_on[i] = true;
 		                }
 	                }
 	                else
 	                {
-	                	axis_is_on[i] = true;
+                        THEKERNEL->axis_is_on[i] = true;
 	                }
 	            }
 	        }
@@ -931,7 +954,7 @@ void Endstops::home(axis_bitmap_t a)
     	// potentially home A B and C individually
 	    if(homing_axis.size() > 3){
 	        for (size_t i = A_AXIS; i < homing_axis.size(); ++i) {
-	            if(axis_to_home[i] && (axis_is_on[i] == true)) {
+                if(axis_to_home[i] && (THEKERNEL->axis_is_on[i] == true)) {
 	                // now home A B or C
 	                float delta[i+1];
 	                for (size_t j = 0; j <= i; ++j) delta[j]= 0;
@@ -982,7 +1005,7 @@ void Endstops::home(axis_bitmap_t a)
     // also check ABC
     if(homing_axis.size() > 3){
         for (size_t i = A_AXIS; i < homing_axis.size(); ++i) {
-            if(axis_to_home[i] && !homing_axis[i].pin_info->triggered && (axis_is_on[i] == true)) {
+            if(axis_to_home[i] && !homing_axis[i].pin_info->triggered && (THEKERNEL->axis_is_on[i] == true)) {
                 this->status = NOT_HOMING;
                 THEKERNEL->set_halt_reason(HOME_FAIL);
                 THEKERNEL->call_event(ON_HALT, nullptr);
@@ -1520,11 +1543,11 @@ void Endstops::on_get_public_data(void* argument)
         	}
         }
         // cover endstop
-        data[5] = (char)this->cover_endstop_pin.get();
+        data[5] = (char)(this->cover_endstop_pin.get() && this->cover_endstop2_pin.get());
         pdr->set_taken();
     } else if (pdr->second_element_is(get_cover_endstop_state_checksum)) {
         bool *cover_state = static_cast<bool *>(pdr->get_data_ptr());
-        *cover_state = this->cover_endstop_pin.get();
+        *cover_state = this->cover_endstop_pin.get() && this->cover_endstop2_pin.get();
         pdr->set_taken();
     } else if (pdr->second_element_is(get_endstopAB_states_checksum)) {
     	int index = 0;

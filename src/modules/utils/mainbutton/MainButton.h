@@ -47,6 +47,9 @@ class MainButton : public Module {
         bool enable_light;
         uint8_t turn_off_light_min;
         uint32_t light_countdown_us;
+        // light.ledBrightness. Every colour the ring shows is this value or
+        // zero on each channel; nothing scales it.
+        uint8_t led_brightness;
 
         bool button_pressed;
         volatile BUTTON_STATE button_state;
