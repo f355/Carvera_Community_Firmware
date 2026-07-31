@@ -66,7 +66,7 @@ FATFileSystem::FATFileSystem(const char* n) : FileSystemLike(n) {
             return;
         }
     }
-    error("Couldn't create %s in FATFileSystem::FATFileSystem\n",n);
+    // Return an allocation failure when the drive table is full.
 }
 
 FATFileSystem::~FATFileSystem() {
