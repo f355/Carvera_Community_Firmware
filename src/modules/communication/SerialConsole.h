@@ -21,6 +21,24 @@ using std::string;
 #define baud_rate_setting_checksum CHECKSUM("baud_rate")
 enum ParseState { WAIT_HEADER, READ_LENGTH, READ_DATA, CHECK_FOOTER };
 
+// Filled from a PTYPE_JOB_INFO frame and read by the player when it resumes
+// a job. Sixteen bytes, the first of which says whether the rest is valid.
+struct job_info {
+    unsigned char valid;
+    unsigned char data[15];
+};
+extern struct job_info job_info_block;
+
+struct SerialPacket {
+    uint16_t header;
+    uint16_t length;
+    uint8_t type;
+    uint8_t data[545];
+    uint16_t crc;
+    uint16_t footer;
+};
+static_assert(sizeof(SerialPacket) == 554, "unexpected serial packet layout");
+
 class SerialConsole : public Module, public StreamOutput {
     public:
         SerialConsole( PinName rx_pin, PinName tx_pin, int baud_rate );
@@ -36,17 +54,20 @@ class SerialConsole : public Module, public StreamOutput {
         int _putc(int c);
         int _getc(void);
         int puts(const char*, int size = 0);
-        int gets(char** buf, int size = 0);
         bool ready();
         char getc_result;
-		void reset(void){ptrData=0;ptr_xbuff=0;currentState = WAIT_HEADER;};
 		int printfcmd(const char cmd, const char *format, ...);
 		int printf(const char *format, ...) __attribute__ ((format(printf, 2, 3)));
 
    private:
    		
+    public:
     	void PacketMessage(char cmd, const char* s, int size);
-    	int CheckFilePacket(char** buf);
+        // Blocking receive used before the event loop starts. The timeout
+        // argument is retained by the protocol API but the implementation uses
+        // its fixed 100 ms stage timeout.
+        int receive_packet(SerialPacket* packet, int timeout_ms = 100);
+    private:
 	    unsigned int crc16_ccitt(unsigned char *data, unsigned int len);
         mbed::Serial* serial;
         struct {
@@ -54,10 +75,6 @@ class SerialConsole : public Module, public StreamOutput {
           bool halt_flag:1;
           bool diagnose_flag:1;
         };
-    	ParseState currentState = WAIT_HEADER;    
-    	
-	    int ptrData;
-	    int ptr_xbuff;
 };
 
 #endif

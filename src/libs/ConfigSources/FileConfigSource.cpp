@@ -17,7 +17,13 @@ using namespace std;
 #include <string>
 #include <string.h>
 
-#define include_checksum     CHECKSUM("include")
+#include "libs/Kernel.h"
+#include "modules/communication/SerialConsole.h"
+#include "PublicData.h"
+
+// Maximum record payload advertised when a configuration transfer starts.
+#define CONFIG_RECORD_MAX    132
+
 
 FileConfigSource::FileConfigSource(string config_file, const char *name)
 {
@@ -50,74 +56,132 @@ bool FileConfigSource::readLine(string& line, int lineno, FILE *fp)
 }
 
 // Transfer all values found in the file to the passed cache
-void FileConfigSource::transfer_values_to_cache( ConfigCache *cache )
+// Receives configuration records from the link and updates the cache one line
+// at a time.
+bool FileConfigSource::handle_config_packet( ConfigCache *cache, const SerialPacket& packet, uint8_t *state,
+                                             uint32_t *record_count, uint32_t *index )
 {
-    if( !this->has_config_file() ) {
-        return;
-    }
-    transfer_values_to_cache( cache, this->get_config_file().c_str());
-}
+    const uint16_t data_len = packet.length;
+    char reply[8];
 
-void FileConfigSource::transfer_values_to_cache( ConfigCache *cache, const char * file_name )
-{
-    if( !file_exists(file_name) ) {
-        return;
-    }
+    switch(packet.type)
+    {
+        case PTYPE_CONFIG_START:
+            // Start the transfer and advertise the record payload limit.
+            reply[0] = 0; reply[1] = 0; reply[2] = 0; reply[3] = 0;
+            reply[4] = (CONFIG_RECORD_MAX >> 8) & 0xFF;
+            reply[5] = CONFIG_RECORD_MAX & 0xFF;
+            THEKERNEL->serial->PacketMessage(PTYPE_CONFIG_VIEW, reply, 6);
+            break;
 
-    // Open the config file ( find it if we haven't already found it )
-    FILE *lp = fopen(file_name, "r");
-
-    int ln= 1;
-    // For each line
-    while(!feof(lp)) {
-        string line;
-        if(readLine(line, ln++, lp)) {
-            // process the config line and store the value in cache
-            ConfigValue* cv = process_line_from_ascii_config(line, cache);
-
-            if(cv == nullptr) continue;
-
-            // if this line is an include directive then attempt to read the included file
-            if(cv->check_sums[0] == include_checksum) {
-                string inc_file_name = cv->value.c_str();
-                cache->pop(); // we do not need to keep this around or leave it on the list
-
-                if(!file_exists(inc_file_name)) {
-                    // if the file is not found at the location entered then look around for it a bit
-                    if(inc_file_name[0] != '/') inc_file_name = "/" + inc_file_name;
-                    string path(file_name);
-                    path = path.substr(0,path.find_last_of('/'));
-
-                    // first check the path of the current config file
-                    if(file_exists(path + inc_file_name)) inc_file_name = path + inc_file_name;
-                    // then check root locations
-                    else if(file_exists("/sd" + inc_file_name)) inc_file_name = "/sd" + inc_file_name;
-                    else if(file_exists("/local" + inc_file_name)) inc_file_name = "/local" + inc_file_name;
-                }
-                if(file_exists(inc_file_name)) {
-                    printf("Including config file: %s\n", inc_file_name.c_str());
-
-                    // save position in current config file
-                    fpos_t pos;
-                    fgetpos(lp, &pos);
-
-                    // open and read the included file
-                    freopen(inc_file_name.c_str(), "r", lp);
-                    this->transfer_values_to_cache(cache, inc_file_name.c_str());
-
-                    // reopen the current config file and restore position
-                    freopen(file_name, "r", lp);
-                    fsetpos(lp, &pos);
-                }else{
-                    printf("Unable to find included config file: %s\n", inc_file_name.c_str());
-                }
-            }
-
-        }else {
+        case PTYPE_CONFIG_VIEW: {
+            if (*state != 1) break;
+            if (data_len <= 5) break;
+            *record_count = ((uint32_t)packet.data[0]<<24) | ((uint32_t)packet.data[1]<<16)
+                          | ((uint32_t)packet.data[2]<<8)  |  (uint32_t)packet.data[3];
+            uint32_t want = *index + 1;
+            reply[0] = (want >> 24) & 0xFF; reply[1] = (want >> 16) & 0xFF;
+            reply[2] = (want >> 8) & 0xFF;  reply[3] = want & 0xFF;
+            *state = 2;
+            THEKERNEL->serial->PacketMessage(PTYPE_CONFIG_DATA, reply, 4);
             break;
         }
+
+        case PTYPE_CONFIG_DATA: {
+            if (*state != 2 && *state != 3) {
+                reply[0] = 6;
+                THEKERNEL->serial->PacketMessage(PTYPE_CONFIG_CANCEL, reply, 1);
+                *state = 0;
+                break;
+            }
+            *state = 3;
+            if (data_len <= 4) break;
+            uint32_t idx = ((uint32_t)packet.data[0]<<24) | ((uint32_t)packet.data[1]<<16)
+                         | ((uint32_t)packet.data[2]<<8)  |  (uint32_t)packet.data[3];
+            if (idx != *index + 1) break;
+
+            // Split the aggregate on LF or NUL and hand each record over.
+            uint16_t payload = data_len - 7;
+            uint32_t begin = 0;
+            uint32_t next = idx;
+            char buf[0x82];
+            for (uint32_t i = 1; ; i++) {
+                uint32_t at = i - 1;
+                char c = packet.data[4 + at];
+                if ((at == payload || c == '\n' || c == '\0') && at != begin) {
+                    memset(buf, 0, sizeof(buf));
+                    memcpy(buf, packet.data + 4 + begin, (at - begin) + 1);
+                    buf[(at - begin) + 1] = '\0';
+                    string line(buf, sizeof(buf));
+                    this->process_line_from_ascii_config(line, cache);
+                    *index = next;
+                    next++;
+                    begin = i;
+                } else if (at == payload || c == '\n' || c == '\0') {
+                    begin = i;
+                }
+                if ((int)i > (int)payload) break;
+            }
+
+            if (*index >= *record_count) goto finished;   // last record: fall into FINISH
+            uint32_t want = *index + 1;
+            reply[0] = (want >> 24) & 0xFF; reply[1] = (want >> 16) & 0xFF;
+            reply[2] = (want >> 8) & 0xFF;  reply[3] = want & 0xFF;
+            THEKERNEL->serial->PacketMessage(PTYPE_CONFIG_DATA, reply, 4);
+            break;
+        }
+
+        case PTYPE_CONFIG_FINISH:
+        case PTYPE_CONFIG_CANCEL:
+        finished:
+            THEKERNEL->serial->PacketMessage(PTYPE_CONFIG_FINISH, NULL, 0);
+            *state = 0;
+            return true;
     }
-    fclose(lp);
+    return false;
+}
+
+void FileConfigSource::transfer_values_to_cache( ConfigCache *cache )
+{
+    uint8_t state = 0;
+    uint32_t record_count = 0;
+    uint32_t index = 0;
+    int tries = 0;
+    SerialPacket packet;
+
+    THEKERNEL->serial->PacketMessage(PTYPE_CONFIG_START, NULL, 0);
+
+    for (;;) {
+        bool got = (THEKERNEL->serial->receive_packet(&packet, 100) == 0);
+        tries++;
+
+        if (got) {
+            this->handle_config_packet(cache, packet, &state, &record_count, &index);
+            if (packet.type == PTYPE_CONFIG_START) break;
+            if (packet.type == PTYPE_CONFIG_CANCEL) return;
+}
+
+        // Retry the transfer every fifth receive attempt.
+        if (tries % 5 == 0) THEKERNEL->serial->PacketMessage(PTYPE_CONFIG_START, NULL, 0);
+        if (tries > 19) goto give_up;
+    }
+
+    state = 1;
+    tries = 0;
+    for (;;) {
+        if (THEKERNEL->serial->receive_packet(&packet, 100) != 0) {
+            tries++;
+            if (tries > 20) goto give_up;
+            continue;
+        }
+        if ((packet.type & 0xf0) != 0xD0) continue;
+        if (this->handle_config_packet(cache, packet, &state, &record_count, &index)) break;
+        tries = 0;
+    }
+    return;
+
+give_up:
+    THEKERNEL->serial->PacketMessage(PTYPE_CONFIG_CANCEL, NULL, 0);
 }
 
 // Return true if the check_sums match
@@ -241,8 +305,6 @@ string FileConfigSource::get_config_file()
         return "";
     }
 }
-
-
 
 
 

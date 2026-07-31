@@ -66,6 +66,7 @@ Kernel* Kernel::instance;
 #define	EEP_MAX_PAGE_SIZE	32
 #define EEPROM_DATA_STARTPAGE	1
 #define EEPROM_FACTORYSET_PAGE	16
+#define EEPROM_PROBEADDR_PAGE    17
 // The kernel is the central point in Smoothie : it stores modules, and handles event calls
 Kernel::Kernel()
 {
@@ -84,39 +85,42 @@ Kernel::Kernel()
     halt_reason = MANUAL;
     atc_state = 0;
     zprobing = false;
-    probeLaserOn = false;
     probe_addr = 0;
+    play_spindle_fan_value = 30;
     checkled = false;
     spindleon = false;
+    probeLaserOn = false;
     cachewait = false;
     b_3DProbeMode = false;
+    position_reset_pending = false;
+    auto_blowing = false;
+    bed_cleaning = false;
+    discard_filter_secondary = false;
+    abort_line = 0;
+    current_line = 0;
+    line_depth = 0;
+    motor_alarm_epoch_us = 0xffffffff;
+    abort_finishing = 0;
 
     instance = this; // setup the Singleton instance of the kernel    
     
     // init I2C
     this->i2c = new mbed::I2C(P0_27, P0_28);
     this->i2c->frequency(200000);
-    
+
+    this->serial = new(AHB0) SerialConsole(P2_8, P2_9, 230400);
+
     this->factory_set = new(AHB0) FACTORY_SET();
     // read Factory setting data from eeprom
     this->read_Factory_data();
     // read Factory settings data from sd
     this->read_Factroy_SD();
 
-    // serial first at fixed baud rate (DEFAULT_SERIAL_BAUD_RATE) so config can report errors to serial
-    // Set to UART0, this will be changed to use the same UART as MRI if it's enabled
-    this->serial = new(AHB0) SerialConsole(P2_8, P2_9, DEFAULT_SERIAL_BAUD_RATE);
-    // this->serial = new SerialConsole(USBTX, USBRX, DEFAULT_SERIAL_BAUD_RATE);
-
     // Config next, but does not load cache yet
     this->config = new(AHB0) Config();
 
     // Pre-load the config cache, do after setting up serial so we can report errors to serial
     this->config->config_cache_load();
-
-    // now config is loaded we can do normal setup for serial based on config
-    delete this->serial;
-    this->serial = NULL;
 
     this->streams = new(AHB0) StreamOutputPool();
 
@@ -146,12 +150,6 @@ Kernel::Kernel()
 
     // init FT232
 
-
-    // default
-    if(this->serial == NULL) {
-        // this->serial = new(AHB0) SerialConsole(P2_8, P2_9, this->config->value(uart_checksum, baud_rate_setting_checksum)->by_default(DEFAULT_SERIAL_BAUD_RATE)->as_number());
-    	this->serial = new(AHB0) SerialConsole(P2_8, P2_9, 115200);
-    }
 
     //some boards don't have leds.. TOO BAD!
     this->use_leds = !this->config->value( disable_leds_checksum )->by_default(false)->as_bool();
@@ -214,6 +212,7 @@ Kernel::Kernel()
     this->read_eeprom_data();
     // check eeprom data
     this->check_eeprom_data();
+    this->read_ProbeAddr_data();
 
     // Core modules
     this->add_module( this->conveyor       = new(AHB0) Conveyor()      );
@@ -264,9 +263,9 @@ std::string Kernel::get_query_string()
 
     str.append("<");
     if (state == SLEEP) {
-    	str.append("Sleep");
+        str.append("Sleep");
     } else if (state == SUSPEND) {
-    	str.append("Pause");
+        str.append("Pause");
     } else if (state == WAIT) {
         str.append("Wait");
     } else if (state == TOOL) {
@@ -387,13 +386,16 @@ std::string Kernel::get_query_string()
 	
     // get power temperature
     ok = PublicData::get_value( temperature_control_checksum, current_temperature_checksum, power_temperature_checksum, &temp );
-	if (!ok) temp.current_temperature = 0;
-    n= snprintf(buf, sizeof(buf), ",%1.1f", temp.current_temperature);
+    if (ok) {
+        n= snprintf(buf, sizeof(buf), ",%1.1f", temp.current_temperature);
     if(n > sizeof(buf)) n= sizeof(buf);
     str.append(buf, n);
+    }
 	
-	// get extout_mode 
-	n= snprintf(buf, sizeof(buf), ",%d,%d,%d", 0, 0, int(this->get_extout_mode()));
+    // Auxiliary status fields.
+    n= snprintf(buf, sizeof(buf), ",%d,%d,%d,%d",
+                int(this->get_extout_mode()), int(reserved_dd3), 0,
+                int(reserved_dd4));
     if(n > sizeof(buf)) n= sizeof(buf);
     str.append(buf, n);
 
@@ -625,16 +627,6 @@ std::string Kernel::get_diagnose_string()
         if(n > sizeof(buf)) n = sizeof(buf);
         str.append(buf, n);
     }
-    
-    // get wifi rssi
-    signed char rssidata;
-    ok = PublicData::get_value(wlan_checksum, get_rssi_checksum, 0, &rssidata);
-    if (ok) {
-        n = snprintf(buf, sizeof(buf), "|RSSI:%d", rssidata);
-        if(n > sizeof(buf)) n = sizeof(buf);
-        str.append(buf, n);
-    }
-
     str.append("}\n");
     return str;
 }
@@ -881,7 +873,8 @@ void Kernel::read_Factory_data()
 
     wait(0.05);
 	
-	if( Check_Factory_Data((unsigned char*)i2c_buffer, sizeof(FACTORY_SET)+2 ) )
+    if( i2c_buffer[0] == 0x5A && (unsigned char)i2c_buffer[1] == 0xA5
+        && check_crc_record((unsigned char*)i2c_buffer, sizeof(FACTORY_SET)+2 ) )
 	{
     	memcpy(this->factory_set, &i2c_buffer[2], size);
     }
@@ -898,6 +891,41 @@ void Kernel::read_Factory_data()
     {
     	this->factory_set->FuncSetting |= 0x04;
     }
+}
+
+void Kernel::read_ProbeAddr_data()
+{
+    char i2c_buffer[8];
+
+    short address = EEPROM_PROBEADDR_PAGE * EEP_MAX_PAGE_SIZE;
+    i2c_buffer[0] = (unsigned char)(address >> 8);
+    i2c_buffer[1] = (unsigned char)address;
+
+    this->i2c->start();
+    this->i2c->write(0xA0);
+    this->i2c->write(i2c_buffer[0]);
+    this->i2c->write(i2c_buffer[1]);
+    this->i2c->start();
+    this->i2c->write(0xA1);
+
+    for (unsigned int i = 0; i < sizeof(i2c_buffer); i++) {
+        i2c_buffer[i] = this->i2c->read(1);
+    }
+
+    this->i2c->stop();
+    this->i2c->stop();
+    wait(0.05);
+
+    if (i2c_buffer[0] == 0x5A && (unsigned char)i2c_buffer[1] == 0xA5
+        && check_crc_record((unsigned char*)i2c_buffer, 6)) {
+        uint32_t value = (unsigned char)i2c_buffer[2];
+        value <<= (unsigned char)i2c_buffer[3] + 24;
+        value <<= (unsigned char)i2c_buffer[4] + 16;
+        value <<= (unsigned char)i2c_buffer[5] + 8;
+        this->probe_addr = value;
+        return;
+    }
+    this->probe_addr = 0;
 }
 
 void Kernel::write_Factory_data()
@@ -984,87 +1012,185 @@ void Kernel::erase_Factory_data()
 #define ATC_enable_checksum             		CHECKSUM("Atc_enable")
 #define CE1_Expand								CHECKSUM("CE1_Expand")
 
-void Kernel::read_Factroy_SD()
-{
-	string file_name = "/sd/factory.ini";
-	FILE *lp = fopen(file_name.c_str(), "r");
-	bool bneedwrite = false;
-    int ln= 1;
-    if(lp) {
-        // For each line
-    	while(!feof(lp)) {
-        	string line;
-        	if(Factroy_readLine(line, ln++, lp)) 
+// Maximum factory-record payload used by the transfer protocol.
+#define FACTORY_RECORD_MAX                    132
+
+// Apply one factory-settings line.
+void Kernel::apply_Factory_line(string& line, bool *bneedwrite)
         	{ 
         		uint16_t keychecksum;
         		unsigned char value;
-        		if(process_line(line, &keychecksum, &value))
-        		{
-        			switch(keychecksum)
-        			{
-        				case Machine_Model_checksum:
-        					this->factory_set->MachineModel = value;
-        					bneedwrite = true;
+
+    if (!process_line(line, &keychecksum, &value)) return;
+
+    switch(keychecksum)
+    {
+        case Machine_Model_checksum:
+            this->factory_set->MachineModel = value;
+            *bneedwrite = true;
+            break;
+        case A_Axis_home_enable_checksum:
+            if( 1 == value )
+                this->factory_set->FuncSetting |= 1<<0;
+            else
+                this->factory_set->FuncSetting &= ~(1<<0);
+
+            *bneedwrite = true;
+            break;
+        case C_Axis_home_enable_checksum:
+            if( 1 == value )
+                this->factory_set->FuncSetting |= 1<<1;
+            else
+                this->factory_set->FuncSetting &= ~(1<<1);
+
+            *bneedwrite = true;
+            break;
+        case ATC_enable_checksum:
+            if( 1 == value )
+                this->factory_set->FuncSetting |= 1<<2;
+            else
+                this->factory_set->FuncSetting &= ~(1<<2);
+
+            *bneedwrite = true;
+            break;
+        case CE1_Expand:
+            if( 1 == value )
+                this->factory_set->FuncSetting |= 1<<3;
+            else
+                this->factory_set->FuncSetting &= ~(1<<3);
+
+            *bneedwrite = true;
+            break;
+        default:
+            break;
+    }
+}
+
+// One received factory frame. Returns true once the transfer has reached a
+// terminal notification and the caller should stop.
+bool Kernel::handle_Factory_packet(const SerialPacket& packet, uint8_t *state, uint32_t *record_count,
+                                   uint32_t *index, bool *bneedwrite)
+{
+    const uint16_t data_len = packet.length;
+    char reply[8];
+
+    switch(packet.type)
+    {
+        case PTYPE_FACTORY_START:
+            // Start the transfer and request the record count.
+            reply[0] = 0; reply[1] = 0; reply[2] = 0; reply[3] = 0;
+            reply[4] = (FACTORY_RECORD_MAX >> 8) & 0xFF;
+            reply[5] = FACTORY_RECORD_MAX & 0xFF;
+            this->serial->PacketMessage(PTYPE_FACTORY_VIEW, reply, 6);
         					break;
-        				case A_Axis_home_enable_checksum:
-        					if( 1 == value )
-        						this->factory_set->FuncSetting |= 1<<0;
-        					else
-        						this->factory_set->FuncSetting &= ~(1<<0);
         					
-        					bneedwrite = true;
-        					break;
-        				case C_Axis_home_enable_checksum:
-        					if( 1 == value )
-        						this->factory_set->FuncSetting |= 1<<1;
-        					else
-        						this->factory_set->FuncSetting &= ~(1<<1);
-        						
-        					bneedwrite = true;
-        					break;
-        				case ATC_enable_checksum:
-        					if( 1 == value )
-        						this->factory_set->FuncSetting |= 1<<2;
-        					else
-        						this->factory_set->FuncSetting &= ~(1<<2);
-        					
-        					bneedwrite = true;
-        					break;
-        				case CE1_Expand:
-        					if( 1 == value )
-        						this->factory_set->FuncSetting |= 1<<3;
-        					else
-        						this->factory_set->FuncSetting &= ~(1<<3);
-        					
-        					bneedwrite = true;
-        					break;
-        				default:
-        					break;
-        					
+        case PTYPE_FACTORY_VIEW:
+            if (*state != 1) break;
+            if (data_len <= 5) break;
+            *record_count = ((uint32_t)packet.data[0]<<24) | ((uint32_t)packet.data[1]<<16)
+                          | ((uint32_t)packet.data[2]<<8)  |  (uint32_t)packet.data[3];
+            // Request the first record.
+            {
+                uint32_t want = *index + 1;
+                reply[0] = (want >> 24) & 0xFF; reply[1] = (want >> 16) & 0xFF;
+                reply[2] = (want >> 8) & 0xFF;  reply[3] = want & 0xFF;
+                *state = 2;
+                this->serial->PacketMessage(PTYPE_FACTORY_DATA, reply, 4);
+            }
+            break;
+
+        case PTYPE_FACTORY_DATA: {
+            if (*state != 2 && *state != 3) {
+                // Cancel the transfer after an out-of-sequence record.
+                reply[0] = 6;
+                this->serial->PacketMessage(PTYPE_FACTORY_CANCEL, reply, 1);
+                *state = 0;
+                break;
+            }
+            *state = 3;
+            if (data_len <= 4) break;
+            uint32_t idx = ((uint32_t)packet.data[0]<<24) | ((uint32_t)packet.data[1]<<16)
+                         | ((uint32_t)packet.data[2]<<8)  |  (uint32_t)packet.data[3];
+            if (idx != *index + 1) break;      // not the record we asked for
+            string line(reinterpret_cast<const char*>(packet.data + 4), data_len - 7);
+            this->apply_Factory_line(line, bneedwrite);
+            *index = idx;
+            if (idx < *record_count) {
+                // Ask for the next one.
+                uint32_t want = idx + 1;
+                reply[0] = (want >> 24) & 0xFF; reply[1] = (want >> 16) & 0xFF;
+                reply[2] = (want >> 8) & 0xFF;  reply[3] = want & 0xFF;
+                this->serial->PacketMessage(PTYPE_FACTORY_DATA, reply, 4);
+                break;
+            }
+            goto finished;   // that was the last one: fall into FINISH
         			}
         			
+        case PTYPE_FACTORY_FINISH:
+        case PTYPE_FACTORY_CANCEL:
+        finished:
+            // Acknowledge transfer completion.
+            this->serial->PacketMessage(PTYPE_FACTORY_FINISH, NULL, 0);
+            *state = 0;
+            return true;
         		}
-        		else
+    return false;
+}
+
+// Requests factory records over the framed link and applies each received line.
+void Kernel::read_Factroy_SD()
         		{
+	bool bneedwrite = false;
+    uint8_t state = 0;
+    uint32_t record_count = 0;
+    uint32_t index = 0;
+    int tries = 0;
+    SerialPacket packet;
+
+    this->serial->PacketMessage(PTYPE_FACTORY_START, NULL, 0);
+
+    // Wait for the transfer to start, retrying every fifth receive attempt.
+    for (;;) {
+        bool got = (this->serial->receive_packet(&packet, 100) == 0);
+        tries++;
+
+        if (got) {
+            this->handle_Factory_packet(packet, &state, &record_count, &index, &bneedwrite);
+            if (packet.type == PTYPE_FACTORY_START) break;
+            if (packet.type == PTYPE_FACTORY_CANCEL) return;
+        }
+
+        // Bound the transfer wait even if unrelated frames keep arriving.
+        if (tries % 5 == 0) this->serial->PacketMessage(PTYPE_FACTORY_START, NULL, 0);
+        if (tries > 19) {
+            this->serial->PacketMessage(PTYPE_FACTORY_CANCEL, NULL, 0);
+            return;
+        }
+    }
+
+    // Read and apply the transferred records.
+    state = 1;
+    tries = 0;
+    for (;;) {
+        if (this->serial->receive_packet(&packet, 100) != 0) {
+            tries++;
+            if (tries > 20) {
+                this->serial->PacketMessage(PTYPE_FACTORY_CANCEL, NULL, 0);
+                break;
+            }
         			continue;	
         		}
-        	}
-        	else
-        	{
-        		break;	
+        if ((packet.type & 0xf0) != 0xE0) continue;
+        if (this->handle_Factory_packet(packet, &state, &record_count, &index, &bneedwrite)) break;
+        tries = 0;
         	}
     		
-    	}
-    	if(bneedwrite)
-    	{
+    if (bneedwrite) {
     		write_Factory_data();	
-    	}
-    	
-    	fclose(lp);
-    	remove("/sd/factory.ini");
     	system_reset(false);
     }
 }
+
 bool Kernel::Factroy_readLine(string& line, int lineno, FILE *fp)
 {
     char buf[132];
@@ -1124,24 +1250,17 @@ bool Kernel::process_line(const string &buffer, uint16_t *check_sum, unsigned ch
 }
 
 
-bool Kernel::Check_Factory_Data(unsigned char *data, unsigned int len)
+bool Kernel::check_crc_record(unsigned char *data, unsigned int len)
 {
-	if((data[0] == 0x5A) && (data[1] == 0xA5))
-	{
-		unsigned short crc = crc16_ccitt(data, len);
-		if( ((crc&0xff) == data[len]) && (((crc>>8)&0xff) == data[len+1]) )
-		{
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
-	else
-	{
-		return false;
-	}
+    unsigned short crc = crc16_ccitt(data, len);
+    if( ((crc&0xff) == data[len]) && (((crc>>8)&0xff) == data[len+1]) )
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 
 unsigned int Kernel::crc16_ccitt(unsigned char *data, unsigned int len)
@@ -1232,4 +1351,3 @@ int Kernel::iic_page_write(unsigned char u8PageNum, unsigned char u8len, unsigne
 
 	return 0;
 }
-

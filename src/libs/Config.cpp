@@ -40,11 +40,8 @@ Config::Config()
         this->config_sources.push_back( fcs );
         fcs = NULL;
     }
-    // Load an SD-card override from /sd/config.txt when present.
-    if( file_exists("/sd/config.txt") )
-        fcs = new FileConfigSource("/sd/config.txt", "sd");
-    if( fcs != NULL )
-        this->config_sources.push_back( fcs );
+    fcs = new FileConfigSource("/sd/config.txt", "sd");
+    this->config_sources.push_back( fcs );
 }
 Config::Config(ConfigSource *cs)
 {

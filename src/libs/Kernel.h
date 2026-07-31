@@ -22,12 +22,15 @@
 #define MAX_WCS 9UL
 #define CARVERA		1
 #define CARVERA_AIR	2
+#define Z1            3
+#define Z1PRO        4
 //Module manager
 class Config;
 class Module;
 class Conveyor;
 class SlowTicker;
 class SerialConsole;
+struct SerialPacket;
 class StreamOutputPool;
 class GcodeDispatch;
 class Robot;
@@ -154,6 +157,51 @@ class Kernel {
         void set_sleeping(bool f) { sleeping = f; }
         bool is_sleeping() const { return sleeping; }
 
+        void set_position_reset_pending(bool f) { position_reset_pending = f; }
+        bool is_position_reset_pending() const { return position_reset_pending; }
+
+        // The line currently being dispatched. GcodeDispatch pushes around
+        // each ON_GCODE_RECEIVED and pops after, so nested dispatch keeps the
+        // outermost line and the register clears when the outermost unwinds.
+        void push_line(unsigned int line)
+        {
+            if (line_depth == 0) current_line = line;
+            line_depth++;
+        }
+        void pop_line()
+        {
+            if (line_depth == 0 || --line_depth == 0) current_line = 0;
+        }
+        unsigned int get_current_line() const { return current_line; }
+
+        // After an abort, moves belonging to a line later than the one the
+        // abort landed on are dropped as they reach the planner rather than
+        // run and then unwound. Every append path asks this first.
+        void arm_abort_filter(unsigned int line)
+        {
+            position_reset_pending = true;
+            discard_filter_secondary = false;
+            abort_line = line;
+        }
+        void clear_abort_filter()
+        {
+            position_reset_pending = false;
+            discard_filter_secondary = false;
+            abort_line = 0;
+        }
+        bool discard_line(unsigned int line) const
+        {
+            if (halted) return true;
+            if (!position_reset_pending && !discard_filter_secondary) return false;
+            if (abort_line == 0) return true;
+            return abort_line < line;
+        }
+
+        void set_auto_blowing(bool f) { auto_blowing = f; }
+        bool is_auto_blowing() const { return auto_blowing; }
+
+        void set_bed_cleaning(bool f) { bed_cleaning = f; }
+        bool is_bed_cleaning() const { return bed_cleaning; }
         void set_suspending(bool f) { suspending = f; }
         bool is_suspending() const { return suspending; }
 
@@ -190,11 +238,15 @@ class Kernel {
         void check_eeprom_data();
         
         void read_Factory_data();
+        void read_ProbeAddr_data();
         void write_Factory_data();
         void erase_Factory_data();
         void read_Factroy_SD();
-        bool Check_Factory_Data(unsigned char *data, unsigned int len);
         bool Factroy_readLine(std::string& line, int lineno, FILE *fp);
+        void apply_Factory_line(std::string& line, bool *bneedwrite);
+        bool handle_Factory_packet(const SerialPacket& packet, uint8_t *state, uint32_t *record_count,
+                                   uint32_t *index, bool *bneedwrite);
+        bool check_crc_record(unsigned char *data, unsigned int len);
         bool process_line(const std::string &buffer, uint16_t *check_sum, unsigned char *value);
         unsigned int crc16_ccitt(unsigned char *data, unsigned int len);
 
@@ -220,6 +272,8 @@ class Kernel {
         uint32_t          base_stepping_frequency;
 
         uint8_t get_state();
+        // Timestamp base used by the delayed motor-alarm scan.
+        uint32_t motor_alarm_epoch_us;
         uint8_t halt_reason;
         uint8_t atc_state;
         EEPROM_data *eeprom_data;
@@ -227,9 +281,19 @@ class Kernel {
         
         uint32_t Laser_period_us;        
         uint32_t Spindle_period_us;
-        uint16_t probe_addr;
+        // CRC-protected record at EEPROM address 0x0220.
+        uint32_t probe_addr;
+            uint16_t play_spindle_fan_value;
         bool checkled;
         bool spindleon;
+            bool axis_is_on[6];
+        uint8_t abort_finishing;
+        uint8_t reserved_5f;
+        // The line the abort landed on. Zero while armed drops every move.
+        unsigned int abort_line;
+        unsigned int current_line;
+        uint8_t line_depth;
+        uint8_t reserved_69[3];
 
     private:
         // When a module asks to be called for a specific event ( a hook ), this is where that request is remembered
@@ -247,6 +311,8 @@ class Kernel {
             bool laser_mode:1;
             bool vacuum_mode:1;
             bool extout_mode:1;
+            bool reserved_dd3:1;
+            bool reserved_dd4:1;
             bool sleeping:1;
             bool suspending: 1;
             bool waiting: 1;
@@ -255,7 +321,11 @@ class Kernel {
             bool zprobing:1;
             bool probeLaserOn:1;
             volatile bool cachewait:1;
+            bool auto_blowing:1;
+            bool bed_cleaning:1;
             bool b_3DProbeMode:1;
+            bool position_reset_pending:1;
+            bool discard_filter_secondary:1;
         };
         int iic_page_write(unsigned char u8PageNum, unsigned char u8len, unsigned char *pu8Array);
 

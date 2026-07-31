@@ -55,7 +55,7 @@ extern unsigned char xbuff[XBUFF_LENGTH];
 extern unsigned char fbuff[4096];
 __attribute__((section("AHBSRAM1"), aligned(4))) char WifiSerialbuff[544];
 
-extern const unsigned short crc_table[256];
+extern unsigned short crc_table[256];
 
 WifiProvider::WifiProvider()
 {
