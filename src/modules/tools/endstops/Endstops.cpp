@@ -23,6 +23,7 @@
 #include "utils.h"
 #include "ConfigValue.h"
 #include "libs/StreamOutput.h"
+#include "libs/RotaryClearance.h"
 #include "PublicDataRequest.h"
 #include "EndstopsPublicAccess.h"
 #include "StreamOutputPool.h"
@@ -70,6 +71,8 @@ enum DEFNS { MIN_PIN, MAX_PIN, MAX_TRAVEL, FAST_RATE, SLOW_RATE, RETRACT, DIRECT
 #define homing_order_checksum            CHECKSUM("homing_order")
 #define move_to_origin_checksum          CHECKSUM("move_to_origin_after_home")
 #define park_after_home_checksum         CHECKSUM("park_after_home")
+#define soft_endstop_checksum            CHECKSUM("soft_endstop")
+#define rotary_y_min_checksum            CHECKSUM("rotary_y_min")
 
 #define alpha_trim_checksum              CHECKSUM("alpha_trim_mm")
 #define beta_trim_checksum               CHECKSUM("beta_trim_mm")
@@ -492,6 +495,8 @@ void Endstops::get_global_configs()
     this->is_scara=  THEKERNEL->config->value(scara_homing_checksum)->as_bool(false);
 
     this->home_z_first= THEKERNEL->config->value(home_z_first_checksum)->as_bool(true);
+    this->rotary_clearance_y_min = THEKERNEL->config->value(
+        soft_endstop_checksum, rotary_y_min_checksum)->as_number(NAN);
 
     this->trim_mm[0] = THEKERNEL->config->value(alpha_trim_checksum)->as_number(0);
     this->trim_mm[1] = THEKERNEL->config->value(beta_trim_checksum)->as_number(0);
@@ -772,6 +777,21 @@ uint32_t Endstops::read_endstops(uint32_t dummy)
 void Endstops::home_xy()
 {
     if(axis_to_home[X_AXIS] && axis_to_home[Y_AXIS]) {
+        const bool rotary_installed =
+            (THEKERNEL->factory_set->FuncSetting & (1 << 0)) != 0;
+        if(rotary_clearance::active(rotary_installed, rotary_clearance_y_min)) {
+            float delta[3] {0, homing_axis[Y_AXIS].max_travel, 0};
+            if(homing_axis[Y_AXIS].home_direction) delta[Y_AXIS]= -delta[Y_AXIS];
+            THEROBOT->delta_move(delta, homing_axis[Y_AXIS].fast_rate, 3);
+
+            delta[X_AXIS]= homing_axis[X_AXIS].max_travel;
+            delta[Y_AXIS]= 0;
+            if(homing_axis[X_AXIS].home_direction) delta[X_AXIS]= -delta[X_AXIS];
+            THEROBOT->delta_move(delta, homing_axis[X_AXIS].fast_rate, 3);
+            THECONVEYOR->wait_for_idle();
+            return;
+        }
+
         // Home XY first so as not to slow them down by homing Z at the same time
         float delta[3] {homing_axis[X_AXIS].max_travel, homing_axis[Y_AXIS].max_travel, 0};
         if(homing_axis[X_AXIS].home_direction) delta[X_AXIS]= -delta[X_AXIS];
@@ -1342,12 +1362,19 @@ void Endstops::process_home_command(Gcode* gcode)
         return;
     }
 
+    const bool rotary_installed =
+        (THEKERNEL->factory_set->FuncSetting & (1 << 0)) != 0;
+    const bool needs_rotary_clearance = rotary_clearance::active(
+        rotary_installed, rotary_clearance_y_min) && haxis[X_AXIS] && haxis[Y_AXIS];
+    const uint32_t effective_homing_order =
+        rotary_clearance::y_before_x_homing_order(homing_order, needs_rotary_clearance);
+
     // do the actual homing
-    if(homing_order != 0 && !is_scara) {
+    if(effective_homing_order != 0 && !is_scara) {
         // if an order has been specified do it in the specified order
         // homing order is 0bfffeeedddcccbbbaaa where aaa is 1,2,3,4,5,6 to specify the first axis (XYZABC), bbb is the second and ccc is the third etc
         // eg 0b0101011001010 would be Y X Z A, 011 010 001 100 101 would be  B A X Y Z
-        for (uint32_t m = homing_order; m != 0; m >>= 3) {
+        for (uint32_t m = effective_homing_order; m != 0; m >>= 3) {
             uint32_t a= (m & 0x07)-1; // axis to home
             if(a < homing_axis.size() && haxis[a]) { // if axis is selected to home
                 axis_bitmap_t bs;
@@ -1360,8 +1387,21 @@ void Endstops::process_home_command(Gcode* gcode)
 
     } else if(is_corexy) {
         // corexy must home each axis individually
+        if(needs_rotary_clearance) {
+            axis_bitmap_t bs;
+            bs.set(Y_AXIS);
+            home(bs);
+            if(!THEKERNEL->is_halted()) {
+                bs.reset();
+                bs.set(X_AXIS);
+                home(bs);
+            }
+        }
+
         for (auto &p : homing_axis) {
-            if(haxis[p.axis_index]) {
+            const bool already_homed = needs_rotary_clearance &&
+                (p.axis_index == X_AXIS || p.axis_index == Y_AXIS);
+            if(!already_homed && haxis[p.axis_index]) {
                 axis_bitmap_t bs;
                 bs.set(p.axis_index);
                 home(bs);

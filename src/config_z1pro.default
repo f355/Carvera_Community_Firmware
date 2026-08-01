@@ -176,6 +176,7 @@ coordinate.clearance_z                                     -1.0
 soft_endstop.enable                                        false
 soft_endstop.x_min                                         -206.0
 soft_endstop.y_min                                         -206.0
+soft_endstop.rotary_y_min                                  -160.0
 soft_endstop.z_min                                         -102.0
 gamma_max_rate                                             600.0
 delta_max_rate                                             3600.0

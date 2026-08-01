@@ -51,6 +51,7 @@ class Endstops : public Module{
         uint32_t debounce_count;
         uint32_t  debounce_ms;
         axis_bitmap_t axis_to_home;
+        float rotary_clearance_y_min;
 
         float trim_mm[3];
 
