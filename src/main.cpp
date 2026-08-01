@@ -30,7 +30,9 @@
 #include "modules/utils/player/Player.h"
 #include "modules/utils/mainbutton/MainButton.h"
 #include "modules/communication/SerialConsole2.h"
+#if !defined(NO_USB_HOST)
 #include "libs/USBDevice/MSCFileSystem.h"
+#endif
 #include "Config.h"
 #include "checksumm.h"
 #include "ConfigValue.h"
@@ -172,12 +174,14 @@ void init() {
     // ATC Handler
     kernel->add_module( new ATCHandler() );
 
+#if !defined(NO_USB_HOST)
     // This module owns the USB host controller while enabled.
     if (kernel->config->value(usb_msc_checksum, enable_checksum)->as_bool(true)) {
         kernel->add_module( new MSCFileSystem("ud") );
     } else {
         kernel->streams->printf("NOTE: USB mass storage host is disabled\n");
     }
+#endif
 
     // Serial Console handles IO with the wireless probe
     kernel->add_module( new(AHB) SerialConsole2() ); // must stay in AHB: UART RxIrq writes RingBuffer

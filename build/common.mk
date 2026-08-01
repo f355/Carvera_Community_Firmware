@@ -76,6 +76,8 @@ DEFINES += -DMACHINE_CARVERA
 else ifeq "$(MACHINE)" "z1"
 OUTDIR = ../$(DEVICE)-z1
 DEFINES += -DMACHINE_Z1
+NO_USB_HOST := 1
+NO_VESC_SPINDLE := 1
 else
 $(error Unsupported MACHINE '$(MACHINE)'; expected carvera or z1)
 endif
@@ -173,6 +175,16 @@ CPPSRCS3 := $(filter-out \
   $(SRC)/modules/tools/spindle/VESCSpindleControl.cpp \
   ,$(CPPSRCS3))
 DEFINES += -DNO_VESC_SPINDLE
+endif
+
+ifdef NO_USB_HOST
+CPPSRCS3 := $(filter-out \
+  $(SRC)/libs/USBDevice/MSCFileSystem.cpp \
+  $(SRC)/libs/USBDevice/USBHostCDC.cpp \
+  $(SRC)/libs/USBDevice/USBHostLite/usbhost_lpc17xx.cpp \
+  $(SRC)/libs/USBDevice/USBHostLite/usbhost_ms.cpp \
+  ,$(CPPSRCS3))
+DEFINES += -DNO_USB_HOST
 endif
 
 # NO_PID_AUTOTUNE: exclude PID autotuner (not needed when no heaters are connected)

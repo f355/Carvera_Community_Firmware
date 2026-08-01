@@ -58,6 +58,10 @@ class SerialConsole : public Module, public StreamOutput {
         uint16_t makera_header;
         uint16_t makera_received;
         uint16_t makera_data_length;
+#if defined(MACHINE_Z1)
+        bool rx_dispatch_enabled;
+        bool handle_rx_error();
+#endif
 
         bool makera_cmd_queue_push(const char *data, uint16_t len);
         void makera_cmd_queue_clear();
