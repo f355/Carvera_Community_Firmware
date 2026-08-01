@@ -27,6 +27,7 @@
 #include "md5.h"
 
 #include "modules/robot/Conveyor.h"
+#include "modules/robot/Planner.h"
 #include "DirHandle.h"
 #include "ATCHandlerPublicAccess.h"
 #include "PublicDataRequest.h"
@@ -109,6 +110,7 @@ Player::Player()
     this->streamed_start_pending = false;
     this->streamed_retry_pending = false;
     this->streamed_goto_pending = false;
+    this->streamed_abort_pending = false;
 #endif
     this->booted = false;
     this->elapsed_secs = 0;
@@ -912,7 +914,36 @@ void Player::handle_link_packet(const player_link_packet& packet)
         this->clear_buffered_queue();
         this->clear_macro_file_queue();
         this->ocode_handler.reset();
+        this->defer_streamed_abort();
     }
+}
+
+void Player::defer_streamed_abort()
+{
+    THEKERNEL->conveyor->request_motion_abort();
+    THEKERNEL->set_aborted(true);
+    THEKERNEL->set_waiting(true);
+    this->streamed_abort_pending = true;
+}
+
+void Player::finish_streamed_abort()
+{
+    THEKERNEL->conveyor->flush_queue();
+    THEKERNEL->conveyor->wait_for_idle();
+
+    struct SerialMessage message;
+    message.message = "M5";
+    message.stream = THEKERNEL->streams;
+    message.line = 0;
+    THEKERNEL->call_event(ON_CONSOLE_LINE_RECEIVED, &message);
+
+    THEROBOT->reset_position_from_current_actuator_position();
+    THEKERNEL->planner->reset_after_abort();
+    THEKERNEL->conveyor->clear_motion_abort();
+    THEKERNEL->set_aborted(false);
+    THEKERNEL->set_waiting(false);
+    this->streamed_abort_pending = false;
+    THEKERNEL->streams->printf("Aborted playing or paused file. \r\n");
 }
 #endif
 
@@ -1019,6 +1050,41 @@ void Player::abort_command( string parameters, StreamOutput *stream )
         stream->printf("Not currently playing\r\n");
         return;
     }
+
+#if defined(MACHINE_Z1)
+    if (this->line_source == &this->streamed_line_source || this->streamed_start_pending) {
+        this->last_played_lines = this->played_lines;
+        this->last_percent_complete = this->file_size > 0
+            ? static_cast<unsigned int>(roundf((this->played_cnt * 100.0F) / this->file_size)) : 0;
+        this->last_elapsed_secs = this->elapsed_secs;
+        this->last_filename = this->filename;
+        this->has_last_progress = true;
+        THEKERNEL->serial->PacketMessage(PTYPE_PLAY_CANCEL, nullptr, 0);
+        this->playing_file = false;
+        this->streamed_start_pending = false;
+        this->streamed_goto_pending = false;
+        this->streamed_retry_pending = false;
+        this->close_line_source();
+        this->played_cnt = 0;
+        this->played_lines = 0;
+        this->file_line = 0;
+        this->playing_lines = 0;
+        this->goto_line = 0;
+        this->file_size = 0;
+        this->filename.clear();
+        this->clear_buffered_queue();
+        this->clear_macro_file_queue();
+        this->ocode_handler.reset();
+        if (THEKERNEL->is_suspending()) {
+            THEKERNEL->set_waiting(false);
+            THEKERNEL->set_suspending(false);
+            THEROBOT->pop_state();
+            this->clear_saved_spindle();
+        }
+        this->defer_streamed_abort();
+        return;
+    }
+#endif
 
     // save last progress so status (?) continues to show |P:played_lines,percent_complete,elapsed_secs|
     this->last_played_lines = this->played_lines;
@@ -1144,6 +1210,12 @@ void Player::clear_macro_file_queue(){
 
 void Player::on_main_loop(void *argument)
 {
+#if defined(MACHINE_Z1)
+    if (this->streamed_abort_pending) {
+        this->finish_streamed_abort();
+        return;
+    }
+#endif
     if( !this->booted ) {
         this->booted = true;
         if (this->home_on_boot) {

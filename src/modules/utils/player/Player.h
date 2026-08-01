@@ -69,6 +69,8 @@ class Player : public Module {
         void handle_link_packet(const player_link_packet& packet);
         void request_streamed_lines();
         void maintain_streamed_source();
+        void defer_streamed_abort();
+        void finish_streamed_abort();
 #endif
         
         string extract_options(string& args);
@@ -114,6 +116,7 @@ class Player : public Module {
         bool streamed_start_pending;
         bool streamed_retry_pending;
         bool streamed_goto_pending;
+        bool streamed_abort_pending;
 #endif
         PlayerLineSource* line_source;
         FILE* current_file_handler;
