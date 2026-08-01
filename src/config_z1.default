@@ -323,10 +323,10 @@ main_button_LED_B_pin						nc				# Main button blue LED pin
 main_button_long_press_enable    			None  			#When the Main button long press,Enalbe the special function
 
 # Power control
-# ps12_pin									0.22				# 12V power pin
-# ps24_pin									0.10				# 24V power pin
+ps12_pin									2.12				# 12V power pin
+ps24_pin									3.26				# 24V power pin
 # power_fan_delay_s							30				# power fan turn on/off delay
-# e_stop_pin									0.26!^			# Emergency stop pin
+e_stop_pin									0.20^				# Emergency stop pin
 
 
 #
@@ -450,7 +450,7 @@ atc.action_mm 1.6					 	# Action distance when drop tool (mm)
 atc.lowest_tool_number 0				# Lowest automatic tool slot number
 atc.detector.detect_rate_mm_s 20		# Tool detect speed (mm / second)
 atc.detector.detect_travel_mm 5	        # Tool detect back and forth distance (mm)
-# atc.detector.enable true				# Enable or disable the toolsensor
+atc.detector.enable false				# Z1 has no separate ATC toolsensor
 
 atc.safe_z_mm -20.0						# Safety Z height when clamping tool
 atc.safe_z_empty_mm -50.0				# Safety Z height when not clamping tool
