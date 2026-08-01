@@ -1,4 +1,5 @@
 [unreleased]
+- Enhancement: Add CANopen transport and SDO services for Makera Z1 and Z1 Pro.
 - Enhancement: Add configurable Z1 front-panel LED ring support.
 - Enhancement: Add configurable dual-cover sensing, accessory modes, and bounded bed cleaning for Z1.
 - Enhancement: Add bounded streamed job playback for Z1, with coherent cancellation of queued motion.

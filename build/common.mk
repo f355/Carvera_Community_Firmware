@@ -111,10 +111,12 @@ endif
 CPPSRCS1 = $(wildcard $(SRC)/*.cpp $(SRC)/*/*.cpp $(SRC)/*/*/*.cpp $(SRC)/*/*/*/*.cpp $(SRC)/*/*/*/*/*.cpp $(SRC)/*/*/*/*/*/*.cpp)
 ifeq "$(MACHINE)" "carvera"
 CPPSRCS1 := $(filter-out \
+	$(SRC)/libs/CANBus.cpp \
 	$(SRC)/libs/ConfigSources/RemoteConfigSource.cpp \
 	$(SRC)/libs/RemoteFactorySettings.cpp \
 	$(SRC)/modules/communication/SerialPacketTransport.cpp \
-	$(SRC)/modules/communication/UartRxDma.cpp,$(CPPSRCS1))
+	$(SRC)/modules/communication/UartRxDma.cpp \
+	$(SRC)/modules/tools/canopen/%,$(CPPSRCS1))
 endif
 ifeq "$(NONETWORK)" "1"
 	CPPSRCS2 = $(filter-out $(SRC)/libs/Network/%,$(CPPSRCS1))
