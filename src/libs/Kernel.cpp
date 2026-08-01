@@ -945,7 +945,7 @@ void Kernel::read_Factory_data()
     }
 }
 
-void Kernel::write_Factory_data()
+bool Kernel::write_Factory_data()
 {
 	unsigned int size = sizeof(FACTORY_SET);
 	unsigned int datalen = size + 4;
@@ -984,7 +984,8 @@ void Kernel::write_Factory_data()
 	}
 	if (result != 0) {
 		this->streams->printf("ERROR: FACTORY setting data write error:%d\n",pagenum);
-	} 
+	}
+	return result == 0;
 }
 
 void Kernel::erase_Factory_data()

@@ -222,7 +222,7 @@ class Kernel {
         void check_eeprom_data();
         
         void read_Factory_data();
-        void write_Factory_data();
+        bool write_Factory_data();
         void erase_Factory_data();
         void read_Factroy_SD();
         bool Check_Factory_Data(unsigned char *data, unsigned int len);
