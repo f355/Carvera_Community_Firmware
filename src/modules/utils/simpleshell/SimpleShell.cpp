@@ -220,9 +220,17 @@ void SimpleShell::on_module_loaded()
     this->register_for_event(ON_CONSOLE_LINE_RECEIVED);
     this->register_for_event(ON_GCODE_RECEIVED);
     this->register_for_event(ON_SECOND_TICK);
+    this->register_for_event(ON_HALT);
     this->cont_mode_active = false;
 
     reset_delay_secs = 0;
+}
+
+void SimpleShell::on_halt(void *argument)
+{
+    if(argument == nullptr && THEKERNEL->is_bed_cleaning()) {
+        accessory_switch::set_bed_cleaning(false);
+    }
 }
 
 void SimpleShell::on_second_tick(void *)
@@ -296,6 +304,15 @@ void SimpleShell::on_gcode_received(void *argument)
                 }
                 gcode->stream->printf("turning auto blowing mode on\r\n");
             }
+			else if (gcode->subcode == 2) {
+                if(!accessory_switch::bed_cleaning_supported()) {
+                    gcode->stream->printf("ERROR: bed cleaning is not configured\r\n");
+                    return;
+                }
+                THECONVEYOR->wait_for_idle();
+                accessory_switch::set_bed_cleaning(true);
+                gcode->stream->printf("turning auto bed cleaning mode on\r\n");
+            }
 			else if (gcode->subcode == 3) {
 				THEKERNEL->set_extout_mode(true);
 			    // get spindle state
@@ -333,6 +350,11 @@ void SimpleShell::on_gcode_received(void *argument)
                 accessory_switch::set_power(
                     accessory_switch::configured_name(auto_blowing_switch_checksum, "nc"), 0);
                 gcode->stream->printf("turning auto blowing mode off\r\n");
+            }
+			else if (gcode->subcode == 2) {
+                THECONVEYOR->wait_for_idle();
+                accessory_switch::set_bed_cleaning(false);
+                gcode->stream->printf("turning auto bed cleaning mode off\r\n");
             }
 			else if (gcode->subcode == 3) {
 				THEKERNEL->set_extout_mode(false);

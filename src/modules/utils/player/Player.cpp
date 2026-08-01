@@ -949,6 +949,8 @@ void Player::defer_streamed_abort()
 
 void Player::finish_streamed_abort()
 {
+    // Keep ATC-owned accessories active until queued automation motion stops.
+    PublicData::set_value(atc_handler_checksum, abort_checksum, nullptr);
     struct SerialMessage message;
     message.message = "M5";
     message.stream = THEKERNEL->streams;
@@ -1063,13 +1065,15 @@ void Player::abort_command( string parameters, StreamOutput *stream )
     }
 #endif
 
-    PublicData::set_value( atc_handler_checksum, abort_checksum, nullptr );
-
     if(!playing_file && (line_source == nullptr || !line_source->is_open())
 #if defined(MACHINE_FAMILY_Z1)
         && !this->streamed_session_active()
 #endif
     ) {
+        if(THEKERNEL->is_bed_cleaning()) {
+            THEKERNEL->conveyor->wait_for_idle();
+        }
+        PublicData::set_value( atc_handler_checksum, abort_checksum, nullptr );
         stream->printf("Not currently playing\r\n");
         return;
     }
@@ -1116,6 +1120,10 @@ void Player::abort_command( string parameters, StreamOutput *stream )
 
     // wait for queue to empty
     THEKERNEL->conveyor->wait_for_idle();
+
+    // Keep ATC-owned accessories active until already-queued automation motion stops.
+    // A halt still releases them immediately through ATCHandler::on_halt().
+    PublicData::set_value( atc_handler_checksum, abort_checksum, nullptr );
 
 
     if (communication_protocol == PROTOCOL_SMOOTHIE) {

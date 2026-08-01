@@ -29,6 +29,7 @@ Author: Michael Hackney, mhackney@eclecticangler.com
 #include "StreamOutputPool.h"
 #include "TemperatureControlPool.h"
 #include "mri.h"
+#include "modules/tools/switch/AccessorySwitchControl.h"
 
 #define temperatureswitch_checksum                      CHECKSUM("temperatureswitch")
 #define enable_checksum                                 CHECKSUM("enable")
@@ -40,6 +41,11 @@ Author: Michael Hackney, mhackney@eclecticangler.com
 
 #define temperatureswitch_switch_checksum               CHECKSUM("switch")
 #define designator_checksum                             CHECKSUM("designator")
+#define temperature_source_checksum                     CHECKSUM("temperature_source")
+#define accessory_checksum                              CHECKSUM("accessory")
+#define bed_cleaning_fan_switch_checksum                CHECKSUM("bed_cleaning_fan_switch")
+#define bed_cleaning_fan_power_checksum                 CHECKSUM("bed_cleaning_fan_power")
+#define auto_blowing_switch_checksum                    CHECKSUM("auto_blowing_switch")
 
 TemperatureSwitch::TemperatureSwitch()
 {
@@ -90,6 +96,27 @@ TemperatureSwitch* TemperatureSwitch::load_config(uint16_t modcs)
     ts->temperatureswitch_cooldown_power_step = THEKERNEL->config->value(temperatureswitch_checksum, modcs, temperatureswitch_cooldown_power_step_checksum)->as_number(10.0f);
     ts->temperatureswitch_cooldown_power_laser = THEKERNEL->config->value(temperatureswitch_checksum, modcs, temperatureswitch_cooldown_power_laser_checksum)->as_number(80.0f);
     ts->temperatureswitch_cooldown_delay = THEKERNEL->config->value(temperatureswitch_checksum, modcs, temperatureswitch_cooldown_delay_checksum)->as_number(180);
+    ts->bed_cleaning_fan_power = THEKERNEL->config->value(
+        accessory_checksum, bed_cleaning_fan_power_checksum)->as_number(100.0F);
+
+    const std::string source = THEKERNEL->config->value(
+        temperatureswitch_checksum, modcs, temperature_source_checksum)->as_string("");
+    if(source == "highest") {
+        ts->temperature_source = 2;
+    } else if(source == "module") {
+        ts->temperature_source = 1;
+    } else if(CARVERA == THEKERNEL->factory_set->MachineModel) {
+        ts->temperature_source = 2;
+    } else if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel) {
+        ts->temperature_source = 1;
+    } else {
+        ts->temperature_source = 0;
+    }
+
+    ts->controls_bed_cleaning_fan = ts->temperatureswitch_switch_cs ==
+        accessory_switch::configured_name(bed_cleaning_fan_switch_checksum, "nc");
+    ts->controls_auto_blowing_fan = ts->temperatureswitch_switch_cs ==
+        accessory_switch::configured_name(auto_blowing_switch_checksum, "nc");
 
     // set initial state
     ts->cooldown_delay_counter = -1;
@@ -109,6 +136,15 @@ void TemperatureSwitch::on_gcode_received(void *argument)
 void TemperatureSwitch::on_second_tick(void *argument)
 {
 	bool ok;
+	if(THEKERNEL->is_bed_cleaning() && this->controls_bed_cleaning_fan) {
+        struct pad_switch pad{};
+        pad.state = true;
+        pad.value = this->bed_cleaning_fan_power;
+        PublicData::set_value(
+            switch_checksum, this->temperatureswitch_switch_cs, state_value_checksum, &pad);
+        cooldown_delay_counter = -77;
+        return;
+    }
 	if (THEKERNEL->get_laser_mode()) {
 		
 	    if(CARVERA == THEKERNEL->factory_set->MachineModel)
@@ -127,14 +163,28 @@ void TemperatureSwitch::on_second_tick(void *argument)
 	} else {
 		float current_temp = 0;
 		
-		if(CARVERA == THEKERNEL->factory_set->MachineModel)
-	    {
+		if(this->temperature_source == 2) {
 	    	current_temp = this->get_highest_temperature();
-	    }
-	    else if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
-	    {
+	    } else if(this->temperature_source == 1) {
 	    	current_temp = this->get_temperature();
 	    }
+
+        if(THEKERNEL->is_auto_blowing() && this->controls_auto_blowing_fan) {
+            float power = THEKERNEL->get_auto_blowing_power();
+            if(current_temp >= this->temperatureswitch_threshold_temp) {
+                power = fmaxf(power, this->temperatureswitch_cooldown_power_init +
+                    (current_temp - this->temperatureswitch_threshold_temp) *
+                    this->temperatureswitch_cooldown_power_step);
+            }
+            struct pad_switch pad{};
+            pad.state = true;
+            pad.value = fminf(power, 100.0F);
+            PublicData::set_value(
+                switch_checksum, this->temperatureswitch_switch_cs,
+                state_value_checksum, &pad);
+            cooldown_delay_counter = -77;
+            return;
+        }
 	    if (current_temp >= this->temperatureswitch_threshold_temp) {
 //	    	if (cooldown_delay_counter != -99 && !THEKERNEL->is_uploading())
 //	    		THEKERNEL->streams->printf("Spindle temp: [%.2f], Turn on spindle fan...\r\n", current_temp);
@@ -155,7 +205,13 @@ void TemperatureSwitch::on_second_tick(void *argument)
 		    }
 	    	cooldown_delay_counter = -99;
 	    } else {
-	    	if (cooldown_delay_counter == -88 || cooldown_delay_counter == -99) {
+            if (cooldown_delay_counter == -77) {
+                bool switch_state = false;
+                PublicData::set_value(
+                    switch_checksum, this->temperatureswitch_switch_cs,
+                    state_checksum, &switch_state);
+                cooldown_delay_counter = -1;
+            } else if (cooldown_delay_counter == -88 || cooldown_delay_counter == -99) {
 	    		cooldown_delay_counter = 0;
 	    	} else if (cooldown_delay_counter >= 0) {
 	    		cooldown_delay_counter ++;

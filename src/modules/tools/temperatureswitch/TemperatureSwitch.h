@@ -43,11 +43,15 @@ class TemperatureSwitch : public Module
         float temperatureswitch_cooldown_power_init;
         float temperatureswitch_cooldown_power_step;
         float temperatureswitch_cooldown_power_laser;
+        float bed_cleaning_fan_power;
         uint16_t temperatureswitch_cooldown_delay;
         uint16_t module_checksum;
 
         // temperatureswitch.hotend.switch
         uint16_t temperatureswitch_switch_cs;
+        uint8_t temperature_source;
+        bool controls_bed_cleaning_fan;
+        bool controls_auto_blowing_fan;
 
 
         // our internal second counter

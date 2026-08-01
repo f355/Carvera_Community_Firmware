@@ -225,3 +225,16 @@ cover_endstop2                                             1.14!v
 spindle.delay_on_s                                         8.0
 spindle.delay_off_s                                        4.0
 light.ledBrightness                                        15
+accessory.bed_cleaning_switch                             extendout
+accessory.bed_cleaning_fan_switch                         spindlefan
+accessory.bed_cleaning_fan_power                          100
+temperatureswitch.spindle.temperature_source              module
+bed_cleaning.enable                                       true
+bed_cleaning.x_min                                        -192.4
+bed_cleaning.x_max                                        -11.6
+bed_cleaning.y_min                                        -194.3
+bed_cleaning.y_max                                        -1.0
+bed_cleaning.park_y                                       -14.6
+bed_cleaning.front_x                                      -2.0
+bed_cleaning.cycles                                       1
+bed_cleaning.spacing                                      40
