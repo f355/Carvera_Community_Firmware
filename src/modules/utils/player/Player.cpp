@@ -90,6 +90,8 @@ Player::Player()
 {
     this->playing_file = false;
     this->current_file_handler = nullptr;
+    this->local_line_source.attach(nullptr);
+    this->line_source = &this->local_line_source;
     this->booted = false;
     this->elapsed_secs = 0;
     this->reply_stream = nullptr;
@@ -109,13 +111,30 @@ Player::Player()
     this->file_line = 0;
 }
 
+void Player::set_current_file(FILE *file)
+{
+    this->current_file_handler = file;
+    this->local_line_source.attach(file);
+    this->line_source = &this->local_line_source;
+}
+
+void Player::close_line_source()
+{
+    if (this->line_source != nullptr) {
+        this->line_source->close();
+    }
+    this->current_file_handler = nullptr;
+    this->local_line_source.attach(nullptr);
+    this->line_source = &this->local_line_source;
+}
+
 void Player::sync_progress_max()
 {
-    if(this->current_file_handler == nullptr) return;
+    if(this->line_source == nullptr) return;
 
-    long pos = fwfs::ftell(this->current_file_handler);
-    if(pos > 0 && (unsigned long)pos > this->played_cnt)
-        this->played_cnt = (unsigned long)pos;
+    const unsigned long pos = this->line_source->position();
+    if(pos > this->played_cnt)
+        this->played_cnt = pos;
     if(this->file_line > this->played_lines)
         this->played_lines = this->file_line;
 }
@@ -174,8 +193,7 @@ bool Player::prepare_ocode_prescan(StreamOutput* stream, const char* fail_msg)
     this->ocode_handler.pre_scan(this->current_file_handler, stream);
     if(this->ocode_handler.pre_scan_failed()) {
         stream->printf("%s\r\n", fail_msg);
-        fwfs::fclose(this->current_file_handler);
-        this->current_file_handler = NULL;
+        this->close_line_source();
         return false;
     }
     return true;
@@ -206,9 +224,9 @@ void Player::select_file(string argument, bool force_prescan)
 
     if(this->current_file_handler != NULL) {
         this->playing_file = false;
-        fwfs::fclose(this->current_file_handler);
+        this->close_line_source();
     }
-    this->current_file_handler = fwfs::fopen( this->filename.c_str(), "r");
+    this->set_current_file(fwfs::fopen(this->filename.c_str(), "r"));
 
     if(this->current_file_handler == NULL) {
         THEKERNEL->streams->printf("file.open failed: %s\r\n", this->filename.c_str());
@@ -265,7 +283,7 @@ void Player::goto_line_number(unsigned long line_number)
     // Read lines until we've positioned at the target line
     // We want to break BEFORE reading the target line, so the file pointer is at the target
     while (file_line < this->goto_line - 1) {
-        if (fwfs::fgets(buf, sizeof(buf), this->current_file_handler) == NULL) {
+        if (this->line_source->read(buf, sizeof(buf)) != PlayerLineSource::ReadResult::data) {
             break; // EOF reached
         }
 
@@ -383,7 +401,7 @@ void Player::on_gcode_received(void *argument)
 
                 if(!currentfn.empty()) {
                     // reload the last file opened
-                    this->current_file_handler = fwfs::fopen(currentfn.c_str() , "r");
+                    this->set_current_file(fwfs::fopen(currentfn.c_str(), "r"));
 
                     if(this->current_file_handler == NULL) {
                         gcode->stream->printf("file.open failed: %s\r\n", currentfn.c_str());
@@ -607,7 +625,7 @@ void Player::play_command( string parameters, StreamOutput *stream )
     }
 
     if (this->current_file_handler != NULL) { // must have been a paused print
-        fwfs::fclose(this->current_file_handler);
+        this->close_line_source();
     }
 
 //    this->temp_file_handler = fopen ("/sd/gcodes/temp.nc", "w");
@@ -619,7 +637,7 @@ void Player::play_command( string parameters, StreamOutput *stream )
     //empty macro queue
     this->clear_macro_file_queue();
 
-    this->current_file_handler = fwfs::fopen( this->filename.c_str(), "r");
+    this->set_current_file(fwfs::fopen(this->filename.c_str(), "r"));
     if(this->current_file_handler == NULL) {
         stream->printf("File not found: %s\r\n", this->filename.c_str());
         return;
@@ -772,8 +790,7 @@ void Player::abort_command( string parameters, StreamOutput *stream )
     this->filename = "";
     // end smoothie
 
-    fwfs::fclose(current_file_handler);
-    current_file_handler = NULL;
+    this->close_line_source();
 
     THEKERNEL->set_suspending(false);
     THEKERNEL->set_waiting(true);
@@ -921,11 +938,12 @@ void Player::on_main_loop(void *argument)
         */
 
         uint32_t last_idle_us = us_ticker_read();
-        while (fwfs::fgets(buf, sizeof(buf), this->current_file_handler) != NULL) {
+        PlayerLineSource::ReadResult read_result;
+        while ((read_result = this->line_source->read(buf, sizeof(buf))) == PlayerLineSource::ReadResult::data) {
 
             int len = strlen(buf);
             if (len == 0) continue; // empty line? should not be possible
-            if (buf[len - 1] == '\n' || fwfs::feof(this->current_file_handler)) {
+            if (buf[len - 1] == '\n' || this->line_source->at_end()) {
                 if(discard) { // we are discarding a long line
                     discard = false;
                     continue;
@@ -1065,6 +1083,8 @@ void Player::on_main_loop(void *argument)
             }
         }
 
+        if (read_result == PlayerLineSource::ReadResult::waiting) return;
+
         // save last progress so status (?) continues to show |P:played_lines,percent_complete,elapsed_secs|
         this->last_played_lines = this->played_lines;
         this->last_percent_complete = (file_size > 0) ? (unsigned int)roundf((played_cnt * 100.0F) / file_size) : 100;
@@ -1082,8 +1102,7 @@ void Player::on_main_loop(void *argument)
         goto_line = 0;
         file_size = 0;
 
-        fwfs::fclose(this->current_file_handler);
-        current_file_handler = NULL;
+        this->close_line_source();
 
         this->current_stream = NULL;
 
