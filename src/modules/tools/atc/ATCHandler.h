@@ -246,6 +246,9 @@ private:
     float toolrack_offset_x;
     float toolrack_offset_y;
     float toolrack_z;
+    float manual_tool_change_x;
+    float manual_tool_change_y;
+    float manual_probe_z;
 
     float clearance_x;
     float clearance_y;

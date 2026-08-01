@@ -7,6 +7,7 @@
 
 #include "ATCHandler.h"
 #include "libs/FirmwareFileSystem.h"
+#include "libs/AtcProfileDefaults.h"
 
 #include "libs/Module.h"
 #include "libs/Kernel.h"
@@ -56,6 +57,7 @@
 #define homing_rate_mm_s_checksum   CHECKSUM("homing_rate_mm_s")
 #define action_mm_checksum      	CHECKSUM("action_mm")
 #define action_rate_mm_s_checksum   CHECKSUM("action_rate_mm_s")
+#define lowest_tool_number_checksum CHECKSUM("lowest_tool_number")
 
 #define detector_switch_checksum    CHECKSUM("toolsensor")
 #define detector_checksum           CHECKSUM("detector")
@@ -88,6 +90,9 @@
 #define toolrack_offset_x_checksum	CHECKSUM("toolrack_offset_x")
 #define toolrack_offset_y_checksum	CHECKSUM("toolrack_offset_y")
 #define toolrack_z_checksum			CHECKSUM("toolrack_z")
+#define manual_tool_change_x_checksum CHECKSUM("manual_tool_change_x")
+#define manual_tool_change_y_checksum CHECKSUM("manual_tool_change_y")
+#define manual_probe_z_checksum CHECKSUM("manual_probe_z")
 #define clearance_x_checksum		CHECKSUM("clearance_x")
 #define clearance_y_checksum		CHECKSUM("clearance_y")
 #define clearance_z_checksum		CHECKSUM("clearance_z")
@@ -1095,7 +1100,7 @@ void ATCHandler::fill_change_scripts(int new_tool, bool clear_z, int old_tool = 
 	this->script_queue.push(buff);
 
     // move x and y to active tool position
-	snprintf(buff, sizeof(buff), "G53 G0 X%.3f Y%.3f", THEROBOT->from_millimeters(probe_mx_mm - 22.0), THEROBOT->from_millimeters(probe_my_mm));
+	snprintf(buff, sizeof(buff), "G53 G0 X%.3f Y%.3f", THEROBOT->from_millimeters(manual_tool_change_x), THEROBOT->from_millimeters(manual_tool_change_y));
 	this->script_queue.push(buff);
 
 	this->script_queue.push("M497.2");
@@ -1179,7 +1184,7 @@ void ATCHandler::fill_manual_drop_scripts(int old_tool) {
 	snprintf(buff, sizeof(buff), "G90 G53 G0 Z%.3f", THEROBOT->from_millimeters(this->clearance_z));
 	this->script_queue.push(buff);
 	//move to clearance
-	snprintf(buff, sizeof(buff), "G90 G53 G0 X%.3f Y%.3f", THEROBOT->from_millimeters(probe_mx_mm - 22.0), THEROBOT->from_millimeters(probe_my_mm));
+	snprintf(buff, sizeof(buff), "G90 G53 G0 X%.3f Y%.3f", THEROBOT->from_millimeters(manual_tool_change_x), THEROBOT->from_millimeters(manual_tool_change_y));
 	this->script_queue.push(buff);
 
 	//print status
@@ -1212,7 +1217,7 @@ void ATCHandler::fill_manual_pickup_scripts(int new_tool, bool clear_z, bool aut
 	snprintf(buff, sizeof(buff), "G90 G53 G0 Z%.3f", THEROBOT->from_millimeters(this->clearance_z));
 	this->script_queue.push(buff);
 	//move to clearance
-	snprintf(buff, sizeof(buff), "G90 G53 G0 X%.3f Y%.3f", THEROBOT->from_millimeters(probe_mx_mm - 22.0), THEROBOT->from_millimeters(probe_my_mm));
+	snprintf(buff, sizeof(buff), "G90 G53 G0 X%.3f Y%.3f", THEROBOT->from_millimeters(manual_tool_change_x), THEROBOT->from_millimeters(manual_tool_change_y));
 	this->script_queue.push(buff);
 	
 	// loose tool
@@ -1390,7 +1395,7 @@ void ATCHandler::fill_cali_scripts(bool is_probe, bool clear_z, int repeat_count
 		else	//Manual Tool Change
 		{
 			// Use one-off Z offset if configured, otherwise use toolrack Z position
-			float probe_z = toolrack_z - 10 + (this->probe_oneoff_configured ? this->probe_oneoff_z : 0.0);
+			float probe_z = manual_probe_z + (this->probe_oneoff_configured ? this->probe_oneoff_z : 0.0);
 			snprintf(buff, sizeof(buff), "G38.6 Z%.3f F%.3f", probe_z, probe_fast_rate);
 		}
 		this->script_queue.push(buff);
@@ -1772,20 +1777,16 @@ void ATCHandler::on_config_reload(void *argument)
 	this->anchor2_offset_x = THEKERNEL->config->value(coordinate_checksum, anchor2_offset_x_checksum)->as_number(90  );
 	this->anchor2_offset_y = THEKERNEL->config->value(coordinate_checksum, anchor2_offset_y_checksum)->as_number(45.65F  );
 	
-	if(CARVERA == THEKERNEL->factory_set->MachineModel)
-	{
-		this->toolrack_z = THEKERNEL->config->value(coordinate_checksum, toolrack_z_checksum)->as_number(-105  );
-		this->toolrack_offset_x = THEKERNEL->config->value(coordinate_checksum, toolrack_offset_x_checksum)->as_number(356  );
-		this->toolrack_offset_y = THEKERNEL->config->value(coordinate_checksum, toolrack_offset_y_checksum)->as_number(0  );
-		this->lowest_tool_number = 0;
-	}
-	else if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
-	{
-		this->toolrack_z = THEKERNEL->config->value(coordinate_checksum, toolrack_z_checksum)->as_number(-108  );
-		this->toolrack_offset_x = THEKERNEL->config->value(coordinate_checksum, toolrack_offset_x_checksum)->as_number(126  );
-		this->toolrack_offset_y = THEKERNEL->config->value(coordinate_checksum, toolrack_offset_y_checksum)->as_number(196  );
-		this->lowest_tool_number = 1;
-	}
+	const auto defaults = atc_profile::legacy_defaults(
+		CARVERA == THEKERNEL->factory_set->MachineModel);
+	this->toolrack_z = THEKERNEL->config->value(
+		coordinate_checksum, toolrack_z_checksum)->as_number(defaults.toolrack_z);
+	this->toolrack_offset_x = THEKERNEL->config->value(
+		coordinate_checksum, toolrack_offset_x_checksum)->as_number(defaults.toolrack_offset_x);
+	this->toolrack_offset_y = THEKERNEL->config->value(
+		coordinate_checksum, toolrack_offset_y_checksum)->as_number(defaults.toolrack_offset_y);
+	this->lowest_tool_number = THEKERNEL->config->value(
+		atc_checksum, lowest_tool_number_checksum)->as_int(defaults.lowest_tool_number);
 
 	// Load configurable probe position (absolute MCS coordinates) before first use
 	this->probe_mcs_x = THEKERNEL->config->value(coordinate_checksum, probe_mcs_x_checksum)->as_number(NAN);
@@ -1850,27 +1851,27 @@ void ATCHandler::on_config_reload(void *argument)
 			probe_my_mm = isnan(this->probe_mcs_y) ? (probe_my_mm) : this->probe_mcs_y;
 			probe_mz_mm = isnan(this->probe_mcs_z) ? (probe_mz_mm) : this->probe_mcs_z;
 		}
+
+	this->manual_tool_change_x = THEKERNEL->config->value(
+		coordinate_checksum, manual_tool_change_x_checksum)->as_number(probe_mx_mm - 22.0F);
+	this->manual_tool_change_y = THEKERNEL->config->value(
+		coordinate_checksum, manual_tool_change_y_checksum)->as_number(probe_my_mm);
+	this->manual_probe_z = THEKERNEL->config->value(
+		coordinate_checksum, manual_probe_z_checksum)->as_number(toolrack_z - 10.0F);
 	
-	if(CARVERA == THEKERNEL->factory_set->MachineModel)
-	{
-		this->rotation_offset_x = THEKERNEL->config->value(coordinate_checksum, rotation_offset_x_checksum)->as_number(-8  );
-		this->rotation_offset_y = THEKERNEL->config->value(coordinate_checksum, rotation_offset_y_checksum)->as_number(37.5F  );
-		this->rotation_offset_z = THEKERNEL->config->value(coordinate_checksum, rotation_offset_z_checksum)->as_number(22.5F  );
-	
-		this->clearance_x = THEKERNEL->config->value(coordinate_checksum, clearance_x_checksum)->as_number(-75  );
-		this->clearance_y = THEKERNEL->config->value(coordinate_checksum, clearance_y_checksum)->as_number(-3  );
-		this->clearance_z = THEKERNEL->config->value(coordinate_checksum, clearance_z_checksum)->as_number(-3  );
-	}
-	else if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
-	{
-		this->rotation_offset_x = THEKERNEL->config->value(coordinate_checksum, rotation_offset_x_checksum)->as_number(30.0F);
-		this->rotation_offset_y = THEKERNEL->config->value(coordinate_checksum, rotation_offset_y_checksum)->as_number(82.5F  );
-		this->rotation_offset_z = THEKERNEL->config->value(coordinate_checksum, rotation_offset_z_checksum)->as_number(23.0F  );
-	
-		this->clearance_x = THEKERNEL->config->value(coordinate_checksum, clearance_x_checksum)->as_number(-5  );
-		this->clearance_y = THEKERNEL->config->value(coordinate_checksum, clearance_y_checksum)->as_number(-21  );
-		this->clearance_z = THEKERNEL->config->value(coordinate_checksum, clearance_z_checksum)->as_number(-5  );
-	}
+	this->rotation_offset_x = THEKERNEL->config->value(
+		coordinate_checksum, rotation_offset_x_checksum)->as_number(defaults.rotation_offset_x);
+	this->rotation_offset_y = THEKERNEL->config->value(
+		coordinate_checksum, rotation_offset_y_checksum)->as_number(defaults.rotation_offset_y);
+	this->rotation_offset_z = THEKERNEL->config->value(
+		coordinate_checksum, rotation_offset_z_checksum)->as_number(defaults.rotation_offset_z);
+
+	this->clearance_x = THEKERNEL->config->value(
+		coordinate_checksum, clearance_x_checksum)->as_number(defaults.clearance_x);
+	this->clearance_y = THEKERNEL->config->value(
+		coordinate_checksum, clearance_y_checksum)->as_number(defaults.clearance_y);
+	this->clearance_z = THEKERNEL->config->value(
+		coordinate_checksum, clearance_z_checksum)->as_number(defaults.clearance_z);
 	this->rotation_width = THEKERNEL->config->value(coordinate_checksum, rotation_width_checksum)->as_number(100 );
 
 	this->skip_path_origin = THEKERNEL->config->value(atc_checksum, skip_path_origin_checksum)->as_bool(false);

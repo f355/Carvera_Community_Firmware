@@ -395,11 +395,13 @@ coordinate.toolrack_offset_y 179.74		# Tool 6 Y Offset relative to anchor1
 coordinate.toolrack_z -108			# ATC Z axis machine coordinates
 
 # Tool setter (probe) position in absolute Machine Coordinate System
-# If not set, uses hardcoded values: X=-4.158, Y=-42.568, Z=-157.0 for CARVERA
-# Set these values to configure a custom probe position, leave unset to use defaults
-#coordinate.probe_mcs_x -4.158		# Tool setter X position in MCS (mm)
-#coordinate.probe_mcs_y -42.568		# Tool setter Y position in MCS (mm)
-#coordinate.probe_mcs_z -157.0		# Tool setter Z position in MCS (mm)
+coordinate.probe_mcs_x -11.4		# Tool setter X position in MCS (mm)
+coordinate.probe_mcs_y -13.3		# Tool setter Y position in MCS (mm)
+coordinate.probe_mcs_z -148.0		# Tool setter Z position in MCS (mm)
+
+coordinate.manual_tool_change_x -11.6	# Manual tool-change parking X position
+coordinate.manual_tool_change_y -14.6	# Manual tool-change parking Y position
+coordinate.manual_probe_z -108.0		# Manual tool calibration Z probe target
 
 coordinate.rotation_offset_x 12.0		# Rotation module X Offset relative to anchor1
 coordinate.rotation_offset_y 85.5		# Rotation module Y Offset relative to anchor1
@@ -446,6 +448,7 @@ wifi.machine_name CARVERA_AIR_01001	    	# Machine name that is shown in the WiF
 # ATC Motion
 atc.homing_retract_mm 0.4 				# Retract distance after homing (mm)
 atc.action_mm 1.6					 	# Action distance when drop tool (mm)
+atc.lowest_tool_number 0				# Lowest automatic tool slot number
 atc.detector.detect_rate_mm_s 20		# Tool detect speed (mm / second)
 atc.detector.detect_travel_mm 5	        # Tool detect back and forth distance (mm)
 # atc.detector.enable true				# Enable or disable the toolsensor
