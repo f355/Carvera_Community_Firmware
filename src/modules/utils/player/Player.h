@@ -69,6 +69,7 @@ class Player : public Module {
         void handle_link_packet(const player_link_packet& packet);
         void request_streamed_lines();
         void maintain_streamed_source();
+        bool streamed_session_active() const;
         void defer_streamed_abort();
         void finish_streamed_abort();
 #endif
