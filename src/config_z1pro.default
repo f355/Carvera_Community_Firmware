@@ -449,6 +449,7 @@ coordinate.clearance_z -1.0				# Z Machine coordinates for clearance
 soft_endstop.enable	false				# enable soft limit or not
 soft_endstop.x_min	-206.0				# Soft Limit X Min Machine Coordinate
 soft_endstop.y_min	-206.0				# Soft Limit Y Min Machine Coordinate
+soft_endstop.rotary_y_min	-160.0			# Y clearance limit when the rotary is fitted
 soft_endstop.z_min	-102.0				# Soft Limit Z Min Machine Coordinate
 
 # load_last_wcs false
