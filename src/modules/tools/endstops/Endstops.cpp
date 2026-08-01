@@ -26,6 +26,7 @@
 #include "libs/RotaryClearance.h"
 #include "PublicDataRequest.h"
 #include "EndstopsPublicAccess.h"
+#include "us_ticker_api.h"
 #include "StreamOutputPool.h"
 #include "StepTicker.h"
 #include "BaseSolution.h"
@@ -36,6 +37,7 @@
 
 #include <ctype.h>
 #include <algorithm>
+#include <limits>
 #include <vector>
 
 // OLD deprecated syntax
@@ -66,6 +68,7 @@ enum DEFNS { MIN_PIN, MAX_PIN, MAX_TRAVEL, FAST_RATE, SLOW_RATE, RETRACT, DIRECT
 
 #define endstop_debounce_count_checksum  CHECKSUM("endstop_debounce_count")
 #define endstop_debounce_ms_checksum     CHECKSUM("endstop_debounce_ms")
+#define motor_alarm_settle_ms_checksum   CHECKSUM("motor_alarm_settle_ms")
 
 #define home_z_first_checksum            CHECKSUM("home_z_first")
 #define homing_order_checksum            CHECKSUM("homing_order")
@@ -488,6 +491,13 @@ void Endstops::get_global_configs()
     // NOTE the debounce count is in milliseconds so probably does not need to beset anymore
     this->debounce_ms= THEKERNEL->config->value(endstop_debounce_ms_checksum)->as_number(10);
     this->debounce_count= THEKERNEL->config->value(endstop_debounce_count_checksum)->as_number(100);
+    const int motor_alarm_settle_ms =
+        THEKERNEL->config->value(motor_alarm_settle_ms_checksum)->as_int(0);
+    constexpr int max_motor_alarm_settle_ms =
+        static_cast<int>(std::numeric_limits<uint32_t>::max() / 1000U);
+    this->motor_alarm_settle_us = motor_alarm_settle_ms > 0
+        ? static_cast<uint32_t>(std::min(motor_alarm_settle_ms, max_motor_alarm_settle_ms)) * 1000U
+        : 0;
 
     this->is_corexy= THEKERNEL->config->value(corexy_homing_checksum)->as_bool(false);
     this->is_delta=  THEKERNEL->config->value(delta_homing_checksum)->as_bool(false);
@@ -569,23 +579,25 @@ void Endstops::on_idle(void *argument)
     
     if(THEKERNEL->is_halted()) return;
     
-    for(auto& i : motor_alarms) {
-		// check min and max endstops
-		if(debounced_get(&i->pin)) {
-			// endstop triggered
-			if(!THEKERNEL->is_grbl_mode()) {
-				THEKERNEL->streams->printf("%c motor alarm triggered - reset required\n", i->axis);
-			}else{
-				THEKERNEL->streams->printf("ERROR: %c motor alarm triggered -  reset required\n", i->axis);
+    if(THEKERNEL->motor_alarm_scan_ready(us_ticker_read(), motor_alarm_settle_us)) {
+        for(auto& i : motor_alarms) {
+			// check min and max endstops
+			if(debounced_get(&i->pin)) {
+				// endstop triggered
+				if(!THEKERNEL->is_grbl_mode()) {
+					THEKERNEL->streams->printf("%c motor alarm triggered - reset required\n", i->axis);
+				}else{
+					THEKERNEL->streams->printf("ERROR: %c motor alarm triggered -  reset required\n", i->axis);
+				}
+				i->debounce= 0;
+				// disables heaters and motors, ignores incoming Gcode and flushes block queue
+				THEKERNEL->set_halt_reason(MOTOR_ERROR_X + i->axis_index);
+				THEKERNEL->call_event(ON_HALT, nullptr);
+				return;
 			}
-			i->debounce= 0;
-			// disables heaters and motors, ignores incoming Gcode and flushes block queue
-			THEKERNEL->set_halt_reason(MOTOR_ERROR_X + i->axis_index);
-			THEKERNEL->call_event(ON_HALT, nullptr);
-			return;
 		}
-	}
-	
+    }
+
     if(this->status != NOT_HOMING) {
         // don't check while homing
         return;
