@@ -26,6 +26,8 @@
 #include "StepperMotor.h"
 #include "Robot.h"
 
+#include <algorithm>
+
 using namespace std;
 
 #define main_button_enable_checksum 				CHECKSUM("main_button_enable")
@@ -46,6 +48,7 @@ using namespace std;
 #define auto_sleep_checksum							CHECKSUM("auto_sleep")
 #define auto_sleep_min_checksum						CHECKSUM("auto_sleep_min")
 #define turn_off_min_checksum						CHECKSUM("turn_off_min")
+#define led_brightness_checksum                    CHECKSUM("ledBrightness")
 #define stop_on_cover_open_checksum					CHECKSUM("stop_on_cover_open")
 
 #define sd_ok_checksum								CHECKSUM("sd_ok")
@@ -64,6 +67,7 @@ MainButton::MainButton()
     this->light_countdown_us = us_ticker_read();
     this->power_fan_countdown_us = us_ticker_read();
     this->old_state = IDLE;
+    this->led_brightness = 104;
 }
 
 void MainButton::on_module_loaded()
@@ -78,25 +82,17 @@ void MainButton::on_module_loaded()
     this->main_button_LED_G.from_string( THEKERNEL->config->value( main_button_LED_G_pin_checksum )->as_string("1.15"))->as_output();
     this->main_button_LED_B.from_string( THEKERNEL->config->value( main_button_LED_B_pin_checksum )->as_string("1.14"))->as_output();
     
-    if(CARVERA == THEKERNEL->factory_set->MachineModel)
-    {
-	    this->main_button.from_string( THEKERNEL->config->value( main_button_pin_checksum )->as_string("1.16^"))->as_input();
-	}
-	else if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
-    {
-    	this->main_button.from_string( THEKERNEL->config->value( main_button_pin_checksum )->as_string("2.13!^"))->as_input();
-    }
+    const char* main_button_default = CARVERA_AIR == THEKERNEL->factory_set->MachineModel
+        ? "2.13!^" : "1.16^";
+    this->main_button.from_string(THEKERNEL->config->value(
+        main_button_pin_checksum)->as_string(main_button_default))->as_input();
     this->poll_frequency = THEKERNEL->config->value( main_button_poll_frequency_checksum )->as_number(20);
     this->long_press_time_ms = THEKERNEL->config->value( main_long_press_time_ms_checksum )->as_number(3000);
     this->long_press_enable = THEKERNEL->config->value( main_button_long_press_checksum )->as_string("");
-	if(CARVERA == THEKERNEL->factory_set->MachineModel)
-    {
-    	this->e_stop.from_string( THEKERNEL->config->value( e_stop_pin_checksum )->as_string("0.26^"))->as_input();
-    }
-	else if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
-    {
-    	this->e_stop.from_string( THEKERNEL->config->value( e_stop_pin_checksum )->as_string("0.20^"))->as_input();
-    }
+    const char* e_stop_default = CARVERA_AIR == THEKERNEL->factory_set->MachineModel
+        ? "0.20^" : "0.26^";
+    this->e_stop.from_string(THEKERNEL->config->value(
+        e_stop_pin_checksum)->as_string(e_stop_default))->as_input();
     this->PS12.from_string( THEKERNEL->config->value( ps12_pin_checksum )->as_string("0.22"))->as_output();
     this->PS24.from_string( THEKERNEL->config->value( ps24_pin_checksum )->as_string("0.10"))->as_output();
     this->power_fan_delay_s = THEKERNEL->config->value( power_fan_delay_s_checksum )->as_int(30);
@@ -107,6 +103,8 @@ void MainButton::on_module_loaded()
 
     this->enable_light = THEKERNEL->config->value(get_checksum("switch"), get_checksum("light"), get_checksum("startup_state"))->as_bool(false);
     this->turn_off_light_min = THEKERNEL->config->value(light_checksum, turn_off_min_checksum )->as_number(10);
+    this->led_brightness = static_cast<uint8_t>(std::clamp(
+        THEKERNEL->config->value(light_checksum, led_brightness_checksum)->as_int(104), 0, 255));
 
     this->stop_on_cover_open = THEKERNEL->config->value( stop_on_cover_open_checksum )->as_bool(false); // @deprecated
 
@@ -127,7 +125,11 @@ void MainButton::on_module_loaded()
 	    this->main_button_LED_G.set(0);
 	    this->main_button_LED_B.set(0);
 	}
+#if defined(MACHINE_Z1)
+    else
+#else
 	else if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
+#endif
     {
     	this->set_led_colors(0, 0, 0);
     	THEKERNEL->slow_ticker->attach( 4, this, &MainButton::led_tick );
@@ -793,21 +795,24 @@ uint32_t MainButton::led_tick(uint32_t dummy)
 	if (state != old_state) 
 	{
 		old_state = state;
+		const uint8_t orange_green = static_cast<uint8_t>(
+            (static_cast<unsigned int>(this->led_brightness) * 24U + 52U) / 104U);
 		switch (state) {
 			case IDLE:
-				this->set_led_colors(0, 0, 104);
+				this->set_led_colors(0, 0, this->led_brightness);
 				break;
 			case RUN:
-				this->set_led_colors(0, 104, 0);
+				this->set_led_colors(0, this->led_brightness, 0);
 				break;
 			case HOME:
-				this->set_led_colors(104, 24, 0);
+				this->set_led_colors(this->led_brightness, orange_green, 0);
 				break;
 			case ALARM:
-				this->set_led_colors(104, 0, 0);
+				this->set_led_colors(this->led_brightness, 0, 0);
 			    break;
 			case SLEEP:
-				this->set_led_colors(104, 104, 104);
+				this->set_led_colors(
+                    this->led_brightness, this->led_brightness, this->led_brightness);
 				break;
 		}
 	}
@@ -816,7 +821,7 @@ uint32_t MainButton::led_tick(uint32_t dummy)
 		this->hold_toggle ++;
 		if(this->hold_toggle % 4 == 0)
 		{
-			this->set_led_colors(104, 0 , 0);
+			this->set_led_colors(this->led_brightness, 0, 0);
 		}
 	}
 	return 0;
