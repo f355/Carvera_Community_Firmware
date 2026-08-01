@@ -12,6 +12,7 @@
 #include "SpindleControl.h"
 #include "libs/StreamOutputPool.h"
 #include "libs/PublicData.h"
+#include "libs/ReentryGuard.h"
 #include "SwitchPublicAccess.h"
 #include "ATCHandlerPublicAccess.h"
 
@@ -43,8 +44,11 @@ void SpindleControl::on_gcode_received(void *argument)
         }
         else if (gcode->m == 3)
         {
-        	if(THEKERNEL->is_halted()) return; // if in halted state ignore any commands
-        	if (!THEKERNEL->get_laser_mode()) {
+            if(THEKERNEL->is_halted()) return; // if in halted state ignore any commands
+            ReentryGuard guard(handling_gcode);
+            if (!guard) return;
+
+            if (!THEKERNEL->get_laser_mode()) {
                 // current tool number and tool offset
                 struct tool_status tool;
                 bool tool_ok = PublicData::get_value( atc_handler_checksum, get_tool_status_checksum, &tool );
@@ -96,7 +100,10 @@ void SpindleControl::on_gcode_received(void *argument)
         }
         else if (gcode->m == 5)
         {
-        	if (!THEKERNEL->get_laser_mode()) {
+            ReentryGuard guard(handling_gcode);
+            if (!guard) return;
+
+            if (!THEKERNEL->get_laser_mode()) {
                 THECONVEYOR->wait_for_idle();
 
                 // M5: spindle off

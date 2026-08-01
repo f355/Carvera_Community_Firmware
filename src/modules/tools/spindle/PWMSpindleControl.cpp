@@ -38,6 +38,8 @@
 #define spindle_control_D_checksum          CHECKSUM("control_D")
 #define spindle_control_smoothing_checksum  CHECKSUM("control_smoothing")
 #define spindle_delay_s_checksum			CHECKSUM("delay_s")
+#define spindle_delay_on_s_checksum         CHECKSUM("delay_on_s")
+#define spindle_delay_off_s_checksum        CHECKSUM("delay_off_s")
 #define spindle_acc_ratio_checksum			CHECKSUM("acc_ratio")
 #define spindle_alarm_pin_checksum			CHECKSUM("alarm_pin")
 #define spindle_stall_s_checksum			CHECKSUM("stall_s")
@@ -76,7 +78,9 @@ void PWMSpindleControl::on_module_loaded()
     control_I_term = THEKERNEL->config->value(spindle_checksum, spindle_control_I_checksum)->as_number(0.0001f);
     control_D_term = THEKERNEL->config->value(spindle_checksum, spindle_control_D_checksum)->as_number(0.0001f);
 
-    delay_s        = THEKERNEL->config->value(spindle_checksum, spindle_delay_s_checksum)->as_number(3);
+    const int delay_s = THEKERNEL->config->value(spindle_checksum, spindle_delay_s_checksum)->as_int(3);
+    delay_on_s     = THEKERNEL->config->value(spindle_checksum, spindle_delay_on_s_checksum)->as_int(delay_s);
+    delay_off_s    = THEKERNEL->config->value(spindle_checksum, spindle_delay_off_s_checksum)->as_int(delay_s);
     stall_s        = THEKERNEL->config->value(spindle_checksum, spindle_stall_s_checksum)->as_number(100);
     stall_count_rpm = THEKERNEL->config->value(spindle_checksum, spindle_stall_count_rpm_checksum)->as_number(8000);
     stall_alarm_rpm = THEKERNEL->config->value(spindle_checksum, spindle_stall_alarm_rpm_checksum)->as_number(5000);
@@ -220,9 +224,9 @@ uint32_t PWMSpindleControl::on_update_speed(uint32_t dummy)
 void PWMSpindleControl::turn_on() {
     spindle_on = true;
     THEKERNEL->spindleon = true;
-    if (delay_s > 0) {
+    if (delay_on_s > 0) {
         char buf[80];
-        size_t n = snprintf(buf, sizeof(buf), "G4P%d", delay_s);
+        size_t n = snprintf(buf, sizeof(buf), "G4P%d", delay_on_s);
         if(n > sizeof(buf)) n= sizeof(buf);
         string g(buf, n);
         Gcode gcode(g, &(StreamOutput::NullStream));
@@ -233,9 +237,9 @@ void PWMSpindleControl::turn_on() {
 void PWMSpindleControl::turn_off() {
     spindle_on = false;
     THEKERNEL->spindleon = false;
-    if (delay_s > 0) {
+    if (delay_off_s > 0) {
         char buf[80];
-        size_t n = snprintf(buf, sizeof(buf), "G4P%d", delay_s);
+        size_t n = snprintf(buf, sizeof(buf), "G4P%d", delay_off_s);
         if(n > sizeof(buf)) n= sizeof(buf);
         string g(buf, n);
         Gcode gcode(g, &(StreamOutput::NullStream));
@@ -365,4 +369,3 @@ void PWMSpindleControl::on_idle(void *argument)
     }*/
 
 }
-

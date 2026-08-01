@@ -56,7 +56,8 @@ class PWMSpindleControl: public SpindleControl {
         float control_D_term;
         float smoothing_decay;
         float max_pwm;
-        int  delay_s;
+        int  delay_on_s;
+        int  delay_off_s;
         int  stall_s;
         int  stall_count_rpm;
         int  stall_alarm_rpm;
@@ -92,4 +93,3 @@ class PWMSpindleControl: public SpindleControl {
 };
 
 #endif
-
