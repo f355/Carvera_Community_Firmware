@@ -25,6 +25,9 @@ using std::string;
 #include "libs/Config.h"
 #include "checksumm.h"
 #include "ConfigValue.h"
+#if defined(MACHINE_Z1)
+#include "UartRxDma.h"
+#endif
 
 #define uart_checksum CHECKSUM("uart")
 #define XBUFF_LENGTH 8208
@@ -53,6 +56,11 @@ SerialConsole::SerialConsole( PinName tx_pin, PinName rx_pin, int baud_rate ){
     this->makera_cmd_queue_clear();
     this->reset_makera_command_parser();
     this->reset_file_parser();
+#if defined(MACHINE_Z1)
+    this->rx_dispatch_enabled = false;
+    this->serial->attach(nullptr, mbed::Serial::RxIrq);
+    uart_rx_dma::initialize();
+#endif
 }
 
 SerialConsole::~SerialConsole(){
@@ -91,11 +99,15 @@ void SerialConsole::set_baud_temporary(int new_baud) {
 }
 
 void SerialConsole::attach_irq(bool enable_irq) {
+#if defined(MACHINE_Z1)
+    this->rx_dispatch_enabled = enable_irq;
+#else
 	if (enable_irq) {
 	    this->serial->attach(this, &SerialConsole::on_serial_char_received, mbed::Serial::RxIrq);
 	} else {
 	    this->serial->attach(nullptr, mbed::Serial::RxIrq);
 	}
+#endif
 }
 
 void SerialConsole::on_set_public_data(void *argument) {
@@ -111,10 +123,13 @@ void SerialConsole::on_set_public_data(void *argument) {
 }
 
 
-// Called on Serial::RxIrq interrupt, meaning we have received a char
+// Drain bytes supplied by the active IRQ- or DMA-backed transport.
 void SerialConsole::on_serial_char_received() {
-	while (this->serial->readable()) {
-		char received = this->serial->getc();
+	while (this->ready()) {
+#if defined(MACHINE_Z1)
+        if (handle_rx_error()) continue;
+#endif
+		char received = this->_getc();
 		last_activity_ms = us_ticker_read() / 1000;
 
 		if(THEKERNEL->is_cachewait()) {
@@ -183,7 +198,14 @@ void SerialConsole::on_serial_char_received() {
 
 void SerialConsole::on_idle(void * argument)
 {
+#if defined(MACHINE_Z1)
+    handle_rx_error();
+#endif
 	if (THEKERNEL->is_uploading()) return;
+
+#if defined(MACHINE_Z1)
+    if (rx_dispatch_enabled) on_serial_char_received();
+#endif
 
     if (temp_baud_rate != 0) {
         uint32_t now_ms = us_ticker_read() / 1000;
@@ -277,8 +299,11 @@ int SerialConsole::puts(const char* s, int size)
 int SerialConsole::gets(char** buf, int size)
 {
 	if (communication_protocol == PROTOCOL_MAKERA) {
-        while (this->serial->readable()) {
-            uint8_t received = static_cast<uint8_t>(this->serial->getc());
+        while (this->ready()) {
+#if defined(MACHINE_Z1)
+            if (handle_rx_error()) continue;
+#endif
+            uint8_t received = static_cast<uint8_t>(this->_getc());
             uint16_t checksum;
 
             switch (file_parse_state) {
@@ -496,13 +521,33 @@ int SerialConsole::_putc(int c)
 
 int SerialConsole::_getc()
 {
+#if defined(MACHINE_Z1)
+    return uart_rx_dma::get();
+#else
     return this->serial->getc();
+#endif
 }
 
 bool SerialConsole::ready()
 {
+#if defined(MACHINE_Z1)
+    return uart_rx_dma::ready();
+#else
     return this->serial->readable();
+#endif
 }
+
+#if defined(MACHINE_Z1)
+bool SerialConsole::handle_rx_error()
+{
+    if (!uart_rx_dma::take_error()) return false;
+
+    reset_makera_command_parser();
+    reset_file_parser();
+    THEKERNEL->streams->printf("ERROR: UART RX DMA error or overflow; input resynchronized\n");
+    return true;
+}
+#endif
 
 // Does the queue have a given char ?
 bool SerialConsole::has_char(char letter){
