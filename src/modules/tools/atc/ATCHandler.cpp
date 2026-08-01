@@ -8,6 +8,7 @@
 #include "ATCHandler.h"
 #include "libs/FirmwareFileSystem.h"
 #include "libs/AtcProfileDefaults.h"
+#include "libs/RotaryMovePolicy.h"
 
 #include "libs/Module.h"
 #include "libs/Kernel.h"
@@ -93,6 +94,7 @@
 #define manual_tool_change_x_checksum CHECKSUM("manual_tool_change_x")
 #define manual_tool_change_y_checksum CHECKSUM("manual_tool_change_y")
 #define manual_probe_z_checksum CHECKSUM("manual_probe_z")
+#define split_rotary_xy_moves_checksum CHECKSUM("split_rotary_xy_moves")
 #define clearance_x_checksum		CHECKSUM("clearance_x")
 #define clearance_y_checksum		CHECKSUM("clearance_y")
 #define clearance_z_checksum		CHECKSUM("clearance_z")
@@ -1099,9 +1101,7 @@ void ATCHandler::fill_change_scripts(int new_tool, bool clear_z, int old_tool = 
 	snprintf(buff, sizeof(buff), "G53 G0 Z%.3f", THEROBOT->from_millimeters(this->clearance_z));
 	this->script_queue.push(buff);
 
-    // move x and y to active tool position
-	snprintf(buff, sizeof(buff), "G53 G0 X%.3f Y%.3f", THEROBOT->from_millimeters(manual_tool_change_x), THEROBOT->from_millimeters(manual_tool_change_y));
-	this->script_queue.push(buff);
+	queue_manual_tool_change_position(false);
 
 	this->script_queue.push("M497.2");
 
@@ -1184,8 +1184,7 @@ void ATCHandler::fill_manual_drop_scripts(int old_tool) {
 	snprintf(buff, sizeof(buff), "G90 G53 G0 Z%.3f", THEROBOT->from_millimeters(this->clearance_z));
 	this->script_queue.push(buff);
 	//move to clearance
-	snprintf(buff, sizeof(buff), "G90 G53 G0 X%.3f Y%.3f", THEROBOT->from_millimeters(manual_tool_change_x), THEROBOT->from_millimeters(manual_tool_change_y));
-	this->script_queue.push(buff);
+	queue_manual_tool_change_position(true);
 
 	//print status
 	snprintf(buff, sizeof(buff), ";Ready to drop tool %d. Prepare to catch tool, resume will loosen collet\n", old_tool);
@@ -1217,8 +1216,7 @@ void ATCHandler::fill_manual_pickup_scripts(int new_tool, bool clear_z, bool aut
 	snprintf(buff, sizeof(buff), "G90 G53 G0 Z%.3f", THEROBOT->from_millimeters(this->clearance_z));
 	this->script_queue.push(buff);
 	//move to clearance
-	snprintf(buff, sizeof(buff), "G90 G53 G0 X%.3f Y%.3f", THEROBOT->from_millimeters(manual_tool_change_x), THEROBOT->from_millimeters(manual_tool_change_y));
-	this->script_queue.push(buff);
+	queue_manual_tool_change_position(true);
 	
 	// loose tool
 	this->script_queue.push("M490.2");
@@ -1263,6 +1261,23 @@ void ATCHandler::fill_manual_pickup_scripts(int new_tool, bool clear_z, bool aut
 		
 		//pause
 		snprintf(buff, sizeof(buff), "M600.5");
+		this->script_queue.push(buff);
+	}
+}
+
+void ATCHandler::queue_manual_tool_change_position(bool force_absolute)
+{
+	char buff[100];
+	const char *prefix = force_absolute ? "G90 G53 G0" : "G53 G0";
+	const auto order = rotary_move::clearance_order(this->split_rotary_xy_moves);
+
+	if (order == rotary_move::XYOrder::y_then_x) {
+		snprintf(buff, sizeof(buff), "%s Y%.3f", prefix, THEROBOT->from_millimeters(manual_tool_change_y));
+		this->script_queue.push(buff);
+		snprintf(buff, sizeof(buff), "%s X%.3f", prefix, THEROBOT->from_millimeters(manual_tool_change_x));
+		this->script_queue.push(buff);
+	} else {
+		snprintf(buff, sizeof(buff), "%s X%.3f Y%.3f", prefix, THEROBOT->from_millimeters(manual_tool_change_x), THEROBOT->from_millimeters(manual_tool_change_y));
 		this->script_queue.push(buff);
 	}
 }
@@ -1858,6 +1873,10 @@ void ATCHandler::on_config_reload(void *argument)
 		coordinate_checksum, manual_tool_change_y_checksum)->as_number(probe_my_mm);
 	this->manual_probe_z = THEKERNEL->config->value(
 		coordinate_checksum, manual_probe_z_checksum)->as_number(toolrack_z - 10.0F);
+	const bool split_rotary_xy_moves = THEKERNEL->config->value(
+		coordinate_checksum, split_rotary_xy_moves_checksum)->as_bool(false);
+	this->split_rotary_xy_moves = rotary_move::enabled(
+		split_rotary_xy_moves, THEKERNEL->factory_set->FuncSetting & (1 << 0));
 	
 	this->rotation_offset_x = THEKERNEL->config->value(
 		coordinate_checksum, rotation_offset_x_checksum)->as_number(defaults.rotation_offset_x);
@@ -3332,7 +3351,8 @@ void ATCHandler::on_main_loop(void *argument)
 		// goto z clearance
 		rapid_move(true, NAN, NAN, this->clearance_z, NAN, NAN);
 		// goto x and y clearance
-		rapid_move(true, this->clearance_x, this->clearance_y, NAN, NAN, NAN);
+		rapid_move_xy(true, this->clearance_x, this->clearance_y, NAN,
+			rotary_move::clearance_order(this->split_rotary_xy_moves));
 		THECONVEYOR->wait_for_idle();
 		THEROBOT->pop_state();
 		g28_triggered = false;
@@ -3340,7 +3360,8 @@ void ATCHandler::on_main_loop(void *argument)
         rapid_move(true, NAN, NAN, this->clearance_z, NAN, NAN);
 		if (goto_position == 0 || goto_position == 1) {
 			// goto clearance
-	        rapid_move(true, this->clearance_x, this->clearance_y, NAN, NAN, NAN);
+	        rapid_move_xy(true, this->clearance_x, this->clearance_y, NAN,
+				rotary_move::clearance_order(this->split_rotary_xy_moves));
 		} else if (goto_position == 2) {
 			// goto work origin
 			// shrink A value first before move
@@ -3359,13 +3380,16 @@ void ATCHandler::on_main_loop(void *argument)
 				ma = ma - deltwa;
 				THEROBOT->reset_axis_position(ma, A_AXIS);
 			}
-			rapid_move(false, 0, 0, NAN, 0, NAN);
+			rapid_move_xy(false, 0, 0, 0,
+				rotary_move::destination_order(this->split_rotary_xy_moves));
 		} else if (goto_position == 3) {
 			// goto anchor 1
 			rapid_move(true, this->anchor1_x, this->anchor1_y, NAN, NAN, NAN);
 		} else if (goto_position == 4) {
 			// goto anchor 2
-			rapid_move(true, this->anchor1_x + this->anchor2_offset_x, this->anchor1_y + this->anchor2_offset_y, NAN, NAN, NAN);
+			rapid_move_xy(true, this->anchor1_x + this->anchor2_offset_x,
+				this->anchor1_y + this->anchor2_offset_y, NAN,
+				rotary_move::destination_order(this->split_rotary_xy_moves));
 		} else if (goto_position == 5) {
 			// goto designative work position
 			if (position_x < 8888 && position_y < 8888 && position_a < 88888888 && position_b < 88888888) {
@@ -3593,6 +3617,19 @@ void ATCHandler::rapid_move(bool mc, float x, float y, float z, float a, float b
     THEKERNEL->call_event(ON_CONSOLE_LINE_RECEIVED, &message );
     THEKERNEL->conveyor->wait_for_idle();
 
+}
+
+void ATCHandler::rapid_move_xy(bool mc, float x, float y, float a, rotary_move::XYOrder order)
+{
+	if (order == rotary_move::XYOrder::x_then_y) {
+		rapid_move(mc, x, NAN, NAN, NAN, NAN);
+		rapid_move(mc, NAN, y, NAN, a, NAN);
+	} else if (order == rotary_move::XYOrder::y_then_x) {
+		rapid_move(mc, NAN, y, NAN, a, NAN);
+		rapid_move(mc, x, NAN, NAN, NAN, NAN);
+	} else {
+		rapid_move(mc, x, y, NAN, a, NAN);
+	}
 }
 
 

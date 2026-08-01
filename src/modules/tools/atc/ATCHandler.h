@@ -9,6 +9,7 @@ using namespace std;
 #include <cmath>
 #include "Pin.h"
 #include "Gcode.h"
+#include "libs/RotaryMovePolicy.h"
 
 class ATCHandler : public Module
 {
@@ -106,6 +107,7 @@ private:
     //
     void fill_manual_drop_scripts(int old_tool);
     void fill_manual_pickup_scripts(int new_tool, bool clear_z, bool auto_calibrate, float custom_TLO);
+    void queue_manual_tool_change_position(bool force_absolute);
 
     //
     void fill_margin_scripts(float x_pos, float y_pos, float x_pos_max, float y_pos_max);
@@ -139,6 +141,7 @@ private:
     void clear_script_queue();
 
     void rapid_move(bool mc, float x, float y, float z, float a, float b);
+    void rapid_move_xy(bool mc, float x, float y, float a, rotary_move::XYOrder order);
     void beep_complete();
     void beep_alarm();
     void beep_tool_change(int tool);
@@ -249,6 +252,7 @@ private:
     float manual_tool_change_x;
     float manual_tool_change_y;
     float manual_probe_z;
+    bool split_rotary_xy_moves;
 
     float clearance_x;
     float clearance_y;
