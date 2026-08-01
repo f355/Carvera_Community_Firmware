@@ -45,6 +45,7 @@ class Laser : public Module{
         float laser_maximum_s_value; // Value of S code that will represent max power
         float scale;
         bool handling_gcode;
+        bool static_removal_supported;
 
         int32_t ms_per_tick; // ms between each ticks, depends on PWM frequency
 

@@ -113,7 +113,8 @@ wifi.enable									false
 
 # Laser module configuration
 # laser_module_enable						true			# Whether to activate the laser module at all
-# laser_module_pin							2.12			#
+laser_module_pin							0.11			# Laser/ionizer enable
+laser_module_static_removal_enable			true
 # laser_module_pwm_pin						2.4				# This pin will be PWMed to control the laser.
 
 #laser_module_ttl_pin						1.30			# This pin turns on when the laser turns on, and off when the laser turns off.
@@ -145,6 +146,9 @@ switch.spindlefan.input_off_command			M812			# Command that will turn this switc
 switch.spindlefan.output_pin				2.0				# Pin this module controls
 switch.spindlefan.output_type				hwpwm			# Digital means this is just an on or off pin
 switch.spindlefan.failsafe_set_to			1				#
+accessory.chip_clear_switch				extendout
+accessory.auto_blowing_switch			spindlefan
+accessory.auto_blowing_power				30
 # switch.spindlefan.default_on_value			50				#
 
 switch.light.enable							true			# Enable this module
