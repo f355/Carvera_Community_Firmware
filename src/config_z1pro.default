@@ -150,6 +150,9 @@ switch.spindlefan.failsafe_set_to			1				#
 accessory.chip_clear_switch				extendout
 accessory.auto_blowing_switch			spindlefan
 accessory.auto_blowing_power				30
+accessory.bed_cleaning_switch			extendout
+accessory.bed_cleaning_fan_switch		spindlefan
+accessory.bed_cleaning_fan_power		100
 # switch.spindlefan.default_on_value			50				#
 
 switch.light.enable							true			# Enable this module
@@ -218,6 +221,7 @@ temperature_control.power.max_temp			60			# Alarm and halt machine when overheat
 # Useful to turn on a fan or water pump to cool the hotend
 temperatureswitch.spindle.enable			true			#
 temperatureswitch.spindle.switch			spindlefan		# select which switch to use, matches the name of the defined switch
+temperatureswitch.spindle.temperature_source	module
 
 temperatureswitch.power.enable			true			#
 temperatureswitch.power.switch			powerfan		# select which switch to use, matches the name of the defined switch
@@ -525,6 +529,15 @@ temperature_control.spindle.max_temp		70				# Alarm and halt machine when overhe
 
 ### Makera Z1 Pro-specific settings ###
 cover_endstop2								1.14!v
+bed_cleaning.enable						true
+bed_cleaning.x_min						-192.4
+bed_cleaning.x_max						-11.6
+bed_cleaning.y_min						-194.3
+bed_cleaning.y_max						-1.0
+bed_cleaning.park_y						-14.6
+bed_cleaning.front_x						-2.0
+bed_cleaning.cycles						1
+bed_cleaning.spacing						40
 spindle.delay_on_s							8.0				# delay seconds before next motion after spindle turn on
 spindle.delay_off_s							4.0				# delay seconds before next motion after spindle turn off
 light.ledBrightness			12			# The brightness of ligth

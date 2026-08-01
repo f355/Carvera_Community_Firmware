@@ -149,6 +149,9 @@ switch.spindlefan.failsafe_set_to			1				#
 accessory.chip_clear_switch				extendout
 accessory.auto_blowing_switch			spindlefan
 accessory.auto_blowing_power				30
+accessory.bed_cleaning_switch			extendout
+accessory.bed_cleaning_fan_switch		spindlefan
+accessory.bed_cleaning_fan_power		100
 # switch.spindlefan.default_on_value			50				#
 
 switch.light.enable							true			# Enable this module
@@ -199,6 +202,7 @@ temperature_control.spindle.designator		M				# designator
 # Useful to turn on a fan or water pump to cool the hotend
 temperatureswitch.spindle.enable			true			#
 temperatureswitch.spindle.switch			spindlefan		# select which switch to use, matches the name of the defined switch
+temperatureswitch.spindle.temperature_source	module
 
 ## Endstops
 # endstops_enable								true			# The endstop module is enabled by default and can be disabled here
@@ -527,6 +531,15 @@ temperatureswitch.power.cooldown_power_init  20.0			# Cooldown fan start power p
 temperatureswitch.power.cooldown_power_step  2.5			# Cooldown fan start power increase step per degree
 temperatureswitch.power.cooldown_delay       180			# Stop cooldown after these seconds
 cover_endstop2								1.14!v
+bed_cleaning.enable						true
+bed_cleaning.x_min						-192.4
+bed_cleaning.x_max						-11.6
+bed_cleaning.y_min						-194.3
+bed_cleaning.y_max						-1.0
+bed_cleaning.park_y						-14.6
+bed_cleaning.front_x						-2.0
+bed_cleaning.cycles						1
+bed_cleaning.spacing						40
 spindle.delay_on_s							8.0				# delay seconds before next motion after spindle turn on
 spindle.delay_off_s							4.0				# delay seconds before next motion after spindle turn off
 light.ledBrightness			15			# The brightness of ligth

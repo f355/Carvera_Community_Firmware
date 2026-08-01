@@ -165,6 +165,8 @@ class Kernel {
         bool is_auto_blowing() const { return auto_blowing; }
         void set_static_removal(bool f) { static_removal = f; }
         bool is_static_removal() const { return static_removal; }
+        void set_bed_cleaning(bool f) { bed_cleaning = f; }
+        bool is_bed_cleaning() const { return bed_cleaning; }
         void set_auto_blowing_power(float value) { auto_blowing_power = value; }
         float get_auto_blowing_power() const { return auto_blowing_power; }
 
@@ -296,6 +298,7 @@ class Kernel {
             bool extout_mode:1;
             bool auto_blowing:1;
             bool static_removal:1;
+            bool bed_cleaning:1;
             bool optional_stop_mode:1;
             bool line_by_line_exec_mode:1;
             bool sleeping:1;

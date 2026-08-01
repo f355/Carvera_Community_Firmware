@@ -114,6 +114,8 @@ private:
     void fill_zprobe_scripts(float x_pos, float y_pos, float x_offset, float y_offset);
     void fill_zprobe_abs_scripts();
     void fill_xyzprobe_scripts(float tool_dia, float probe_height);
+    void fill_autoclean_scripts(unsigned int cycles, float spacing, float x_min,
+        float x_max, float y_min, float y_max, float park_y, float front_x);
 
     //
     void set_tlo_by_offset(float z_axis_offset);
@@ -155,6 +157,7 @@ private:
     bool disable_toolsensor;
 
     bool playing_file;
+    bool bed_cleaning_operation;
     bool g28_triggered;
     
     uint16_t probe_laser_last;

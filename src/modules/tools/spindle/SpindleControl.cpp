@@ -85,18 +85,24 @@ void SpindleControl::on_gcode_received(void *argument)
             // open vacuum if set
 
 
-        	if (THEKERNEL->get_vacuum_mode()) {
-				accessory_switch::set_state(
-                    accessory_switch::configured_name(chip_clear_switch_checksum, "vacuum"), true);
-			}
+            if (THEKERNEL->get_vacuum_mode()) {
+                const uint16_t name = accessory_switch::configured_name(
+                    chip_clear_switch_checksum, "vacuum");
+                if(!accessory_switch::bed_cleaning_owns(name)) {
+                    accessory_switch::set_state(name, true);
+                }
+            }
 
             if(THEKERNEL->is_auto_blowing()) {
-                accessory_switch::set_power(
-                    accessory_switch::configured_name(auto_blowing_switch_checksum, "nc"),
-                    THEKERNEL->get_auto_blowing_power());
+                const uint16_t name = accessory_switch::configured_name(
+                    auto_blowing_switch_checksum, "nc");
+                if(!accessory_switch::bed_cleaning_owns(name)) {
+                    accessory_switch::set_power(name, THEKERNEL->get_auto_blowing_power());
+                }
             }
             // open extout if set
-        	if (THEKERNEL->get_extout_mode()) {
+            if (THEKERNEL->get_extout_mode() &&
+                !accessory_switch::bed_cleaning_owns(extendout_checksum)) {
         		// open extout
         		bool b = true;
         		struct pad_switch pad;
@@ -125,16 +131,23 @@ void SpindleControl::on_gcode_received(void *argument)
         	}
             // close vacuum if set
         	if (THEKERNEL->get_vacuum_mode()) {
-				accessory_switch::set_state(
-                    accessory_switch::configured_name(chip_clear_switch_checksum, "vacuum"), false);
+				const uint16_t name = accessory_switch::configured_name(
+                    chip_clear_switch_checksum, "vacuum");
+                if(!accessory_switch::bed_cleaning_owns(name)) {
+                    accessory_switch::set_state(name, false);
+                }
 			}
 
             if(THEKERNEL->is_auto_blowing()) {
-                accessory_switch::set_power(
-                    accessory_switch::configured_name(auto_blowing_switch_checksum, "nc"), 0);
+                const uint16_t name = accessory_switch::configured_name(
+                    auto_blowing_switch_checksum, "nc");
+                if(!accessory_switch::bed_cleaning_owns(name)) {
+                    accessory_switch::set_power(name, 0);
+                }
             }
             // close extout if set
-        	if (THEKERNEL->get_extout_mode()) {
+            if (THEKERNEL->get_extout_mode() &&
+                !accessory_switch::bed_cleaning_owns(extendout_checksum)) {
         		// close extout
         		bool b = false;
                 PublicData::set_value( switch_checksum, extendout_checksum, state_checksum, &b );
