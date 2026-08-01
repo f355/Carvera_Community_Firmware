@@ -91,6 +91,9 @@ Kernel::Kernel()
     laser_mode = false;
     vacuum_mode = false;
     extout_mode = false;
+    auto_blowing = false;
+    static_removal = false;
+    auto_blowing_power = 30.0F;
     optional_stop_mode = false;
     line_by_line_exec_mode = false;
     sleeping = false;
@@ -464,8 +467,13 @@ std::string Kernel::get_query_string()
     n= snprintf(buf, sizeof(buf), ",%1.1f", temp.current_temperature);
     if(n > sizeof(buf)) n= sizeof(buf);
     str.append(buf, n);
+#if defined(MACHINE_Z1)
+    n = snprintf(buf, sizeof(buf), ",%d,%d,%d,%d",
+        int(this->is_auto_blowing()), 0, 0, int(this->is_static_removal()));
+#else
 	// get extout_mode 
 	n= snprintf(buf, sizeof(buf), ",%d,%d,%d", 0, 0, int(this->get_extout_mode()));
+#endif
     if(n > sizeof(buf)) n= sizeof(buf);
     str.append(buf, n);
 

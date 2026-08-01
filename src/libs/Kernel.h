@@ -154,6 +154,12 @@ class Kernel {
         
         void set_extout_mode(bool f) { extout_mode = f; }
         bool get_extout_mode() const { return extout_mode; }
+        void set_auto_blowing(bool f) { auto_blowing = f; }
+        bool is_auto_blowing() const { return auto_blowing; }
+        void set_static_removal(bool f) { static_removal = f; }
+        bool is_static_removal() const { return static_removal; }
+        void set_auto_blowing_power(float value) { auto_blowing_power = value; }
+        float get_auto_blowing_power() const { return auto_blowing_power; }
 
         void set_sleeping(bool f) { sleeping = f; }
         bool is_sleeping() const { return sleeping; }
@@ -278,6 +284,8 @@ class Kernel {
             bool laser_mode:1;
             bool vacuum_mode:1;
             bool extout_mode:1;
+            bool auto_blowing:1;
+            bool static_removal:1;
             bool optional_stop_mode:1;
             bool line_by_line_exec_mode:1;
             bool sleeping:1;
@@ -295,6 +303,7 @@ class Kernel {
             bool config_load_error:1;
             bool stepper_powered:1;
         };
+        float auto_blowing_power;
 };
 
 #endif

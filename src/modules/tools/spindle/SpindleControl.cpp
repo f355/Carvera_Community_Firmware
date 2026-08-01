@@ -15,6 +15,13 @@
 #include "libs/GcodeRecursionGuard.h"
 #include "SwitchPublicAccess.h"
 #include "ATCHandlerPublicAccess.h"
+#include "modules/tools/switch/AccessorySwitchControl.h"
+#include "checksumm.h"
+
+namespace {
+constexpr uint16_t chip_clear_switch_checksum = CHECKSUM("chip_clear_switch");
+constexpr uint16_t auto_blowing_switch_checksum = CHECKSUM("auto_blowing_switch");
+}
 
 void SpindleControl::on_gcode_received(void *argument) 
 {
@@ -79,10 +86,15 @@ void SpindleControl::on_gcode_received(void *argument)
 
 
         	if (THEKERNEL->get_vacuum_mode()) {
-        		// open vacuum
-        		bool b = true;
-        		PublicData::set_value( switch_checksum, vacuum_checksum, state_checksum, &b );
-        	}
+				accessory_switch::set_state(
+                    accessory_switch::configured_name(chip_clear_switch_checksum, "vacuum"), true);
+			}
+
+            if(THEKERNEL->is_auto_blowing()) {
+                accessory_switch::set_power(
+                    accessory_switch::configured_name(auto_blowing_switch_checksum, "nc"),
+                    THEKERNEL->get_auto_blowing_power());
+            }
             // open extout if set
         	if (THEKERNEL->get_extout_mode()) {
         		// open extout
@@ -113,10 +125,14 @@ void SpindleControl::on_gcode_received(void *argument)
         	}
             // close vacuum if set
         	if (THEKERNEL->get_vacuum_mode()) {
-        		// close vacuum
-        		bool b = false;
-                PublicData::set_value( switch_checksum, vacuum_checksum, state_checksum, &b );
-        	}
+				accessory_switch::set_state(
+                    accessory_switch::configured_name(chip_clear_switch_checksum, "vacuum"), false);
+			}
+
+            if(THEKERNEL->is_auto_blowing()) {
+                accessory_switch::set_power(
+                    accessory_switch::configured_name(auto_blowing_switch_checksum, "nc"), 0);
+            }
             // close extout if set
         	if (THEKERNEL->get_extout_mode()) {
         		// close extout
@@ -146,6 +162,11 @@ void SpindleControl::on_halt(void *argument)
     if (argument == nullptr) {
         if(spindle_on) {
             turn_off();
+        }
+        if(THEKERNEL->is_auto_blowing()) {
+            accessory_switch::set_power(
+                accessory_switch::configured_name(auto_blowing_switch_checksum, "nc"), 0);
+            THEKERNEL->set_auto_blowing(false);
         }
     }
 }

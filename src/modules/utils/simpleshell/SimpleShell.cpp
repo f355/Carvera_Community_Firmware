@@ -46,6 +46,9 @@
 // #include "NetworkPublicAccess.h"
 #include "platform_memory.h"
 #include "SwitchPublicAccess.h"
+#include "modules/tools/switch/AccessorySwitchControl.h"
+#include "Config.h"
+#include "ConfigValue.h"
 #if !defined(NO_SD_CARD)
 #include "SDFAT.h"
 #endif
@@ -89,6 +92,13 @@ extern "C" void*     _sbrk(int size);
 // version definition
 // Version is defined by makefile using -D__GITVERSIONSTRING__ 
 #define VERSION __GITVERSIONSTRING__
+
+namespace {
+constexpr uint16_t accessory_checksum = CHECKSUM("accessory");
+constexpr uint16_t chip_clear_switch_checksum = CHECKSUM("chip_clear_switch");
+constexpr uint16_t auto_blowing_switch_checksum = CHECKSUM("auto_blowing_switch");
+constexpr uint16_t auto_blowing_power_checksum = CHECKSUM("auto_blowing_power");
+}
 
 
 // command lookup table
@@ -260,15 +270,32 @@ void SimpleShell::on_gcode_received(void *argument)
 			    struct spindle_status ss;
 			    bool ok = PublicData::get_value(pwm_spindle_control_checksum, get_spindle_status_checksum, &ss);
 			    if (ok) {
-			    	if (ss.state) {
-		        		// open vacuum
-		        		bool b = true;
-		        		PublicData::set_value( switch_checksum, vacuum_checksum, state_checksum, &b );
-			    	}
+                    if (ss.state) {
+                        accessory_switch::set_state(
+                            accessory_switch::configured_name(chip_clear_switch_checksum, "vacuum"), true);
+                    }
 	        	}
 	        	//PacketMessage(PTYPE_NORMAL_INFO, "turning vacuum mode on\r\n", 0, gcode->stream);
                 gcode->stream->printf("turning vacuum mode on\r\n");
 			}
+			else if (gcode->subcode == 1) {
+                float power = THEKERNEL->config->value(
+                    accessory_checksum, auto_blowing_power_checksum)->as_number(30.0F);
+                if(gcode->has_letter('S')) power = gcode->get_value('S');
+                if(power < 0 || power > 100) {
+                    gcode->stream->printf("ERROR: auto blowing power must be between 0 and 100\r\n");
+                    return;
+                }
+
+                THEKERNEL->set_auto_blowing_power(power);
+                THEKERNEL->set_auto_blowing(true);
+                struct spindle_status ss;
+                if(PublicData::get_value(pwm_spindle_control_checksum, get_spindle_status_checksum, &ss) && ss.state) {
+                    accessory_switch::set_power(
+                        accessory_switch::configured_name(auto_blowing_switch_checksum, "nc"), power);
+                }
+                gcode->stream->printf("turning auto blowing mode on\r\n");
+            }
 			else if (gcode->subcode == 3) {
 				THEKERNEL->set_extout_mode(true);
 			    // get spindle state
@@ -291,17 +318,22 @@ void SimpleShell::on_gcode_received(void *argument)
 			    struct spindle_status ss;
 			    bool ok = PublicData::get_value(pwm_spindle_control_checksum, get_spindle_status_checksum, &ss);
 			    if (ok) {
-			    	if (ss.state) {
-		        		// close vacuum
-		        		bool b = false;
-		        		PublicData::set_value( switch_checksum, vacuum_checksum, state_checksum, &b );
-			    	}
+                    if (ss.state) {
+                        accessory_switch::set_state(
+                            accessory_switch::configured_name(chip_clear_switch_checksum, "vacuum"), false);
+                    }
 	        	}
 				// turn off vacuum mode
 		
 				//PacketMessage(PTYPE_NORMAL_INFO, "turning vacuum mode off\r\n", 0, gcode->stream);
                 gcode->stream->printf("turning vacuum mode off\r\n");
 			}
+			else if (gcode->subcode == 1) {
+                THEKERNEL->set_auto_blowing(false);
+                accessory_switch::set_power(
+                    accessory_switch::configured_name(auto_blowing_switch_checksum, "nc"), 0);
+                gcode->stream->printf("turning auto blowing mode off\r\n");
+            }
 			else if (gcode->subcode == 3) {
 				THEKERNEL->set_extout_mode(false);
 			    // get spindle state

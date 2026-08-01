@@ -27,6 +27,11 @@ epsilon_dir_pin                                            1.0
 epsilon_en_pin                                             1.10
 epsilon_steps_per_mm                                       888.88888
 wifi.enable                                                false
+laser_module_pin                                           0.11
+laser_module_static_removal_enable                        true
+accessory.chip_clear_switch                                extendout
+accessory.auto_blowing_switch                              spindlefan
+accessory.auto_blowing_power                               30
 switch.vacuum.enable                                       true
 switch.vacuum.output_pin                                   2.2
 switch.vacuum.output_type                                  hwpwm
