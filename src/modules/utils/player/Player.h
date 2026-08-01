@@ -10,6 +10,7 @@
 
 #include "Module.h"
 #include "OCodeHandler.h"
+#include "PlayerLineSource.h"
 
 #include <stdio.h>
 #include <string>
@@ -40,6 +41,8 @@ class Player : public Module {
 
     private:
         bool prepare_ocode_prescan(StreamOutput* stream, const char* fail_msg);
+        void set_current_file(FILE* file);
+        void close_line_source();
         void play_command( string parameters, StreamOutput* stream );
         void progress_command( string parameters, StreamOutput* stream );
         void abort_command( string parameters, StreamOutput* stream );
@@ -92,6 +95,8 @@ class Player : public Module {
 
         OCodeHandler ocode_handler;
 
+        FilePlayerLineSource local_line_source;
+        PlayerLineSource* line_source;
         FILE* current_file_handler;
         // FILE* temp_file_handler;
         long file_size;
