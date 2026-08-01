@@ -33,7 +33,8 @@ using std::string;
 #define XBUFF_LENGTH 8208
 
 extern unsigned char xbuff[XBUFF_LENGTH];
-alignas(4) static unsigned char serial_protocol_buffer[544];
+static makera::FrameDecoder makera_frame_decoder;
+static makera::Packet decoded_packet;
 
 // Queue lives in main RAM (SerialConsole itself is AHB-allocated)
 enum { MAKERA_CMD_QUEUE_DEPTH = 4, MAKERA_CMD_MAX_LEN = 256 };
@@ -53,6 +54,7 @@ SerialConsole::SerialConsole( PinName tx_pin, PinName rx_pin, int baud_rate ){
     this->default_baud_rate = baud_rate;
     this->temp_baud_rate = 0;
     this->last_activity_ms = 0;
+    this->makera_frame_started_ms = 0;
     this->makera_cmd_queue_clear();
     this->reset_makera_command_parser();
     this->reset_file_parser();
@@ -202,6 +204,11 @@ void SerialConsole::on_idle(void * argument)
     handle_rx_error();
 #endif
 	if (THEKERNEL->is_uploading()) return;
+
+    if (makera_frame_started_ms != 0 &&
+        us_ticker_read() / 1000 - makera_frame_started_ms >= 100) {
+        reset_makera_command_parser();
+    }
 
 #if defined(MACHINE_Z1)
     if (rx_dispatch_enabled) on_serial_char_received();
@@ -360,9 +367,8 @@ int SerialConsole::gets(char** buf, int size)
 
 void SerialConsole::reset_makera_command_parser()
 {
-    makera_header = 0;
-    makera_received = 0;
-    makera_data_length = 0;
+    makera_frame_decoder.reset();
+    makera_frame_started_ms = 0;
 }
 
 bool SerialConsole::makera_cmd_queue_empty() const
@@ -395,41 +401,35 @@ bool SerialConsole::makera_cmd_queue_push(const char *data, uint16_t len)
 
 void SerialConsole::process_makera_byte(uint8_t received)
 {
-    if (makera_received < 2) {
-        makera_header = (makera_header << 8) | received;
-        if (makera_header == HEADER) {
-            serial_protocol_buffer[0] = (HEADER >> 8) & 0xff;
-            serial_protocol_buffer[1] = HEADER & 0xff;
-            makera_received = 2;
-        }
+    const bool was_in_progress = makera_frame_decoder.in_progress();
+    const makera::DecodeResult result = makera_frame_decoder.feed(received, decoded_packet);
+    if (!was_in_progress && makera_frame_decoder.in_progress()) {
+        makera_frame_started_ms = us_ticker_read() / 1000;
+    }
+    if (result == makera::DecodeResult::incomplete) return;
+
+    if (result != makera::DecodeResult::complete) {
+        makera_frame_started_ms = makera_frame_decoder.in_progress()
+            ? us_ticker_read() / 1000 : 0;
         return;
     }
+    makera_frame_started_ms = 0;
 
-    serial_protocol_buffer[makera_received++] = received;
-    if (makera_received == 4) {
-        makera_data_length = (serial_protocol_buffer[2] << 8) | serial_protocol_buffer[3];
-        if (makera_data_length < 3 || makera_data_length + 6 > sizeof(serial_protocol_buffer)) {
-            reset_makera_command_parser();
-        }
-        return;
-    }
+#if defined(MACHINE_Z1)
+    // TODO(f355): try re-enabling this and testing it on the machine
+    // if (!decoded_packet.crc_valid) return;
+#else
+    if (!decoded_packet.crc_valid) return;
+#endif
+    dispatch_makera_packet(decoded_packet);
+}
 
-    if (makera_received < makera_data_length + 6) return;
-
-    uint16_t footer = (serial_protocol_buffer[makera_received - 2] << 8)
-                    | serial_protocol_buffer[makera_received - 1];
-    uint16_t received_crc = (serial_protocol_buffer[makera_received - 4] << 8)
-                          | serial_protocol_buffer[makera_received - 3];
-    uint16_t calculated_crc = crc16::ccitt(&serial_protocol_buffer[2], makera_data_length);
-    if (footer != FOOTER || received_crc != calculated_crc) {
-        reset_makera_command_parser();
-        return;
-    }
-
-    uint8_t command = serial_protocol_buffer[4];
+void SerialConsole::dispatch_makera_packet(const makera::Packet& packet)
+{
+    const uint8_t command = packet.type;
     if (command == PTYPE_CTRL_SINGLE) {
-        if (makera_data_length >= 4) {
-            uint8_t control = serial_protocol_buffer[5];
+        if (packet.payload_length >= 1) {
+            const uint8_t control = packet.payload[0];
             if (control == '?') {
                 query_flag = true;
             } else if (control == '*') {
@@ -453,14 +453,35 @@ void SerialConsole::process_makera_byte(uint8_t received)
         }
     } else if (command == PTYPE_CTRL_MULTI || command == PTYPE_FILE_START) {
         // Copy payload now so the parser can accept the next frame immediately
-        uint16_t payload_len = makera_data_length - 3;
-        makera_cmd_queue_push(reinterpret_cast<char *>(&serial_protocol_buffer[5]), payload_len);
+        makera_cmd_queue_push(reinterpret_cast<const char *>(packet.payload),
+                              packet.payload_length);
+    }
+}
+
+#if defined(MACHINE_Z1)
+int SerialConsole::receive_packet(makera::Packet& packet, uint32_t timeout_ms)
+{
+    reset_makera_command_parser();
+    const uint32_t start_us = us_ticker_read();
+    const uint32_t timeout_us = timeout_ms * 1000;
+    while (us_ticker_read() - start_us < timeout_us) {
+        if (uart_rx_dma::take_error()) {
+            reset_makera_command_parser();
+            return -4;
+        }
+        if (!ready()) continue;
+
+        const makera::DecodeResult result = makera_frame_decoder.feed(
+            static_cast<uint8_t>(_getc()), packet);
+        if (result != makera::DecodeResult::complete) continue;
         reset_makera_command_parser();
-        return;
+        return packet.crc_valid ? 0 : -3;
     }
 
     reset_makera_command_parser();
+    return -1;
 }
+#endif
 
 void SerialConsole::reset_file_parser()
 {

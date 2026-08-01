@@ -16,6 +16,7 @@
 using std::string;
 #include "libs/RingBuffer.h"
 #include "libs/StreamOutput.h"
+#include "MakeraFrame.h"
 
 
 #define baud_rate_setting_checksum CHECKSUM("baud_rate")
@@ -45,6 +46,9 @@ class SerialConsole : public Module, public StreamOutput {
 
         int get_baud() const { return current_baud_rate; }
         void set_baud_temporary(int new_baud);
+#if defined(MACHINE_Z1)
+        int receive_packet(makera::Packet& packet, uint32_t timeout_ms = 100);
+#endif
 
         //string receive_buffer;                 // Received chars are stored here until a newline character is received
         //vector<std::string> received_lines;    // Received lines are stored here until they are requested
@@ -55,9 +59,7 @@ class SerialConsole : public Module, public StreamOutput {
         int default_baud_rate;
         int temp_baud_rate;                       // non-zero = temporary baud active
         uint32_t last_activity_ms;                // for 15s timeout revert
-        uint16_t makera_header;
-        uint16_t makera_received;
-        uint16_t makera_data_length;
+        uint32_t makera_frame_started_ms;
 #if defined(MACHINE_Z1)
         bool rx_dispatch_enabled;
         bool handle_rx_error();
@@ -79,6 +81,7 @@ class SerialConsole : public Module, public StreamOutput {
         uint8_t file_footer[2];
 
         void process_makera_byte(uint8_t received);
+        void dispatch_makera_packet(const makera::Packet& packet);
         void reset_makera_command_parser();
         void reset_file_parser();
         int check_file_packet(char **buf);
