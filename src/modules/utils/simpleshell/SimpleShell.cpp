@@ -46,7 +46,9 @@
 // #include "NetworkPublicAccess.h"
 #include "platform_memory.h"
 #include "SwitchPublicAccess.h"
+#if !defined(NO_SD_CARD)
 #include "SDFAT.h"
+#endif
 #include "FATFileSystem.h"
 #include "Thermistor.h"
 #include "md5.h"
@@ -591,16 +593,22 @@ void SimpleShell::ls_command( string parameters, StreamOutput *stream )
     }
 }
 
+#if !defined(NO_SD_CARD)
 extern SDFAT mounter;
+#endif
 
 void SimpleShell::remount_command( string parameters, StreamOutput *stream )
 {
+#if !defined(NO_SD_CARD)
     mounter.remount();
     if (communication_protocol == PROTOCOL_SMOOTHIE) {
         stream->printf("remounted\r\n");
     } else {
         PacketMessage(PTYPE_NORMAL_INFO, "remounted\r\n", 0, stream);
     }
+#else
+    stream->printf("ERROR: SD card is not available\r\n");
+#endif
 }
 
 // Delete a file

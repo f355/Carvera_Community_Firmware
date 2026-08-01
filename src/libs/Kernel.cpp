@@ -43,6 +43,9 @@
 #include "mbed.h"
 #include "utils.h"
 #include "WifiPublicAccess.h"
+#if defined(MACHINE_Z1)
+#include "libs/RemoteFactoryProvider.h"
+#endif
 
 #ifndef NO_TOOLS_LASER
 #include "Laser.h"
@@ -74,6 +77,11 @@ static float ahb_local_params[30] LOCATED_IN_AHBSRAM;
 #define	EEP_MAX_PAGE_SIZE	32
 #define EEPROM_DATA_STARTPAGE	1
 #define EEPROM_FACTORYSET_PAGE	16
+#if defined(MACHINE_Z1)
+constexpr int boot_serial_baud = 230400;
+#else
+constexpr int boot_serial_baud = 115200;
+#endif
 // The kernel is the central point in Smoothie : it stores modules, and handles event calls
 Kernel::Kernel()
 {
@@ -124,14 +132,37 @@ Kernel::Kernel()
     // errors are visible on the host link. Baud is hard-coded here and gets
     // re-applied from config later in SerialConsole::on_module_loaded().
     this->streams = new StreamOutputPool();
-    this->serial  = new(AHB) SerialConsole(P2_8, P2_9, 115200);
+    this->serial  = new(AHB) SerialConsole(P2_8, P2_9, boot_serial_baud);
     this->streams->append_stream(this->serial);
 
     this->factory_set = new FACTORY_SET();
     // read Factory setting data from eeprom
     this->read_Factory_data();
+#if defined(MACHINE_Z1)
+    if (this->factory_set->MachineModel != Z1 &&
+        this->factory_set->MachineModel != Z1PRO) {
+        *this->factory_set = FACTORY_SET{Z1, 0, 0, 0};
+    }
+
+    RemoteFactoryProvider remote_factory(*this->factory_set);
+    const remote::Result factory_result = remote_factory.fetch(*this->serial);
+    if (factory_result == remote::Result::success && remote_factory.changed()) {
+        const FACTORY_SET previous = *this->factory_set;
+        *this->factory_set = remote_factory.value();
+        if (write_Factory_data()) {
+            system_reset(false);
+        } else {
+            *this->factory_set = previous;
+        }
+    } else if (factory_result != remote::Result::success) {
+        this->streams->printf(
+            "ERROR: remote factory transfer failed (%u); using stored settings\n",
+            static_cast<unsigned>(factory_result));
+    }
+#else
     // read Factory settings data from sd
     this->read_Factroy_SD();
+#endif
 
 
     // Config next, but does not load cache yet

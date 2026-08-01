@@ -18,6 +18,9 @@ using namespace std;
 #include "libs/utils.h"
 #include "libs/SerialMessage.h"
 #include "libs/ConfigSources/FileConfigSource.h"
+#if defined(MACHINE_Z1)
+#include "libs/ConfigSources/RemoteConfigSource.h"
+#endif
 
 extern "C" caddr_t _sbrk(int);
 #include "libs/ConfigSources/FirmConfigSource.h"
@@ -32,6 +35,9 @@ Config::Config()
     // Config source for firm config found in src/config.default
     this->config_sources.push_back( new FirmConfigSource("firm") );
 
+#if defined(MACHINE_Z1)
+    this->config_sources.push_back(new RemoteConfigSource(*THEKERNEL->serial));
+#else
     // Config source for */config files
     FileConfigSource *fcs = NULL;
     if( file_exists("/local/config") )
@@ -48,6 +54,7 @@ Config::Config()
         fcs = new FileConfigSource("/sd/config.txt", "sd");
     if( fcs != NULL )
         this->config_sources.push_back( fcs );
+#endif
 }
 
 Config::Config(ConfigSource *cs)
@@ -154,6 +161,5 @@ ConfigValue *Config::value(uint16_t check_sums[])
 
     return result;
 }
-
 
 

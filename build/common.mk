@@ -78,6 +78,10 @@ OUTDIR = ../$(DEVICE)-z1
 DEFINES += -DMACHINE_Z1
 NO_USB_HOST := 1
 NO_VESC_SPINDLE := 1
+NO_SD_CARD := 1
+NO_WIRELESS_PROBE := 1
+NO_WIFI_PROVIDER := 1
+NO_WATCHDOG := 1
 else
 $(error Unsupported MACHINE '$(MACHINE)'; expected carvera or z1)
 endif
@@ -185,6 +189,31 @@ CPPSRCS3 := $(filter-out \
   $(SRC)/libs/USBDevice/USBHostLite/usbhost_ms.cpp \
   ,$(CPPSRCS3))
 DEFINES += -DNO_USB_HOST
+endif
+
+ifdef NO_WIRELESS_PROBE
+CPPSRCS3 := $(filter-out \
+  $(SRC)/modules/communication/SerialConsole2.cpp \
+  ,$(CPPSRCS3))
+DEFINES += -DNO_WIRELESS_PROBE
+endif
+
+ifdef NO_WIFI_PROVIDER
+CPPSRCS3 := $(filter-out \
+  $(SRC)/modules/utils/wifi/WifiProvider.cpp \
+  ,$(CPPSRCS3))
+DEFINES += -DNO_WIFI_PROVIDER
+endif
+
+ifdef NO_WATCHDOG
+CPPSRCS3 := $(filter-out \
+  $(SRC)/libs/Watchdog.cpp \
+  ,$(CPPSRCS3))
+DEFINES += -DNO_WATCHDOG
+endif
+
+ifdef NO_SD_CARD
+DEFINES += -DNO_SD_CARD
 endif
 
 # NO_PID_AUTOTUNE: exclude PID autotuner (not needed when no heaters are connected)
