@@ -881,23 +881,29 @@ void MainButton::set_led_color(unsigned char R, unsigned char G, unsigned char B
 
 void MainButton::set_led_colors(unsigned char R, unsigned char G, unsigned char B)
 {
+#if !defined(MACHINE_Z1)
     //__disable_irq();
     // stop TIMER0 and TIMER1 for save time
 	NVIC_DisableIRQ(TIMER0_IRQn);
 	NVIC_DisableIRQ(TIMER1_IRQn);
+#endif
 	set_led_color(R, G, B, R, G, B, R, G, B, R, G, B, R, G, B);
 //	set_led_color(R, G, B);
 //	set_led_color(R, G, B);
 //	set_led_color(R, G, B);
 //	set_led_color(R, G, B);
+#if !defined(MACHINE_Z1)
     //__enable_irq();
     NVIC_EnableIRQ(TIMER0_IRQn);     // Enable interrupt handler
 	NVIC_EnableIRQ(TIMER1_IRQn);     // Enable interrupt handler
+#endif
 }
 
 void MainButton::set_led_num(unsigned char ColorFR, unsigned char ColorFG, unsigned char ColorFB, unsigned char ColorBR, unsigned char ColorBG, unsigned char ColorBB, unsigned char num, bool row)
 {
+#if !defined(MACHINE_Z1)
     __disable_irq();
+#endif
 	if (!row){
 		switch(num){
 			case 1:
@@ -966,5 +972,7 @@ void MainButton::set_led_num(unsigned char ColorFR, unsigned char ColorFG, unsig
 		}
 	}
     
+#if !defined(MACHINE_Z1)
     __enable_irq();
+#endif
 }
