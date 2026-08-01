@@ -1,4 +1,5 @@
 [unreleased]
+- Enhancement: Add platform, profile, framed-link, and remote configuration support for Makera Z1 and Z1 Pro.
 - Changed: Build as C++17 and use one CRC-16/CCITT implementation for active protocols.
 
 [2.2.0c-RC1]
