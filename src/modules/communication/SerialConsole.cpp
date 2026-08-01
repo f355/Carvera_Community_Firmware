@@ -20,6 +20,7 @@ using std::string;
 #include "libs/StreamOutput.h"
 #include "libs/StreamOutputPool.h"
 #include "ATCHandlerPublicAccess.h"
+#include "modules/utils/player/PlayerPublicAccess.h"
 #include "PublicDataRequest.h"
 #include "PublicData.h"
 #include "libs/Config.h"
@@ -471,6 +472,11 @@ void SerialConsole::dispatch_makera_packet(const makera::Packet& packet)
         // Copy payload now so the parser can accept the next frame immediately
         makera_cmd_queue_push(reinterpret_cast<const char *>(packet.payload),
                               packet.payload_length);
+#if defined(MACHINE_Z1)
+    } else if (command >= PTYPE_PLAY_VIEW && command <= PTYPE_PLAY_GOTO_DATA) {
+        player_link_packet link { command, packet.payload, packet.payload_length };
+        PublicData::set_value(player_checksum, link_packet_checksum, &link);
+#endif
     }
 }
 
