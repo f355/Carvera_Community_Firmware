@@ -11,6 +11,9 @@
 #include "Module.h"
 #include "OCodeHandler.h"
 #include "PlayerLineSource.h"
+#if defined(MACHINE_Z1)
+#include "StreamedPlayerSource.h"
+#endif
 
 #include <stdio.h>
 #include <string>
@@ -21,6 +24,7 @@
 using std::string;
 
 class StreamOutput;
+struct player_link_packet;
 
 class Player : public Module {
     public:
@@ -60,6 +64,12 @@ class Player : public Module {
         void test_command(string parameters, StreamOutput* stream );
 
         void sync_progress_max();
+#if defined(MACHINE_Z1)
+        void start_streamed_playback(StreamOutput* stream, const string& options);
+        void handle_link_packet(const player_link_packet& packet);
+        void request_streamed_lines();
+        void maintain_streamed_source();
+#endif
         
         string extract_options(string& args);
 
@@ -96,6 +106,15 @@ class Player : public Module {
         OCodeHandler ocode_handler;
 
         FilePlayerLineSource local_line_source;
+#if defined(MACHINE_Z1)
+        StreamedPlayerSource streamed_line_source;
+        uint16_t streamed_file_id;
+        uint32_t streamed_last_request_line;
+        uint32_t streamed_last_request_us;
+        bool streamed_start_pending;
+        bool streamed_retry_pending;
+        bool streamed_goto_pending;
+#endif
         PlayerLineSource* line_source;
         FILE* current_file_handler;
         // FILE* temp_file_handler;
