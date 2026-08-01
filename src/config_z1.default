@@ -543,3 +543,10 @@ bed_cleaning.spacing						40
 spindle.delay_on_s							8.0				# delay seconds before next motion after spindle turn on
 spindle.delay_off_s							4.0				# delay seconds before next motion after spindle turn off
 light.ledBrightness			15			# The brightness of ligth
+## CANopen I/O controller
+canopen.can_enable                         true
+canopen.can_bitrate                        1000000
+canopen.can_node_id                        10
+canopen.slave_node_id                      1
+canopen.can_heartbeat_ms                   1000
+canopen.can_role                           master

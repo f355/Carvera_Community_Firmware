@@ -11,6 +11,9 @@
 #endif
 
 #include "modules/tools/laser/Laser.h"
+#if defined(MACHINE_Z1)
+#include "modules/tools/canopen/CANopen.h"
+#endif
 #include "modules/tools/spindle/SpindleMaker.h"
 #include "modules/tools/temperaturecontrol/TemperatureControlPool.h"
 #include "modules/tools/endstops/Endstops.h"
@@ -185,6 +188,10 @@ void init() {
 
     // Create and add main modules
     kernel->add_module( new Player() );
+
+#if defined(MACHINE_Z1)
+    kernel->add_module(new(AHB) CANopen());
+#endif
 
     // ATC Handler
     kernel->add_module( new ATCHandler() );
