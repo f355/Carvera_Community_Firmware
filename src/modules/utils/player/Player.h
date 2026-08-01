@@ -120,7 +120,6 @@ class Player : public Module {
         bool streamed_abort_pending;
 #endif
         PlayerLineSource* line_source;
-        FILE* current_file_handler;
         // FILE* temp_file_handler;
         long file_size;
         unsigned long played_cnt;

@@ -99,7 +99,6 @@ StreamedPlayerSource::Line streamed_line_storage[streamed_line_count] LOCATED_IN
 Player::Player()
 {
     this->playing_file = false;
-    this->current_file_handler = nullptr;
     this->local_line_source.attach(nullptr);
     this->line_source = &this->local_line_source;
 #if defined(MACHINE_Z1)
@@ -133,7 +132,6 @@ Player::Player()
 
 void Player::set_current_file(FILE *file)
 {
-    this->current_file_handler = file;
     this->local_line_source.attach(file);
     this->line_source = &this->local_line_source;
 }
@@ -143,7 +141,6 @@ void Player::close_line_source()
     if (this->line_source != nullptr) {
         this->line_source->close();
     }
-    this->current_file_handler = nullptr;
     this->local_line_source.attach(nullptr);
     this->line_source = &this->local_line_source;
 }
@@ -210,7 +207,7 @@ void Player::on_second_tick(void *)
 bool Player::prepare_ocode_prescan(StreamOutput* stream, const char* fail_msg)
 {
     this->ocode_handler.reset();
-    this->ocode_handler.pre_scan(this->current_file_handler, stream);
+    this->ocode_handler.pre_scan(this->local_line_source.file(), stream);
     if(this->ocode_handler.pre_scan_failed()) {
         stream->printf("%s\r\n", fail_msg);
         this->close_line_source();
@@ -248,24 +245,24 @@ void Player::select_file(string argument, bool force_prescan)
     }
     this->current_stream = nullptr;
 
-    if(this->current_file_handler != NULL) {
+    if(this->local_line_source.file() != NULL) {
         this->playing_file = false;
         this->close_line_source();
     }
     this->set_current_file(fwfs::fopen(this->filename.c_str(), "r"));
 
-    if(this->current_file_handler == NULL) {
+    if(this->local_line_source.file() == NULL) {
         THEKERNEL->streams->printf("file.open failed: %s\r\n", this->filename.c_str());
         return;
 
     } else {
         // get size of file
-        int result = fwfs::fseek(this->current_file_handler, 0, SEEK_END);
+        int result = fwfs::fseek(this->local_line_source.file(), 0, SEEK_END);
         if (0 != result) {
             this->file_size = 0;
         } else {
-            this->file_size = fwfs::ftell(this->current_file_handler);
-            fwfs::fseek(this->current_file_handler, 0, SEEK_SET);
+            this->file_size = fwfs::ftell(this->local_line_source.file());
+            fwfs::fseek(this->local_line_source.file(), 0, SEEK_SET);
         }
         THEKERNEL->streams->printf("File opened:%s Size:%ld\r\n", this->filename.c_str(), this->file_size);
 
@@ -298,10 +295,10 @@ void Player::goto_line_number(unsigned long line_number)
     // (it can't be reconstructed from a line number; stray closers afterwards
     // warn rather than halt). The subroutine table is (re)built here, before
     // playback resumes, so no file scan ever happens mid-cut.
-    this->ocode_handler.prepare_jump(this->current_file_handler, THEKERNEL->streams);
+    this->ocode_handler.prepare_jump(this->local_line_source.file(), THEKERNEL->streams);
 
     // goto file begin
-    fwfs::fseek(this->current_file_handler, 0, SEEK_SET);
+    fwfs::fseek(this->local_line_source.file(), 0, SEEK_SET);
     played_lines = 0;
     played_cnt   = 0;
     file_line    = 0;
@@ -347,7 +344,7 @@ void Player::end_of_file()
 
 void Player::play_opened_file()
 {
-    if (this->current_file_handler != NULL) {
+    if (this->local_line_source.file() != NULL) {
         this->playing_file = true;
         // this would be a problem if the stream goes away before the file has finished,
         // so we attach it to the kernel stream, however network connections from pronterface
@@ -426,7 +423,7 @@ void Player::on_gcode_received(void *argument)
         } else if (gcode->m == 26) { // Reset print. Slightly different than M26 in Marlin and the rest
             //empty macro queue
             this->clear_macro_file_queue();
-            if(this->current_file_handler != NULL) {
+            if(this->local_line_source.file() != NULL) {
                 string currentfn = this->filename.c_str();
                 unsigned long old_size = this->file_size;
 
@@ -437,7 +434,7 @@ void Player::on_gcode_received(void *argument)
                     // reload the last file opened
                     this->set_current_file(fwfs::fopen(currentfn.c_str(), "r"));
 
-                    if(this->current_file_handler == NULL) {
+                    if(this->local_line_source.file() == NULL) {
                         gcode->stream->printf("file.open failed: %s\r\n", currentfn.c_str());
                     } else {
                         this->current_stream = nullptr;
@@ -667,7 +664,7 @@ void Player::play_command( string parameters, StreamOutput *stream )
     return;
 #endif
 
-    if (this->current_file_handler != NULL) { // must have been a paused print
+    if (this->local_line_source.file() != NULL) { // must have been a paused print
         this->close_line_source();
     }
 
@@ -681,7 +678,7 @@ void Player::play_command( string parameters, StreamOutput *stream )
     this->clear_macro_file_queue();
 
     this->set_current_file(fwfs::fopen(this->filename.c_str(), "r"));
-    if(this->current_file_handler == NULL) {
+    if(this->local_line_source.file() == NULL) {
         stream->printf("File not found: %s\r\n", this->filename.c_str());
         return;
     }
@@ -709,13 +706,13 @@ void Player::play_command( string parameters, StreamOutput *stream )
     }
 
     // get size of file
-    int result = fwfs::fseek(this->current_file_handler, 0, SEEK_END);
+    int result = fwfs::fseek(this->local_line_source.file(), 0, SEEK_END);
     if (0 != result) {
         stream->printf("WARNING - Could not get file size\r\n");
         file_size = 0;
     } else {
-        file_size = fwfs::ftell(this->current_file_handler);
-        fwfs::fseek(this->current_file_handler, 0, SEEK_SET);
+        file_size = fwfs::ftell(this->local_line_source.file());
+        fwfs::fseek(this->local_line_source.file(), 0, SEEK_SET);
         stream->printf("  File size %ld\r\n", file_size);
     }
     this->played_cnt = 0;
@@ -839,7 +836,6 @@ void Player::handle_link_packet(const player_link_packet& packet)
                               packet.payload[5];
         this->streamed_line_source.begin(file_id, size);
         this->line_source = &this->streamed_line_source;
-        this->current_file_handler = nullptr;
         this->file_size = size;
         this->played_cnt = 0;
         this->played_lines = 0;
@@ -998,7 +994,7 @@ void Player::goto_command( string parameters, StreamOutput *stream )
     }
 #endif
 
-    if (this->current_file_handler == NULL) {
+    if (this->local_line_source.file() == NULL) {
     	stream->printf("Missing file handle!\r\n");
     	return;
     }
@@ -1393,8 +1389,8 @@ void Player::on_main_loop(void *argument)
                 message.message = buf;
                 message.stream = this->current_stream == nullptr ? &(StreamOutput::NullStream) : this->current_stream;
 
-                if (this->current_file_handler != nullptr &&
-                    this->ocode_handler.process_line(buf, this->current_file_handler, message.stream, this->file_line)) {
+                if (this->local_line_source.file() != nullptr &&
+                    this->ocode_handler.process_line(buf, this->local_line_source.file(), message.stream, this->file_line)) {
                     this->sync_progress_max();
                     if (this->ocode_handler.is_skipping()) {
                         // Fast-forwarding through a skipped block stays in this
@@ -1408,7 +1404,7 @@ void Player::on_main_loop(void *argument)
                     }
                     return;
                 }
-                if (this->current_file_handler != nullptr && this->ocode_handler.is_skipping()) {
+                if (this->local_line_source.file() != nullptr && this->ocode_handler.is_skipping()) {
                     this->sync_progress_max();
                     uint32_t now_us = us_ticker_read();
                     if((now_us - last_idle_us) >= 200000) {
