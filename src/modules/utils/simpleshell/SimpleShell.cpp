@@ -1551,27 +1551,18 @@ void SimpleShell::fset_command( string parameters, StreamOutput *stream)
     	string s = shift_parameter( parameters );
     	if (s == "model") {
     		if (!parameters.empty()) {
-    			if (parameters.length() > 3) {
-    	    		stream->printf("model length should no more than 3\n");
-    	    	} else {
-    	    		if (parameters == "C1")
-        			{
-    					THEKERNEL->factory_set->MachineModel = 1;
-    					THEKERNEL->factory_set->FuncSetting |= 0x04;
-	            		THEKERNEL->write_Factory_data();
-    	    			stream->printf("fset model ok!\n");
-        			}
-        			else if (parameters == "CA1")
-    				{
-    					THEKERNEL->factory_set->MachineModel = 2;
-	            		THEKERNEL->write_Factory_data();
-    	    			stream->printf("fset model ok!\n");
-        			}
-        			else
-        			{
-        				stream->printf("Unable to recognize parameter model. \n");
-        			}
-    	    	}
+                const uint8_t model = machine_model_from_name(
+                    std::string_view(parameters.data(), parameters.size()));
+                if (model == 0) {
+                    stream->printf("Unable to recognize parameter model. \n");
+                } else {
+                    THEKERNEL->factory_set->MachineModel = model;
+                    if (model == CARVERA) {
+                        THEKERNEL->factory_set->FuncSetting |= 0x04;
+                    }
+                    THEKERNEL->write_Factory_data();
+                    stream->printf("fset model ok!\n");
+                }
     		}
     	} else if (s == "func") {
     		if (!parameters.empty()) {

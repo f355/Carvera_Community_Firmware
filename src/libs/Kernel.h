@@ -17,15 +17,12 @@
 #include <array>
 #include <vector>
 #include <string>
+#include "MachineModel.h"
 #include "modules/utils/wifi/WifiProvider.h"
 #include "libs/USBDevice/MSCFileSystem.h"
 
 // 9 WCS offsets
 #define MAX_WCS 9UL
-#define CARVERA		1
-#define CARVERA_AIR	2
-#define Z1		3
-#define Z1PRO		4
 //Module manager
 class Config;
 class Module;
