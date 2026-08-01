@@ -67,8 +67,18 @@ endif
 
 MRI_INIT_PARAMETERS=$(MRI_UART)
 
-# Output Object Directory
-OUTDIR=../$(DEVICE)
+# Select the machine family at build time. Keep the existing Carvera output
+# directory as the default so current build and packaging paths remain valid.
+MACHINE ?= carvera
+ifeq "$(MACHINE)" "carvera"
+OUTDIR = ../$(DEVICE)
+DEFINES += -DMACHINE_CARVERA
+else ifeq "$(MACHINE)" "z1"
+OUTDIR = ../$(DEVICE)-z1
+DEFINES += -DMACHINE_Z1
+else
+$(error Unsupported MACHINE '$(MACHINE)'; expected carvera or z1)
+endif
 
 # List of sources to be compiled/assembled
 CSRCS1 = $(wildcard $(SRC)/*.c $(SRC)/*/*.c $(SRC)/*/*/*.c $(SRC)/*/*/*/*.c $(SRC)/*/*/*/*/*.c $(SRC)/*/*/*/*/*/*.c)
@@ -182,9 +192,13 @@ OBJECTS = $(patsubst %.c,$(OUTDIR)/%.o,$(CSRCS)) $(patsubst %.s,$(OUTDIR)/%.o,$(
 # Add in the MBED customization stubs which allow hooking in the MRI debug monitor.
 OBJECTS += $(OUTDIR)/mbed_custom.o
 
+ifeq "$(MACHINE)" "carvera"
 OBJECTS += $(OUTDIR)/configdefault.o
-
 OBJECTS += $(OUTDIR)/config2default.o
+else
+OBJECTS += $(OUTDIR)/config_z1default.o
+OBJECTS += $(OUTDIR)/config_z1prodefault.o
+endif
 
 # List of the header dependency files, one per object file.
 DEPFILES = $(patsubst %.o,%.d,$(OBJECTS))
@@ -411,5 +425,15 @@ $(OUTDIR)/config2default.o : config2.default $(BUILD_DIR)/minify-config.sh $(BUI
 	$(Q) $(MKDIR) $(call convert-slash,$(OUTDIR)/_minified) $(QUIET)
 	$(Q) $(MINIFY) $< $(OUTDIR)/_minified/config2.default
 	$(Q) cd $(OUTDIR)/_minified && $(OBJCOPY) -I binary -O elf32-littlearm -B arm --readonly-text --rename-section .data=.rodata.config2default config2.default ../config2default.o
+
+$(OUTDIR)/config_z1default.o : config_z1.default $(BUILD_DIR)/minify-config.sh $(BUILD_DIR)/minify-config.ps1
+	$(Q) $(MKDIR) $(call convert-slash,$(OUTDIR)/_minified) $(QUIET)
+	$(Q) $(MINIFY) $< $(OUTDIR)/_minified/config_z1.default
+	$(Q) cd $(OUTDIR)/_minified && $(OBJCOPY) -I binary -O elf32-littlearm -B arm --readonly-text --rename-section .data=.rodata.config_z1default config_z1.default ../config_z1default.o
+
+$(OUTDIR)/config_z1prodefault.o : config_z1pro.default $(BUILD_DIR)/minify-config.sh $(BUILD_DIR)/minify-config.ps1
+	$(Q) $(MKDIR) $(call convert-slash,$(OUTDIR)/_minified) $(QUIET)
+	$(Q) $(MINIFY) $< $(OUTDIR)/_minified/config_z1pro.default
+	$(Q) cd $(OUTDIR)/_minified && $(OBJCOPY) -I binary -O elf32-littlearm -B arm --readonly-text --rename-section .data=.rodata.config_z1prodefault config_z1pro.default ../config_z1prodefault.o
 
 #########################################################################

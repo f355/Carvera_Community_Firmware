@@ -1361,6 +1361,17 @@ void SimpleShell::model_command( string parameters, StreamOutput *stream )
 {		    	
 	switch (THEKERNEL->factory_set->MachineModel)
 	{
+#if defined(MACHINE_Z1)
+		case Z1:
+			stream->printf("model = %s, %d, %d, %d\n", "Z1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
+			break;
+		case Z1PRO:
+			stream->printf("model = %s, %d, %d, %d\n", "Z1Pro", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
+			break;
+		default:
+			stream->printf("model = %s, %d, %d, %d\n", "Z1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
+			break;
+#else
 		case CARVERA:			
 			stream->printf("model = %s, %d, %d, %d\n", "C1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
 			break;
@@ -1370,9 +1381,10 @@ void SimpleShell::model_command( string parameters, StreamOutput *stream )
                 stream->printf("ERROR: Could not load flex compensation data\n");
             }
             break;
-		default:			
+		default:
 			stream->printf("model = %s, %d, %d, %d\n", "C1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
 			break;
+#endif
 	}
     if(THEKERNEL->is_config_load_error()) {
         stream->printf("ERROR: config file had errors during boot, see SD\n");
