@@ -69,10 +69,14 @@ class Switch : public Module {
             char      input_on_command_letter:8;
             char      input_off_command_letter:8;
             uint8_t   subcode:4;
+            uint8_t   reserved_32:4;
+            uint8_t   freq_poll_count;
+            uint8_t   freq_edge_count;
             bool      switch_changed:1;
             bool      input_pin_state:1;
             bool      switch_state:1;
             bool      ignore_on_halt:1;
             bool      failsafe:1;
+            bool      freq_measuring:1;
         };
 };
