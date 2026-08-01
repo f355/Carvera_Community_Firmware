@@ -1,4 +1,5 @@
 [unreleased]
+- Enhancement: Add profile-driven Z1 parking and manual tool changes with rotary-aware XY clearance moves.
 - Enhancement: Add rotary-aware homing clearance, configurable motor-alarm settling, and re-entry-safe spindle/laser control with separate start/stop delays.
 - Enhancement: Add platform, profile, framed-link, and remote configuration support for Makera Z1 and Z1 Pro.
 - Changed: Build as C++17 and use one CRC-16/CCITT implementation for active protocols.

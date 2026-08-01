@@ -434,6 +434,7 @@ coordinate.probe_mcs_z -148.0		# Tool setter Z position in MCS (mm)
 coordinate.manual_tool_change_x -11.6	# Manual tool-change parking X position
 coordinate.manual_tool_change_y -14.6	# Manual tool-change parking Y position
 coordinate.manual_probe_z -108.0		# Manual tool calibration Z probe target
+coordinate.split_rotary_xy_moves true	# Split XY moves when the rotary is fitted
 
 coordinate.rotation_offset_x 12.0		# Rotation module X Offset relative to anchor1
 coordinate.rotation_offset_y 85.5		# Rotation module Y Offset relative to anchor1
