@@ -221,6 +221,12 @@ bool Player::prepare_ocode_prescan(StreamOutput* stream, const char* fail_msg)
 
 void Player::select_file(string argument, bool force_prescan)
 {
+#if defined(MACHINE_Z1)
+    if (this->streamed_session_active()) {
+        THEKERNEL->streams->printf("ERROR: abort streamed playback before selecting a local file\r\n");
+        return;
+    }
+#endif
 
     this->filename = argument;
 
@@ -369,6 +375,14 @@ void Player::on_gcode_received(void *argument)
     Gcode *gcode = static_cast<Gcode *>(argument);
     string args = get_arguments(gcode->get_command());
     if (gcode->has_m) {
+#if defined(MACHINE_Z1)
+        if (this->streamed_session_active() &&
+            (gcode->m == 23 || gcode->m == 32 || gcode->m == 97 || gcode->m == 98)) {
+            gcode->stream->printf("ERROR: local file and macro commands are unavailable during streamed playback\r\n");
+            this->abort_command("1", gcode->stream);
+            return;
+        }
+#endif
         // Track spindle state from the job stream so suspend/resume can work
         if (gcode->m == 3) {
             this->last_spindle_on = true;
@@ -800,6 +814,11 @@ void Player::maintain_streamed_source()
     if (!this->streamed_retry_pending && expected == this->streamed_last_request_line &&
         us_ticker_read() - this->streamed_last_request_us <= streamed_retry_us) return;
     this->request_streamed_lines();
+}
+
+bool Player::streamed_session_active() const
+{
+    return this->streamed_start_pending || this->line_source == &this->streamed_line_source;
 }
 
 void Player::handle_link_packet(const player_link_packet& packet)
