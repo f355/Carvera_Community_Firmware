@@ -141,12 +141,6 @@ coordinate.anchor2_offset_y                                45.0
 coordinate.toolrack_offset_x                               48.78
 coordinate.toolrack_offset_y                               179.74
 coordinate.toolrack_z                                      -108
-coordinate.probe_mcs_x                                     -11.4
-coordinate.probe_mcs_y                                     -13.3
-coordinate.probe_mcs_z                                     -148.0
-coordinate.manual_tool_change_x                            -11.6
-coordinate.manual_tool_change_y                            -14.6
-coordinate.manual_probe_z                                  -108.0
 coordinate.rotation_offset_x                               12.0
 coordinate.rotation_offset_y                               85.5
 coordinate.rotation_offset_z                               23.0
