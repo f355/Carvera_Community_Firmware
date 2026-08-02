@@ -1860,6 +1860,14 @@ void ATCHandler::on_config_reload(void *argument)
 		}
 	}
 
+#if defined(MACHINE_Z1)
+	const auto z1_manual_coordinates = atc_profile::z1_manual_coordinates(
+		this->anchor1_x, this->anchor1_y,
+		this->toolrack_offset_x, this->toolrack_offset_y, this->toolrack_z);
+	probe_mx_mm = z1_manual_coordinates.probe_x;
+	probe_my_mm = z1_manual_coordinates.probe_y;
+#endif
+
 		// Use one-off offsets if configured, otherwise use standard manual position
 		if (this->probe_position_configured) {
 			probe_mx_mm = isnan(this->probe_mcs_x) ? (probe_mx_mm) : this->probe_mcs_x;
@@ -1867,12 +1875,21 @@ void ATCHandler::on_config_reload(void *argument)
 			probe_mz_mm = isnan(this->probe_mcs_z) ? (probe_mz_mm) : this->probe_mcs_z;
 		}
 
+#if defined(MACHINE_Z1)
+	this->manual_tool_change_x = THEKERNEL->config->value(
+		coordinate_checksum, manual_tool_change_x_checksum)->as_number(z1_manual_coordinates.parking_x);
+	this->manual_tool_change_y = THEKERNEL->config->value(
+		coordinate_checksum, manual_tool_change_y_checksum)->as_number(z1_manual_coordinates.parking_y);
+	this->manual_probe_z = THEKERNEL->config->value(
+		coordinate_checksum, manual_probe_z_checksum)->as_number(z1_manual_coordinates.probe_z);
+#else
 	this->manual_tool_change_x = THEKERNEL->config->value(
 		coordinate_checksum, manual_tool_change_x_checksum)->as_number(probe_mx_mm - 22.0F);
 	this->manual_tool_change_y = THEKERNEL->config->value(
 		coordinate_checksum, manual_tool_change_y_checksum)->as_number(probe_my_mm);
 	this->manual_probe_z = THEKERNEL->config->value(
 		coordinate_checksum, manual_probe_z_checksum)->as_number(toolrack_z - 10.0F);
+#endif
 	const bool split_rotary_xy_moves = THEKERNEL->config->value(
 		coordinate_checksum, split_rotary_xy_moves_checksum)->as_bool(false);
 	this->split_rotary_xy_moves = rotary_move::enabled(

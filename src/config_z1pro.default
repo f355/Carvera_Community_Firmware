@@ -426,14 +426,6 @@ coordinate.toolrack_offset_x 48.78		# Tool 6 X Offset relative to anchor1
 coordinate.toolrack_offset_y 179.74		# Tool 6 Y Offset relative to anchor1
 coordinate.toolrack_z -108				# ATC Z axis machine coordinates
 
-# Tool setter (probe) position in absolute Machine Coordinate System
-coordinate.probe_mcs_x -11.4		# Tool setter X position in MCS (mm)
-coordinate.probe_mcs_y -13.3		# Tool setter Y position in MCS (mm)
-coordinate.probe_mcs_z -148.0		# Tool setter Z position in MCS (mm)
-
-coordinate.manual_tool_change_x -11.6	# Manual tool-change parking X position
-coordinate.manual_tool_change_y -14.6	# Manual tool-change parking Y position
-coordinate.manual_probe_z -108.0		# Manual tool calibration Z probe target
 coordinate.split_rotary_xy_moves true	# Split XY moves when the rotary is fitted
 
 coordinate.rotation_offset_x 12.0		# Rotation module X Offset relative to anchor1
