@@ -1710,14 +1710,18 @@ void ATCHandler::on_module_loaded()
     	THEKERNEL->slow_ticker->attach(10, this, &ATCHandler::beep_beep);
     }
 
-    // load data from eeprom
-    this->active_tool = THEKERNEL->eeprom_data->TOOL;
-    if (THEKERNEL->eeprom_data->REFMZ != this->ref_tool_mz)
-    {
-        THEKERNEL->eeprom_data->REFMZ = this->ref_tool_mz;
-        THEKERNEL->write_eeprom_data();
-    }
-    this->cur_tool_mz = THEKERNEL->eeprom_data->TOOLMZ;
+	// load data from eeprom
+	this->active_tool = THEKERNEL->eeprom_data->TOOL;
+#if defined(MACHINE_Z1)
+	this->ref_tool_mz = THEKERNEL->eeprom_data->REFMZ;
+#else
+	if (THEKERNEL->eeprom_data->REFMZ != this->ref_tool_mz)
+	{
+		THEKERNEL->eeprom_data->REFMZ = this->ref_tool_mz;
+		THEKERNEL->write_eeprom_data();
+	}
+#endif
+	this->cur_tool_mz = THEKERNEL->eeprom_data->TOOLMZ;
     this->tool_offset = THEKERNEL->eeprom_data->TLO;
 	
 	this->target_tool = -1;
@@ -3164,6 +3168,8 @@ void ATCHandler::on_gcode_received(void *argument)
 			} else if (gcode->subcode == 2) {
 				// Show EEPROM DATA
 				THEKERNEL->erase_eeprom_data();
+			} else if (gcode->subcode == 3) {
+				THEKERNEL->dump_eeprom(gcode->stream);
 			}
 		} else if ( gcode->m == 499 ) {
 			if (gcode->subcode == 0 || gcode->subcode == 1) {
