@@ -45,7 +45,9 @@ class SerialConsole : public Module, public StreamOutput {
         char getc_result;
 
         int get_baud() const { return current_baud_rate; }
+#if !defined(MACHINE_Z1)
         void set_baud_temporary(int new_baud);
+#endif
 #if defined(MACHINE_Z1)
         int receive_packet(makera::Packet& packet, uint32_t timeout_ms = 100);
 #endif

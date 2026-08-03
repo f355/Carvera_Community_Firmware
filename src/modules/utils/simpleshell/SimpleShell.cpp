@@ -135,7 +135,9 @@ const SimpleShell::ptentry_t SimpleShell::commands_table[] = {
     {"fset",  SimpleShell::fset_command},
     {"enable_4th_hd", SimpleShell::enable_4th_hd},
     {"disable_4th_hd", SimpleShell::disable_4th_hd},
+#if !defined(MACHINE_Z1)
     {"baud",         SimpleShell::baud_command},
+#endif
     {"debugmode",    SimpleShell::debugmode_command},
 
     // unknown command
@@ -1667,6 +1669,7 @@ void SimpleShell::disable_4th_hd( string parameters, StreamOutput *stream)
 	}
 }
 
+#if !defined(MACHINE_Z1)
 void SimpleShell::baud_command(string parameters, StreamOutput *stream)
 {
     if (THEKERNEL->serial == nullptr) {
@@ -1687,6 +1690,7 @@ void SimpleShell::baud_command(string parameters, StreamOutput *stream)
     stream->printf("ok\n");
     static_cast<SerialConsole *>(THEKERNEL->serial)->set_baud_temporary(static_cast<int>(new_baud));
 }
+#endif
 
 void SimpleShell::debugmode_command(string parameters, StreamOutput *stream)
 {
