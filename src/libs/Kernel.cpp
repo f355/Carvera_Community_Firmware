@@ -154,7 +154,8 @@ Kernel::Kernel()
         } else {
             *this->factory_set = previous;
         }
-    } else if (factory_result != remote::Result::success) {
+    } else if (factory_result != remote::Result::success &&
+               factory_result != remote::Result::cancelled) {
         this->streams->printf(
             "ERROR: remote factory transfer failed (%u); using stored settings\n",
             static_cast<unsigned>(factory_result));
