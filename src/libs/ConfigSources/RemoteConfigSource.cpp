@@ -11,10 +11,12 @@
 #include "utils.h"
 
 namespace {
+// TODO(f355): Remove timeout completion after Makera fixes the ESP32 firmware
+// to advertise only the configuration records it actually sends.
 constexpr remote::PacketTypes config_packets{
     PTYPE_CONFIG_START, PTYPE_CONFIG_VIEW, PTYPE_CONFIG_DATA,
     PTYPE_CONFIG_FINISH, PTYPE_CONFIG_CANCEL,
-    remote::config_record_payload_size};
+    remote::config_record_payload_size, true};
 }
 
 RemoteConfigSource::RemoteConfigSource(SerialConsole& serial) : serial_(serial)

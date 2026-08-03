@@ -33,6 +33,7 @@ Result receive_records(Transport& transport, RecordSink& sink,
     enum class Phase : uint8_t { start, view, data };
 
     const uint32_t started_ms = transport.now_ms();
+    uint32_t last_progress_ms = started_ms;
     Phase phase = Phase::start;
     uint32_t record_count = 0;
     uint32_t next_index = 1;
@@ -51,21 +52,37 @@ Result receive_records(Transport& transport, RecordSink& sink,
         transport.send(types.cancel, nullptr, 0);
         return result;
     };
+    auto timeout = [&] {
+        if (types.data_timeout_completes && phase == Phase::data &&
+            next_index > 1) {
+            if (!sink.commit()) return fail(Result::sink_error);
+            transport.send(types.cancel, nullptr, 0);
+            return Result::success;
+        }
+        return fail(Result::timeout);
+    };
 
     send_request();
     for (;;) {
-        if (transport.now_ms() - started_ms >= overall_timeout_ms) {
-            return fail(Result::timeout);
+        const uint32_t now_ms = transport.now_ms();
+        const bool awaiting_terminal_timeout =
+            types.data_timeout_completes && phase == Phase::data &&
+            next_index > 1;
+        const uint32_t timeout_base_ms =
+            awaiting_terminal_timeout ? last_progress_ms : started_ms;
+        if (now_ms - timeout_base_ms >= overall_timeout_ms) {
+            return timeout();
         }
 
         makera::Packet packet{};
         if (!transport.receive(packet, 100)) {
             ++receive_failures;
-            if (receive_failures > 25) return fail(Result::timeout);
+            if (receive_failures > 25) return timeout();
             if (receive_failures % 5 == 0) send_request();
             continue;
         }
         if (!belongs_to(types, packet.type)) continue;
+        last_progress_ms = transport.now_ms();
         receive_failures = 0;
 
         if (packet.type == types.cancel) {
