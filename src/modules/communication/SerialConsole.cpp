@@ -25,6 +25,7 @@ using std::string;
 #include "libs/Config.h"
 #include "checksumm.h"
 #include "ConfigValue.h"
+#include "version.h"
 #if defined(MACHINE_Z1)
 #include "UartRxDma.h"
 #endif
@@ -42,6 +43,10 @@ static char makera_cmd_payloads[MAKERA_CMD_QUEUE_DEPTH][MAKERA_CMD_MAX_LEN];
 static uint16_t makera_cmd_lengths[MAKERA_CMD_QUEUE_DEPTH];
 static volatile uint8_t makera_cmd_head;
 static volatile uint8_t makera_cmd_tail;
+#if defined(MACHINE_Z1)
+static uint32_t last_version_us;
+constexpr uint32_t version_interval_us = 5 * 1000 * 1000;
+#endif
 
 // Serial reading module
 // Treats every received line as a command and passes it ( via event call ) to the command dispatcher.
@@ -260,6 +265,15 @@ void SerialConsole::on_idle(void * argument)
         }
         THEKERNEL->call_event(ON_HALT, nullptr);
     }
+
+#if defined(MACHINE_Z1)
+    const uint32_t now_us = us_ticker_read();
+    if (now_us - last_version_us > version_interval_us) {
+        Version version;
+        PacketMessage(PTYPE_VERSION_RES, version.get_build(), 0);
+        last_version_us = now_us;
+    }
+#endif
 }
 
 // Actual event calling must happen in the main loop because if it happens in the interrupt we will loose data
