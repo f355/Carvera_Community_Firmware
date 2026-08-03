@@ -15,7 +15,7 @@ namespace {
 constexpr remote::PacketTypes factory_packets{
     PTYPE_FACTORY_START, PTYPE_FACTORY_VIEW, PTYPE_FACTORY_DATA,
     PTYPE_FACTORY_FINISH, PTYPE_FACTORY_CANCEL,
-    remote::factory_record_payload_size};
+    remote::factory_record_payload_size, false};
 
 constexpr uint16_t machine_model_checksum = CHECKSUM("Machine_Model");
 constexpr uint16_t a_axis_home_checksum = CHECKSUM("A_Axis_home_enable");

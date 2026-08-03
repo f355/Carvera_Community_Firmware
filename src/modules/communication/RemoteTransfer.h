@@ -21,6 +21,7 @@ struct PacketTypes {
     uint8_t finish;
     uint8_t cancel;
     uint16_t record_payload_size;
+    bool data_timeout_completes;
 };
 
 enum class Result : uint8_t {
