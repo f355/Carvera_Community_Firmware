@@ -13,7 +13,8 @@
 namespace {
 constexpr remote::PacketTypes config_packets{
     PTYPE_CONFIG_START, PTYPE_CONFIG_VIEW, PTYPE_CONFIG_DATA,
-    PTYPE_CONFIG_FINISH, PTYPE_CONFIG_CANCEL};
+    PTYPE_CONFIG_FINISH, PTYPE_CONFIG_CANCEL,
+    remote::config_record_payload_size};
 }
 
 RemoteConfigSource::RemoteConfigSource(SerialConsole& serial) : serial_(serial)
@@ -41,7 +42,7 @@ uint32_t RemoteConfigSource::accept(uint32_t, const uint8_t* data,
                                     std::size_t size)
 {
     if (active_cache_ == nullptr || data == nullptr || size == 0 ||
-        size > remote::max_record_payload) {
+        size > remote::config_record_payload_size) {
         return 0;
     }
 

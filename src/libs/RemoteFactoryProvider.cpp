@@ -14,7 +14,8 @@
 namespace {
 constexpr remote::PacketTypes factory_packets{
     PTYPE_FACTORY_START, PTYPE_FACTORY_VIEW, PTYPE_FACTORY_DATA,
-    PTYPE_FACTORY_FINISH, PTYPE_FACTORY_CANCEL};
+    PTYPE_FACTORY_FINISH, PTYPE_FACTORY_CANCEL,
+    remote::factory_record_payload_size};
 
 constexpr uint16_t machine_model_checksum = CHECKSUM("Machine_Model");
 constexpr uint16_t a_axis_home_checksum = CHECKSUM("A_Axis_home_enable");
@@ -51,7 +52,10 @@ bool RemoteFactoryProvider::changed() const
 uint32_t RemoteFactoryProvider::accept(uint32_t, const uint8_t* data,
                                        std::size_t size)
 {
-    if (data == nullptr || size == 0 || size > remote::max_record_payload) return 0;
+    if (data == nullptr || size == 0 ||
+        size > remote::factory_record_payload_size) {
+        return 0;
+    }
     while (size != 0 && (data[size - 1] == '\r' || data[size - 1] == '\n' ||
                          data[size - 1] == '\0')) {
         --size;
