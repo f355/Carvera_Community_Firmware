@@ -1784,7 +1784,7 @@ bool ATCHandler::probe_detect() {
     uint32_t probe_time;
     bool ok = PublicData::get_value(zprobe_checksum, get_zprobe_time_checksum, 0, &probe_time);
     if (ok) {
-    	if (us_ticker_read() - probe_time < 5 * 1000 * 1000) {
+        if (us_ticker_read() - probe_time < 10 * 1000 * 1000) {
     		return true;
     	}
     }
