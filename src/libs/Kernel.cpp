@@ -129,8 +129,8 @@ Kernel::Kernel()
     this->i2c->frequency(200000);
 
     // Bring up streams + serial console first so factory and config parser
-    // errors are visible on the host link. Baud is hard-coded here and gets
-    // re-applied from config later in SerialConsole::on_module_loaded().
+    // errors are visible on the host link. Carvera may reconfigure the baud
+    // from config later; the Z1 interprocessor link remains fixed at 230400.
     this->streams = new StreamOutputPool();
     this->serial  = new(AHB) SerialConsole(P2_8, P2_9, boot_serial_baud);
     this->streams->append_stream(this->serial);
@@ -203,8 +203,8 @@ Kernel::Kernel()
         delete this->serial;
         this->serial = nullptr;
     } else {
-        // add_module() runs SerialConsole::on_module_loaded() which re-reads
-        // uart.baud_rate from config and applies it to the hardware.
+        // add_module() runs SerialConsole::on_module_loaded(). Carvera applies
+        // uart.baud_rate there; the Z1 interprocessor link remains fixed.
         this->add_module( this->serial );
     }
 

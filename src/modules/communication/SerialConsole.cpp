@@ -76,11 +76,13 @@ void SerialConsole::on_module_loaded() {
     halt_flag = false;
     diagnose_flag = false;
 
+#if !defined(MACHINE_Z1)
     default_baud_rate = THEKERNEL->config->value(uart_checksum, baud_rate_setting_checksum)->as_number(current_baud_rate);
     if (default_baud_rate != current_baud_rate) {
         this->serial->baud(default_baud_rate);
         this->current_baud_rate = default_baud_rate;
     }
+#endif
 
     this->attach_irq(true);
 
@@ -93,12 +95,14 @@ void SerialConsole::on_module_loaded() {
     THEKERNEL->streams->append_stream(this);
 }
 
+#if !defined(MACHINE_Z1)
 void SerialConsole::set_baud_temporary(int new_baud) {
     this->temp_baud_rate = new_baud;
     this->current_baud_rate = new_baud;
     this->serial->baud(new_baud);
     this->last_activity_ms = us_ticker_read() / 1000;
 }
+#endif
 
 void SerialConsole::attach_irq(bool enable_irq) {
 #if defined(MACHINE_Z1)
@@ -214,6 +218,7 @@ void SerialConsole::on_idle(void * argument)
     if (rx_dispatch_enabled) on_serial_char_received();
 #endif
 
+#if !defined(MACHINE_Z1)
     if (temp_baud_rate != 0) {
         uint32_t now_ms = us_ticker_read() / 1000;
         if ((now_ms - last_activity_ms) >= 15000) {
@@ -222,6 +227,7 @@ void SerialConsole::on_idle(void * argument)
             this->temp_baud_rate = 0;
         }
     }
+#endif
 
     if (query_flag ) {
         query_flag = false;

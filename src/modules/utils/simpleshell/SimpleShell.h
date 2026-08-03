@@ -98,7 +98,9 @@ private:
 
     static void PacketMessage(char cmd, const char* s, int size, StreamOutput *stream);
 
+#if !defined(MACHINE_Z1)
     static void baud_command(string parameters, StreamOutput *stream);
+#endif
 
     static void debugmode_command(string parameters, StreamOutput *stream);
 
