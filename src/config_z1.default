@@ -394,8 +394,6 @@ coordinate.toolrack_offset_x 48.78		# Tool 6 X Offset relative to anchor1
 coordinate.toolrack_offset_y 179.74		# Tool 6 Y Offset relative to anchor1
 coordinate.toolrack_z -108			# ATC Z axis machine coordinates
 
-coordinate.split_rotary_xy_moves true	# Split XY moves when the rotary is fitted
-
 coordinate.rotation_offset_x 12.0		# Rotation module X Offset relative to anchor1
 coordinate.rotation_offset_y 85.5		# Rotation module Y Offset relative to anchor1
 coordinate.rotation_offset_z 23.0		    # Rotation module Z Offset relative to chuck center
