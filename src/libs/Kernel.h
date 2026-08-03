@@ -239,6 +239,7 @@ class Kernel {
         uint16_t probe_addr;
         bool checkled;
         bool spindleon;
+        bool axis_is_on[6];
 
         struct {
             bool slowticker_profiling:1;
