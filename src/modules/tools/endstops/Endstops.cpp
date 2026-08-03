@@ -892,10 +892,9 @@ void Endstops::check_4th(char *data)
 }
 void Endstops::home(axis_bitmap_t a)
 {
-	bool axis_is_on[homing_axis.size()];
 	for (size_t i = X_AXIS; i < homing_axis.size(); ++i)
 	{
-		axis_is_on[i] = false;
+		if (a[i]) THEKERNEL->axis_is_on[i] = false;
 	}
 	
     // reset debounce counts for all endstops
@@ -955,12 +954,12 @@ void Endstops::home(axis_bitmap_t a)
 		                THECONVEYOR->wait_for_idle();
 		                if(!homing_axis[i].pin_info->pin.get())
 		                {
-		                	axis_is_on[i] = true;
+                            THEKERNEL->axis_is_on[i] = true;
 		                }
 	                }
 	                else
 	                {
-	                	axis_is_on[i] = true;
+                        THEKERNEL->axis_is_on[i] = true;
 	                }
 	            }
 	        }
@@ -970,7 +969,7 @@ void Endstops::home(axis_bitmap_t a)
     	// potentially home A B and C individually
 	    if(homing_axis.size() > 3){
 	        for (size_t i = A_AXIS; i < homing_axis.size(); ++i) {
-	            if(axis_to_home[i] && (axis_is_on[i] == true)) {
+	            if(axis_to_home[i] && (THEKERNEL->axis_is_on[i] == true)) {
 	                // now home A B or C
 	                float delta[i+1];
 	                for (size_t j = 0; j <= i; ++j) delta[j]= 0;
@@ -1021,7 +1020,7 @@ void Endstops::home(axis_bitmap_t a)
     // also check ABC
     if(homing_axis.size() > 3){
         for (size_t i = A_AXIS; i < homing_axis.size(); ++i) {
-            if(axis_to_home[i] && !homing_axis[i].pin_info->triggered && (axis_is_on[i] == true)) {
+            if(axis_to_home[i] && !homing_axis[i].pin_info->triggered && (THEKERNEL->axis_is_on[i] == true)) {
                 this->status = NOT_HOMING;
                 THEKERNEL->set_halt_reason(HOME_FAIL);
                 THEKERNEL->call_event(ON_HALT, nullptr);

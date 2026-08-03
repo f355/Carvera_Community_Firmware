@@ -110,6 +110,7 @@ Kernel::Kernel()
     probe_addr = 0;
     checkled = false;
     spindleon = false;
+    for (bool &axis_on : axis_is_on) axis_on = false;
     debug_flags = {};
     cachewait = false;
     disable_serial_console = false;

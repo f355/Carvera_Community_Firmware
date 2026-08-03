@@ -1715,8 +1715,7 @@ bool Robot::append_milestone(const float target[], float feed_rate, unsigned int
 
     // check soft endstops only for homed axis that are enabled
     if(soft_endstop_enabled && !THEKERNEL->is_zprobing()) {
-        const bool rotary_installed =
-            (THEKERNEL->factory_set->FuncSetting & (1 << 0)) != 0;
+        const bool rotary_installed = THEKERNEL->axis_is_on[A_AXIS];
         const float effective_y_min = rotary_clearance::effective_y_min(
             rotary_installed, soft_endstop_min[Y_AXIS], rotary_clearance_y_min);
         for (int i = 0; i <= Z_AXIS; ++i) {
