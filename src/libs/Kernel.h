@@ -14,6 +14,7 @@
 
 #include "Module.h"
 #include "I2C.h" // mbed.h lib
+#include "EepromData.h"
 #include <array>
 #include <vector>
 #include <string>
@@ -38,6 +39,7 @@ class Adc;
 class PublicData;
 class SimpleShell;
 class Configurator;
+class StreamOutput;
 
 enum STATE {
 	IDLE    = 0,
@@ -90,21 +92,6 @@ enum ATC_STATE {
 	ATC_AUTOLEVEL   = 6,
 	ATC_DONE		= 9
 };
-
-typedef struct {
-	float TLO;
-	// int TOOL;
-//	float G54[5*MAX_WCS];
-	float REFMZ;
-	float TOOLMZ;
-	float reserve;
-	int TOOL;
-    float perm_vars[20];
-    bool tool_not_calibrated;
-    int current_wcs;
-    float WCScoord[6][4];
-    float WCSrotation[6];
-} EEPROM_data;
 
 typedef struct {
 	char  MachineModel;
@@ -217,6 +204,7 @@ class Kernel {
         void write_eeprom_data();
         void erase_eeprom_data();
         void check_eeprom_data();
+        void dump_eeprom(StreamOutput *stream);
         
         void read_Factory_data();
         bool write_Factory_data();
@@ -274,6 +262,7 @@ class Kernel {
         float* local_vars;        // #101–#120: user defined variables
 
     private:
+        bool read_eeprom_bytes(uint16_t address, unsigned char *data, size_t size);
         // When a module asks to be called for a specific event ( a hook ), this is where that request is remembered
         mbed::I2C* i2c;
         std::array<std::vector<Module*>, NUMBER_OF_DEFINED_EVENTS> hooks;

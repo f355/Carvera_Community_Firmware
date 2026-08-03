@@ -10,11 +10,13 @@
 #include "libs/Module.h"
 #include "libs/Config.h"
 #include "libs/CRC16.h"
+#include "libs/EepromDump.h"
 #include "libs/nuts_bolts.h"
 #include "libs/SlowTicker.h"
 #include "libs/Adc.h"
 #include "libs/compiler.h"
 #include "libs/StreamOutputPool.h"
+#include "libs/StreamOutput.h"
 #include <mri.h>
 #include "checksumm.h"
 #include "ConfigValue.h"
@@ -249,7 +251,7 @@ Kernel::Kernel()
     this->step_ticker->set_frequency( this->base_stepping_frequency );
     this->step_ticker->set_unstep_time( microseconds_per_step_pulse );
 
-    this->eeprom_data = new EEPROM_data();
+    this->eeprom_data = new EEPROM_data{};
     // read eeprom data
     this->read_eeprom_data();
     // check eeprom data
@@ -774,38 +776,79 @@ void Kernel::unregister_for_event(_EVENT_ENUM id_event, Module *mod)
     }
 }
 
-void Kernel::read_eeprom_data()
+bool Kernel::read_eeprom_bytes(uint16_t address, unsigned char *data, size_t size)
 {
-	size_t size = sizeof(EEPROM_data);
-	char i2c_buffer[size];
-
-    short address = EEPROM_DATA_STARTPAGE*EEP_MAX_PAGE_SIZE;
-    i2c_buffer[0] = (unsigned char)(address >> 8);
-    i2c_buffer[1] = (unsigned char)((unsigned char)address & 0xff);
+    constexpr size_t eeprom_size = 4096;
+    if (data == nullptr || size == 0 || size > eeprom_size || address > eeprom_size - size) {
+        return false;
+    }
+    memset(data, 0xFF, size);
+    this->i2c->is_timed_out();
 
     this->i2c->start();
-    this->i2c->write(0xA0);
-    this->i2c->write(i2c_buffer[0]);
-    this->i2c->write(i2c_buffer[1]);
+    if (!this->i2c->write(0xA0) ||
+        !this->i2c->write(static_cast<unsigned char>(address >> 8)) ||
+        !this->i2c->write(static_cast<unsigned char>(address))) {
+        this->i2c->stop();
+        this->i2c->is_timed_out();
+        return false;
+    }
     this->i2c->start();
-    this->i2c->write(0xA1);
-
-    for (size_t i = 0; i < size; i ++) {
-    	i2c_buffer[i] = this->i2c->read(1);
+    if (!this->i2c->write(0xA1)) {
+        this->i2c->stop();
+        this->i2c->is_timed_out();
+        return false;
     }
 
-	this->i2c->stop();
-	this->i2c->stop();
+    for (size_t i = 0; i < size; ++i) {
+        data[i] = this->i2c->read(i + 1 < size ? mbed::I2C::ACK : mbed::I2C::NoACK);
+    }
 
+    this->i2c->stop();
+    return !this->i2c->is_timed_out();
+}
+
+void Kernel::read_eeprom_data()
+{
+    constexpr uint16_t address = EEPROM_DATA_STARTPAGE * EEP_MAX_PAGE_SIZE;
+#if defined(MACHINE_Z1)
+    eeprom_layout::Z1Record stored{};
+    if (read_eeprom_bytes(address, reinterpret_cast<unsigned char *>(&stored), sizeof(stored))) {
+        eeprom_layout::decode_z1(stored, *this->eeprom_data);
+    } else {
+        this->streams->printf("ERROR: EEPROM data read failed\n");
+    }
+#else
+    if (!read_eeprom_bytes(address, reinterpret_cast<unsigned char *>(this->eeprom_data), sizeof(*this->eeprom_data))) {
+        *this->eeprom_data = {};
+        this->streams->printf("ERROR: EEPROM data read failed\n");
+    }
+#endif
     wait(0.05);
+}
 
-    memcpy(this->eeprom_data, i2c_buffer, size);
+void Kernel::dump_eeprom(StreamOutput *stream)
+{
+    constexpr uint16_t eeprom_size = 4096;
+    std::array<uint8_t, eeprom_dump::row_size> bytes;
+    uint16_t crc = 0;
+
+    for (uint16_t address = 0; address < eeprom_size; address += bytes.size()) {
+        if (!read_eeprom_bytes(address, bytes.data(), bytes.size())) {
+            stream->printf("ERROR: EEPROM read failed at %04X\r\n", address);
+            return;
+        }
+        crc = crc16::ccitt_update(crc, bytes.data(), bytes.size());
+        const auto row = eeprom_dump::format_row(address, bytes);
+        stream->printf("%s\r\n", row.data());
+    }
+    stream->printf("CRC16-CCITT:%04X\r\n", crc);
 }
 
 void Kernel::write_eeprom_data()
 {
-	size_t size = sizeof(EEPROM_data);
-	char Data_buffer[size];
+	constexpr size_t size = eeprom_layout::runtime_record_size();
+	std::array<unsigned char, size> data_buffer;
 	unsigned int writenum = 0;
 	unsigned int result = 0;
 	unsigned int pagenum = 0;
@@ -813,9 +856,20 @@ void Kernel::write_eeprom_data()
 	unsigned char * writeptr = 0;
 	unsigned int u8Pagebegin=EEPROM_DATA_STARTPAGE;
 
-	memcpy(Data_buffer, this->eeprom_data, size);
+#if defined(MACHINE_Z1)
+	eeprom_layout::Z1Record stored{};
+	if (!read_eeprom_bytes(EEPROM_DATA_STARTPAGE * EEP_MAX_PAGE_SIZE,
+	                       reinterpret_cast<unsigned char *>(&stored), sizeof(stored))) {
+		this->streams->printf("ERROR: EEPROM data preservation read failed\n");
+		return;
+	}
+	eeprom_layout::update_z1(*this->eeprom_data, stored);
+	memcpy(data_buffer.data(), &stored, sizeof(stored));
+#else
+	memcpy(data_buffer.data(), this->eeprom_data, size);
+#endif
 
-	writeptr = (unsigned char *)Data_buffer;
+	writeptr = data_buffer.data();
 	while(writenum < size)
 	{
 		bytenum = (size-pagenum*EEP_MAX_PAGE_SIZE) >= EEP_MAX_PAGE_SIZE ? EEP_MAX_PAGE_SIZE : size-pagenum*EEP_MAX_PAGE_SIZE;
@@ -841,8 +895,8 @@ void Kernel::write_eeprom_data()
 
 void Kernel::erase_eeprom_data()
 {
-	size_t size = sizeof(EEPROM_data);
-	char Data_buffer[size];
+	constexpr size_t size = eeprom_layout::runtime_record_size();
+	std::array<unsigned char, size> data_buffer{};
 	unsigned int writenum = 0;
 	unsigned int result = 0;
 	unsigned int pagenum = 0;
@@ -850,10 +904,7 @@ void Kernel::erase_eeprom_data()
 	unsigned char * writeptr = 0;
 	unsigned int u8Pagebegin=EEPROM_DATA_STARTPAGE;
 
-	memset(Data_buffer, 0, sizeof(Data_buffer));
-
-
-	writeptr = (unsigned char *)Data_buffer;
+	writeptr = data_buffer.data();
 	while(writenum < size)
 	{
 		bytenum = (size-pagenum*EEP_MAX_PAGE_SIZE) >= EEP_MAX_PAGE_SIZE ? EEP_MAX_PAGE_SIZE : size-pagenum*EEP_MAX_PAGE_SIZE;
@@ -900,7 +951,7 @@ void Kernel::check_eeprom_data()
 		this->eeprom_data->reserve = 0;
 		needrewtite = true;
 	}
-	if(isnan(this->eeprom_data->TOOL))
+	if(!eeprom_layout::valid_tool_number(this->eeprom_data->TOOL))
 	{
 		this->eeprom_data->TOOL = 0;
 		needrewtite = true;
