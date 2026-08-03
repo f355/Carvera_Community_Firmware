@@ -8,7 +8,11 @@
 
 namespace remote {
 
-constexpr std::size_t max_record_payload = 132;
+constexpr uint16_t factory_record_payload_size = 0x84;
+constexpr uint16_t config_record_payload_size = 0x200;
+
+static_assert(config_record_payload_size + 4 <= makera::max_payload_size,
+              "configuration records must fit in a Makera frame");
 
 struct PacketTypes {
     uint8_t start;
@@ -16,6 +20,7 @@ struct PacketTypes {
     uint8_t data;
     uint8_t finish;
     uint8_t cancel;
+    uint16_t record_payload_size;
 };
 
 enum class Result : uint8_t {

@@ -40,6 +40,7 @@ Result receive_records(Transport& transport, RecordSink& sink,
     uint8_t request_type = types.start;
     std::size_t request_size = 0;
     uint8_t receive_failures = 0;
+    uint16_t record_payload_size = 0;
 
     auto send_request = [&] {
         transport.send(request_type, request_size == 0 ? nullptr : request,
@@ -78,8 +79,8 @@ Result receive_records(Transport& transport, RecordSink& sink,
                 return fail(Result::protocol_error);
             }
             request[0] = request[1] = request[2] = request[3] = 0;
-            request[4] = static_cast<uint8_t>(max_record_payload >> 8);
-            request[5] = static_cast<uint8_t>(max_record_payload);
+            request[4] = static_cast<uint8_t>(types.record_payload_size >> 8);
+            request[5] = static_cast<uint8_t>(types.record_payload_size);
             request_type = types.view;
             request_size = sizeof(request);
             phase = Phase::view;
@@ -94,9 +95,11 @@ Result receive_records(Transport& transport, RecordSink& sink,
                     packet.payload[5])
                 : 0;
             if (packet.type != types.view || packet.payload_length != 6 ||
-                record_limit == 0 || record_limit > max_record_payload) {
+                record_limit == 0 ||
+                record_limit > types.record_payload_size) {
                 return fail(Result::protocol_error);
             }
+            record_payload_size = record_limit;
             record_count = read_be32(packet.payload);
             if (record_count == 0) {
                 if (!sink.commit()) return fail(Result::sink_error);
@@ -115,7 +118,7 @@ Result receive_records(Transport& transport, RecordSink& sink,
             return fail(Result::protocol_error);
         }
         if (packet.type != types.data || packet.payload_length <= 4 ||
-            packet.payload_length > 4 + max_record_payload) {
+            packet.payload_length > 4 + record_payload_size) {
             return fail(Result::protocol_error);
         }
 
