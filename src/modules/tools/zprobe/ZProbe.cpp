@@ -200,6 +200,11 @@ void ZProbe::after_config_cache_clear()
 
 void ZProbe::on_main_loop(void *argument)
 {
+    bool keep_3d_probe_powered = CARVERA_AIR == THEKERNEL->factory_set->MachineModel;
+#if defined(MACHINE_Z1)
+    keep_3d_probe_powered = true;
+#endif
+
     // Handle deferred halt event from crash detection
     if (halt_pending) {
         halt_pending = false;
@@ -208,7 +213,7 @@ void ZProbe::on_main_loop(void *argument)
 
     if (check_probe_tool() == 2){
         is_3dprobe_active = true;
-        if (CARVERA_AIR == THEKERNEL->factory_set->MachineModel) {
+        if (keep_3d_probe_powered) {
             bool ignore_on_halt = true;
             PublicData::set_value( switch_checksum, detector_switch_checksum, ignore_on_halt_checksum, &ignore_on_halt );
             bool on = true;
@@ -220,7 +225,7 @@ void ZProbe::on_main_loop(void *argument)
             PublicData::set_value( switch_checksum, detector_switch_checksum, state_checksum, &off );
         }
         is_3dprobe_active = false;    
-        if (CARVERA_AIR == THEKERNEL->factory_set->MachineModel) {
+        if (keep_3d_probe_powered) {
             bool ignore_on_halt = false;
             PublicData::set_value( switch_checksum, detector_switch_checksum, ignore_on_halt_checksum, &ignore_on_halt );
         }
