@@ -12,7 +12,7 @@ bool ready();
 int get();
 bool take_error();
 
-}
+}  // namespace uart_rx_dma
 
 #endif
 #endif
