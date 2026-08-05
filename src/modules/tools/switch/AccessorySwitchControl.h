@@ -11,4 +11,4 @@ bool bed_cleaning_supported();
 bool bed_cleaning_owns(uint16_t name);
 void set_bed_cleaning(bool enabled);
 
-}
+}  // namespace accessory_switch
