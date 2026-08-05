@@ -34,8 +34,8 @@ public:
 
     void dump_queue(void);
     void flush_queue(void);
-    void request_motion_abort() { abort_gate.request(); }
-    void clear_motion_abort() { abort_gate.clear(); }
+    void request_motion_abort();
+    void clear_motion_abort();
     bool motion_abort_requested() const { return abort_gate.active(); }
     float get_current_feedrate() const { return current_feedrate; }
     void force_queue() { check_queue(true); }

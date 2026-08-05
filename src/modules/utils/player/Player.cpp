@@ -937,15 +937,11 @@ void Player::defer_streamed_abort()
 {
     THEKERNEL->conveyor->request_motion_abort();
     THEKERNEL->set_aborted(true);
-    THEKERNEL->set_waiting(true);
     this->streamed_abort_pending = true;
 }
 
 void Player::finish_streamed_abort()
 {
-    THEKERNEL->conveyor->flush_queue();
-    THEKERNEL->conveyor->wait_for_idle();
-
     struct SerialMessage message;
     message.message = "M5";
     message.stream = THEKERNEL->streams;
@@ -956,7 +952,6 @@ void Player::finish_streamed_abort()
     THEKERNEL->planner->reset_after_abort();
     THEKERNEL->conveyor->clear_motion_abort();
     THEKERNEL->set_aborted(false);
-    THEKERNEL->set_waiting(false);
     this->streamed_abort_pending = false;
     THEKERNEL->streams->printf("Aborted playing or paused file. \r\n");
 }
@@ -1054,6 +1049,12 @@ void Player::progress_command( string parameters, StreamOutput *stream )
 
 void Player::abort_command( string parameters, StreamOutput *stream )
 {
+#if defined(MACHINE_Z1)
+    if (this->streamed_abort_pending) {
+        stream->printf("Abort already pending\r\n");
+        return;
+    }
+#endif
 
     PublicData::set_value( atc_handler_checksum, abort_checksum, nullptr );
 
@@ -1227,7 +1228,9 @@ void Player::on_main_loop(void *argument)
 {
 #if defined(MACHINE_Z1)
     if (this->streamed_abort_pending) {
-        this->finish_streamed_abort();
+        if (THEKERNEL->conveyor->is_idle()) {
+            this->finish_streamed_abort();
+        }
         return;
     }
 #endif

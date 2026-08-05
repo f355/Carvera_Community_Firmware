@@ -132,6 +132,22 @@ bool Conveyor::is_idle() const
     return false;
 }
 
+void Conveyor::request_motion_abort()
+{
+    abort_gate.request();
+    allow_fetch = false;
+    flush = true;
+    for (auto &actuator : THEROBOT->actuators) {
+        actuator->stop_moving();
+    }
+}
+
+void Conveyor::clear_motion_abort()
+{
+    flush = false;
+    abort_gate.clear();
+}
+
 // Wait for the queue to be empty and for all the jobs to finish in step ticker
 void Conveyor::wait_for_idle(bool wait_for_motors)
 {
