@@ -123,6 +123,7 @@ void init() {
     GPIO beep = GPIO(P1_14);
     beep.output();
     beep = 0;
+#if defined(MACHINE_FAMILY_CARVERA)
     GPIO extout = GPIO(P0_29);
     extout.output();
     extout = 0;
@@ -132,6 +133,7 @@ void init() {
     extout = GPIO(P1_19);
     extout.output();
     extout = 0;
+#endif
 
     // open 12V
     // GPIO v12 = GPIO(P0_11);
