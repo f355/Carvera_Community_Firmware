@@ -74,6 +74,13 @@ Config::~Config()
 // Get a list of modules, used by module "pools" that look for the "enable" keyboard to find things like "moduletype.modulename.enable" as the marker of a new instance of a module
 void Config::get_module_list(vector<uint16_t> *list, uint16_t family)
 {
+    if(!is_config_cache_loaded()) {
+        THEKERNEL->streams->printf("ERROR: config cache is not loaded\n");
+        THEKERNEL->set_config_load_error(true);
+        list->clear();
+        return;
+    }
+
     this->config_cache->collect(family, CHECKSUM("enable"), list);
 }
 
@@ -161,4 +168,3 @@ ConfigValue *Config::value(uint16_t check_sums[])
 
     return result;
 }
-
