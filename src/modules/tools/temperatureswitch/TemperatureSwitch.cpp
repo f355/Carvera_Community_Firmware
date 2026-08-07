@@ -43,9 +43,7 @@ Author: Michael Hackney, mhackney@eclecticangler.com
 #define designator_checksum                             CHECKSUM("designator")
 #define temperature_source_checksum                     CHECKSUM("temperature_source")
 #define accessory_checksum                              CHECKSUM("accessory")
-#define bed_cleaning_fan_switch_checksum                CHECKSUM("bed_cleaning_fan_switch")
 #define bed_cleaning_fan_power_checksum                 CHECKSUM("bed_cleaning_fan_power")
-#define auto_blowing_switch_checksum                    CHECKSUM("auto_blowing_switch")
 
 TemperatureSwitch::TemperatureSwitch()
 {
@@ -114,9 +112,9 @@ TemperatureSwitch* TemperatureSwitch::load_config(uint16_t modcs)
     }
 
     ts->controls_bed_cleaning_fan = ts->temperatureswitch_switch_cs ==
-        accessory_switch::configured_name(bed_cleaning_fan_switch_checksum, "nc");
+        THEKERNEL->accessories->bed_cleaning_fan_switch();
     ts->controls_auto_blowing_fan = ts->temperatureswitch_switch_cs ==
-        accessory_switch::configured_name(auto_blowing_switch_checksum, "nc");
+        THEKERNEL->accessories->auto_blowing_switch();
 
     ts->fan_mode = FanMode::idle;
     ts->cooldown_elapsed_s = 0;

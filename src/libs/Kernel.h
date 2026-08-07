@@ -40,6 +40,7 @@ class PublicData;
 class SimpleShell;
 class Configurator;
 class StreamOutput;
+class AccessorySwitchControl;
 
 enum STATE {
 	IDLE    = 0,
@@ -97,11 +98,7 @@ class Kernel {
     public:
         Kernel();
 
-        ~Kernel() {
-            delete this->eeprom;
-            delete this->eeprom_data;
-            delete this->factory_set;
-        }
+        ~Kernel();
 
         static Kernel* instance; // the Singleton instance of Kernel usable anywhere
         const char* config_override_filename(){ return "/sd/config-override"; }
@@ -229,6 +226,7 @@ class Kernel {
         Conveyor*         conveyor;
         Configurator*     configurator;
         SimpleShell*      simpleshell;
+        AccessorySwitchControl* accessories;
 
         SlowTicker*       slow_ticker;
         StepTicker*       step_ticker;

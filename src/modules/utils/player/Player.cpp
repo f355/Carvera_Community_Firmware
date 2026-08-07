@@ -950,7 +950,7 @@ void Player::defer_streamed_abort()
 void Player::finish_streamed_abort()
 {
     // Keep ATC-owned accessories active until queued automation motion stops.
-    PublicData::set_value(atc_handler_checksum, abort_checksum, nullptr);
+    THEKERNEL->call_event(ON_ABORT);
     struct SerialMessage message;
     message.message = "M5";
     message.stream = THEKERNEL->streams;
@@ -1073,7 +1073,7 @@ void Player::abort_command( string parameters, StreamOutput *stream )
         if(THEKERNEL->is_bed_cleaning()) {
             THEKERNEL->conveyor->wait_for_idle();
         }
-        PublicData::set_value( atc_handler_checksum, abort_checksum, nullptr );
+        THEKERNEL->call_event(ON_ABORT);
         stream->printf("Not currently playing\r\n");
         return;
     }
@@ -1123,7 +1123,7 @@ void Player::abort_command( string parameters, StreamOutput *stream )
 
     // Keep ATC-owned accessories active until already-queued automation motion stops.
     // A halt still releases them immediately through ATCHandler::on_halt().
-    PublicData::set_value( atc_handler_checksum, abort_checksum, nullptr );
+    THEKERNEL->call_event(ON_ABORT);
 
 
     if (communication_protocol == PROTOCOL_SMOOTHIE) {
@@ -1559,8 +1559,9 @@ void Player::on_get_public_data(void *argument)
             pdr->set_taken();
         }
     } else if (pdr->second_element_is(inner_playing_checksum)) {
-    	bool b = this->inner_playing;
-        pdr->set_data_ptr(&b);
+        static bool inner_playing;
+        inner_playing = this->inner_playing;
+        pdr->set_data_ptr(&inner_playing);
         pdr->set_taken();
     }
 }

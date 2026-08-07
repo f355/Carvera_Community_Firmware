@@ -94,10 +94,6 @@ extern "C" void*     _sbrk(int size);
 #define VERSION __GITVERSIONSTRING__
 
 namespace {
-constexpr uint16_t accessory_checksum = CHECKSUM("accessory");
-constexpr uint16_t chip_clear_switch_checksum = CHECKSUM("chip_clear_switch");
-constexpr uint16_t auto_blowing_switch_checksum = CHECKSUM("auto_blowing_switch");
-constexpr uint16_t auto_blowing_power_checksum = CHECKSUM("auto_blowing_power");
 }
 
 
@@ -229,7 +225,7 @@ void SimpleShell::on_module_loaded()
 void SimpleShell::on_halt(void *argument)
 {
     if(argument == nullptr && THEKERNEL->is_bed_cleaning()) {
-        accessory_switch::set_bed_cleaning(false);
+        THEKERNEL->accessories->set_bed_cleaning(false);
     }
 }
 
@@ -279,16 +275,15 @@ void SimpleShell::on_gcode_received(void *argument)
 			    bool ok = PublicData::get_value(pwm_spindle_control_checksum, get_spindle_status_checksum, &ss);
 			    if (ok) {
                     if (ss.state) {
-                        accessory_switch::set_state(
-                            accessory_switch::configured_name(chip_clear_switch_checksum, "vacuum"), true);
+                        THEKERNEL->accessories->set_state(
+                            THEKERNEL->accessories->chip_clear_switch(), true);
                     }
 	        	}
 	        	//PacketMessage(PTYPE_NORMAL_INFO, "turning vacuum mode on\r\n", 0, gcode->stream);
                 gcode->stream->printf("turning vacuum mode on\r\n");
 			}
 			else if (gcode->subcode == 1) {
-                float power = THEKERNEL->config->value(
-                    accessory_checksum, auto_blowing_power_checksum)->as_number(30.0F);
+                float power = THEKERNEL->accessories->default_auto_blowing_power();
                 if(gcode->has_letter('S')) power = gcode->get_value('S');
                 if(power < 0 || power > 100) {
                     gcode->stream->printf("ERROR: auto blowing power must be between 0 and 100\r\n");
@@ -299,18 +294,18 @@ void SimpleShell::on_gcode_received(void *argument)
                 THEKERNEL->set_auto_blowing(true);
                 struct spindle_status ss;
                 if(PublicData::get_value(pwm_spindle_control_checksum, get_spindle_status_checksum, &ss) && ss.state) {
-                    accessory_switch::set_power(
-                        accessory_switch::configured_name(auto_blowing_switch_checksum, "nc"), power);
+                    THEKERNEL->accessories->set_power(
+                        THEKERNEL->accessories->auto_blowing_switch(), power);
                 }
                 gcode->stream->printf("turning auto blowing mode on\r\n");
             }
 			else if (gcode->subcode == 2) {
-                if(!accessory_switch::bed_cleaning_supported()) {
+                if(!THEKERNEL->accessories->bed_cleaning_supported()) {
                     gcode->stream->printf("ERROR: bed cleaning is not configured\r\n");
                     return;
                 }
                 THECONVEYOR->wait_for_idle();
-                accessory_switch::set_bed_cleaning(true);
+                THEKERNEL->accessories->set_bed_cleaning(true);
                 gcode->stream->printf("turning auto bed cleaning mode on\r\n");
             }
 			else if (gcode->subcode == 3) {
@@ -336,8 +331,8 @@ void SimpleShell::on_gcode_received(void *argument)
 			    bool ok = PublicData::get_value(pwm_spindle_control_checksum, get_spindle_status_checksum, &ss);
 			    if (ok) {
                     if (ss.state) {
-                        accessory_switch::set_state(
-                            accessory_switch::configured_name(chip_clear_switch_checksum, "vacuum"), false);
+                        THEKERNEL->accessories->set_state(
+                            THEKERNEL->accessories->chip_clear_switch(), false);
                     }
 	        	}
 				// turn off vacuum mode
@@ -347,13 +342,13 @@ void SimpleShell::on_gcode_received(void *argument)
 			}
 			else if (gcode->subcode == 1) {
                 THEKERNEL->set_auto_blowing(false);
-                accessory_switch::set_power(
-                    accessory_switch::configured_name(auto_blowing_switch_checksum, "nc"), 0);
+                THEKERNEL->accessories->set_power(
+                    THEKERNEL->accessories->auto_blowing_switch(), 0);
                 gcode->stream->printf("turning auto blowing mode off\r\n");
             }
 			else if (gcode->subcode == 2) {
                 THECONVEYOR->wait_for_idle();
-                accessory_switch::set_bed_cleaning(false);
+                THEKERNEL->accessories->set_bed_cleaning(false);
                 gcode->stream->printf("turning auto bed cleaning mode off\r\n");
             }
 			else if (gcode->subcode == 3) {

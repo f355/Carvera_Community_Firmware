@@ -40,6 +40,7 @@
 #include "SwitchPublicAccess.h"
 #include "ZProbePublicAccess.h"
 #include "MainButtonPublicAccess.h"
+#include "modules/tools/switch/AccessorySwitchControl.h"
 #include "mbed.h"
 #include "utils.h"
 #include "WifiPublicAccess.h"
@@ -70,6 +71,14 @@
 #define halt_on_error_debug_checksum                CHECKSUM("halt_on_error_debug")
 #define protocol_checksum                           CHECKSUM("protocol")
 Kernel* Kernel::instance;
+
+Kernel::~Kernel()
+{
+    delete this->accessories;
+    delete this->eeprom;
+    delete this->eeprom_data;
+    delete this->factory_set;
+}
 
 static float ahb_local_vars[20] LOCATED_IN_AHBSRAM;
 static float ahb_local_params[30] LOCATED_IN_AHBSRAM;
@@ -172,6 +181,9 @@ Kernel::Kernel()
 
     // Pre-load the config cache
     this->config->config_cache_load();
+
+    // Keep the accessory settings needed after the config cache is released.
+    this->accessories = new AccessorySwitchControl();
 
     this->current_path   = "/";
 
@@ -468,7 +480,7 @@ std::string Kernel::get_query_string()
     n= snprintf(buf, sizeof(buf), ",%1.1f", temp.current_temperature);
     if(n > sizeof(buf)) n= sizeof(buf);
     str.append(buf, n);
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     n = snprintf(buf, sizeof(buf), ",%d,%d,%d,%d",
         int(this->is_auto_blowing()), int(this->is_bed_cleaning()), 0,
         int(this->is_static_removal()));

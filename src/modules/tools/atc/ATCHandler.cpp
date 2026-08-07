@@ -27,7 +27,6 @@
 #include "libs/StreamOutputPool.h"
 #include "libs/StreamOutput.h"
 #include "SwitchPublicAccess.h"
-#include "modules/tools/switch/AccessorySwitchControl.h"
 #include "libs/utils.h"
 
 #include "libs/SerialMessage.h"
@@ -103,16 +102,6 @@
 #define reference_tool_mz_checksum	CHECKSUM("reference_tool_mz")
 #define three_axis_probe_tlo_correction_checksum CHECKSUM("three_axis_probe_tlo_correction")
 
-#define bed_cleaning_checksum       CHECKSUM("bed_cleaning")
-#define bed_cleaning_x_min_checksum CHECKSUM("x_min")
-#define bed_cleaning_x_max_checksum CHECKSUM("x_max")
-#define bed_cleaning_y_min_checksum CHECKSUM("y_min")
-#define bed_cleaning_y_max_checksum CHECKSUM("y_max")
-#define bed_cleaning_park_y_checksum CHECKSUM("park_y")
-#define bed_cleaning_front_x_checksum CHECKSUM("front_x")
-#define bed_cleaning_cycles_checksum CHECKSUM("cycles")
-#define bed_cleaning_spacing_checksum CHECKSUM("spacing")
-
 ATCHandler::ATCHandler()
 {
     atc_status = NONE;
@@ -127,7 +116,6 @@ ATCHandler::ATCHandler()
     last_pos[2] = 0.0;
     probe_laser_last = 9999;
     playing_file = false;
-    bed_cleaning_operation = false;
     if(THEKERNEL->factory_set->FuncSetting & (1<<3))	//for CE1 expand
 	{
     	tool_number = 8;
@@ -1685,41 +1673,6 @@ void ATCHandler::fill_xyzprobe_scripts(float tool_dia, float probe_height) {
 }
 
 
-void ATCHandler::fill_autoclean_scripts(unsigned int cycles, float spacing,
-    float x_min, float x_max, float y_min, float y_max, float park_y,
-    float front_x)
-{
-    accessory_switch::set_bed_cleaning(true);
-    this->rapid_move(true, x_max, park_y, NAN, NAN, NAN);
-    this->rapid_move(true, NAN, y_min, NAN, NAN, NAN);
-
-    for(float x = x_max + 0.1F; x <= front_x + 0.001F; x += 0.1F) {
-        this->rapid_move(true, x > front_x ? front_x : x, NAN, NAN, NAN, NAN);
-    }
-    this->rapid_move(true, front_x, NAN, NAN, NAN, NAN);
-    this->rapid_move(true, x_max, NAN, NAN, NAN, NAN);
-
-    for(unsigned int cycle = 0; cycle < cycles; ++cycle) {
-        float y = y_min;
-        this->rapid_move(true, x_max, y, NAN, NAN, NAN);
-
-        while(y < y_max) {
-            this->rapid_move(true, x_min, NAN, NAN, NAN, NAN);
-            y = fminf(y + spacing, y_max);
-            this->rapid_move(true, NAN, y, NAN, NAN, NAN);
-            if(y >= y_max) break;
-
-            this->rapid_move(true, x_max, NAN, NAN, NAN, NAN);
-            y = fminf(y + spacing, y_max);
-            this->rapid_move(true, NAN, y, NAN, NAN, NAN);
-        }
-
-        this->rapid_move(true, x_max, park_y, NAN, NAN, NAN);
-    }
-
-    accessory_switch::set_bed_cleaning(false);
-}
-
 void ATCHandler::fill_autolevel_scripts(float x_pos, float y_pos,
 		float x_size, float y_size, int x_grids, int y_grids, float height)
 {
@@ -1752,6 +1705,7 @@ void ATCHandler::on_module_loaded()
     this->register_for_event(ON_GCODE_RECEIVED);
     this->register_for_event(ON_GET_PUBLIC_DATA);
     this->register_for_event(ON_SET_PUBLIC_DATA);
+    this->register_for_event(ON_ABORT);
     this->register_for_event(ON_MAIN_LOOP);
     this->register_for_event(ON_HALT);
 
@@ -1971,11 +1925,12 @@ void ATCHandler::on_halt(void* argument)
 	}
 }
 
+void ATCHandler::on_abort(void *)
+{
+    abort();
+}
+
 void ATCHandler::abort(){
-    const bool aborting_bed_cleaning = this->bed_cleaning_operation;
-	if(aborting_bed_cleaning && THEKERNEL->is_bed_cleaning()) {
-        accessory_switch::set_bed_cleaning(false);
-    }
 	// Safety: If we were interrupted in the middle of calibration, mark tool as
 	// not calibrated so that TLO measurement will be re-run on next tool use
 	if (this->atc_status == CALI) {
@@ -2000,10 +1955,6 @@ void ATCHandler::abort(){
 		bool b = false;
 	    PublicData::set_value( switch_checksum, detector_switch_checksum, state_checksum, &b );
 	}
-    if(aborting_bed_cleaning) {
-        this->bed_cleaning_operation = false;
-        THEROBOT->pop_state();
-    }
 }
 
 // Called every millisecond in an ISR
@@ -3007,68 +2958,6 @@ void ATCHandler::on_gcode_received(void *argument)
 				}
 
 			}
-		} else if (gcode->m == 486 && gcode->subcode == 1) {
-            if(this->atc_status != NONE) {
-                gcode->stream->printf("ERROR: another ATC operation is already active\n");
-                return;
-            }
-            if(!accessory_switch::bed_cleaning_supported()) {
-                gcode->stream->printf("ERROR: bed cleaning is not configured\n");
-                return;
-            }
-            if(!THEROBOT->is_homed_all_axes()) {
-                gcode->stream->printf("ERROR: home the machine before bed cleaning\n");
-                return;
-            }
-            if(THEKERNEL->get_laser_mode()) {
-                gcode->stream->printf("ERROR: bed cleaning is unavailable in laser mode\n");
-                return;
-            }
-
-            float requested_cycles = THEKERNEL->config->value(
-                bed_cleaning_checksum, bed_cleaning_cycles_checksum)->as_number(1.0F);
-            float spacing = THEKERNEL->config->value(
-                bed_cleaning_checksum, bed_cleaning_spacing_checksum)->as_number(40.0F);
-            if(gcode->has_letter('N')) requested_cycles = gcode->get_value('N');
-            if(gcode->has_letter('T')) spacing = gcode->get_value('T');
-
-            const float x_min = THEKERNEL->config->value(
-                bed_cleaning_checksum, bed_cleaning_x_min_checksum)->as_number(this->anchor1_x);
-            const float x_max = THEKERNEL->config->value(
-                bed_cleaning_checksum, bed_cleaning_x_max_checksum)->as_number(this->clearance_x);
-            const float y_min = THEKERNEL->config->value(
-                bed_cleaning_checksum, bed_cleaning_y_min_checksum)->as_number(this->anchor1_y);
-            const float y_max = THEKERNEL->config->value(
-                bed_cleaning_checksum, bed_cleaning_y_max_checksum)->as_number(-1.0F);
-            const float park_y = THEKERNEL->config->value(
-                bed_cleaning_checksum, bed_cleaning_park_y_checksum)->as_number(this->clearance_y);
-            const float front_x = THEKERNEL->config->value(
-                bed_cleaning_checksum, bed_cleaning_front_x_checksum)->as_number(-2.0F);
-
-            const bool valid_cycles = isfinite(requested_cycles) && requested_cycles >= 1.0F &&
-                requested_cycles <= 10.0F && floorf(requested_cycles) == requested_cycles;
-            const bool valid_area = isfinite(x_min) && isfinite(x_max) && isfinite(y_min) &&
-                isfinite(y_max) && isfinite(park_y) && isfinite(front_x) &&
-                x_min < x_max && y_min < y_max && front_x >= x_max;
-            const float sweeps_per_cycle = valid_cycles && valid_area && isfinite(spacing) && spacing > 0
-                ? ceilf((y_max - y_min) / spacing) : 1000.0F;
-            const float front_steps = valid_area ? ceilf((front_x - x_max) / 0.1F) : 1000.0F;
-            const float path_moves = 4.0F + front_steps +
-                requested_cycles * (2.0F + 2.0F * sweeps_per_cycle);
-            if(!valid_cycles || !valid_area || !isfinite(spacing) || spacing <= 0 ||
-                path_moves > 256.0F) {
-                gcode->stream->printf("ERROR: invalid or excessively dense bed cleaning path\n");
-                return;
-            }
-
-            THEROBOT->push_state();
-            this->bed_cleaning_operation = true;
-            set_inner_playing(true);
-            atc_status = AUTOMATION;
-            this->clear_script_queue();
-            this->fill_autoclean_scripts(
-                static_cast<unsigned int>(requested_cycles), spacing,
-                x_min, x_max, y_min, y_max, park_y, front_x);
 		} else if (gcode->m == 495) {
 			if (!THEROBOT->is_homed_all_axes()) {
 				this->atc_status = NONE;
@@ -3408,13 +3297,6 @@ void ATCHandler::on_main_loop(void *argument)
         if (ok) {
             bool playing = *static_cast<bool *>(return_value);
             if (this->playing_file && !playing) {
-                if(this->bed_cleaning_operation) {
-                    THECONVEYOR->wait_for_idle();
-                }
-				if(this->bed_cleaning_operation && THEKERNEL->is_bed_cleaning()) {
-                    accessory_switch::set_bed_cleaning(false);
-                }
-				this->bed_cleaning_operation = false;
             	this->clear_script_queue();
 
 				this->atc_status = NONE;
@@ -3463,8 +3345,6 @@ void ATCHandler::on_main_loop(void *argument)
 		set_inner_playing(false);
 
 		THEKERNEL->set_atc_state(ATC_NONE);
-		this->bed_cleaning_operation = false;
-
         // pop old state
         THEROBOT->pop_state();
 
@@ -3804,10 +3684,7 @@ void ATCHandler::on_set_public_data(void* argument)
 		    THEKERNEL->write_eeprom_data();
         }
         pdr->set_taken();
-    } else if (pdr->second_element_is(abort_checksum)) {
-		this->abort();
-		pdr->set_taken();
-	} else if (pdr->second_element_is(set_target_collet_type_checksum)) {
+    } else if (pdr->second_element_is(set_target_collet_type_checksum)) {
 		uint8_t* data = static_cast<uint8_t*>(pdr->get_data_ptr());
 		this->target_collet_type = static_cast<COLLET_TYPE>(*data);
 		pdr->set_taken();
