@@ -1,5 +1,3 @@
-#if defined(MACHINE_FAMILY_Z1)
-
 #include "CANopen.h"
 
 #include <array>
@@ -553,5 +551,3 @@ void CANopen::on_set_public_data(void *argument)
         request->set_taken();
     bus_ready = can->is_ready();
 }
-
-#endif

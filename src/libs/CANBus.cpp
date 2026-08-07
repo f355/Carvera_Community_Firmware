@@ -1,5 +1,3 @@
-#if defined(MACHINE_FAMILY_Z1)
-
 #include "CANBus.h"
 
 #include "LPC17xx.h"
@@ -158,5 +156,3 @@ CANBus::Statistics CANBus::statistics()
     return Statistics{tx_count,         rx_count,      rx_overflow_count, tx_failed_count,
                       tx_timeout_count, can.tderror(), can.rderror()};
 }
-
-#endif

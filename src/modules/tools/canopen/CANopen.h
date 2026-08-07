@@ -1,7 +1,5 @@
 #pragma once
 
-#if defined(MACHINE_FAMILY_Z1)
-
 #include <cstdint>
 
 #include "CAN.h"
@@ -77,5 +75,3 @@ class CANopen : public Module {
     mbed::CANMessage last_rx;
     bool have_last_rx;
 };
-
-#endif

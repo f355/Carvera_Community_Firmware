@@ -1,7 +1,5 @@
 #pragma once
 
-#if defined(MACHINE_FAMILY_Z1)
-
 #include <cstddef>
 #include <cstdint>
 
@@ -57,5 +55,3 @@ class CANBus {
     uint32_t tx_timeout_count;
     bool ready;
 };
-
-#endif
