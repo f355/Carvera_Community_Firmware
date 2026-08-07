@@ -35,11 +35,7 @@ __attribute__((always_inline)) inline void write_z1_bit(bool one)
 
 }
 
-void mainbutton_led_write_strip(unsigned char R1, unsigned char G1, unsigned char B1,
-                                unsigned char R2, unsigned char G2, unsigned char B2,
-                                unsigned char R3, unsigned char G3, unsigned char B3,
-                                unsigned char R4, unsigned char G4, unsigned char B4,
-                                unsigned char R5, unsigned char G5, unsigned char B5)
+void mainbutton_led_write_strip(const MainButtonLedGroups& groups)
 {
     // Keep the step/unstep timers available, but defer PendSV, SlowTicker,
     // communications, and other potentially long handlers until the frame is complete.
@@ -49,17 +45,13 @@ void mainbutton_led_write_strip(unsigned char R1, unsigned char G1, unsigned cha
         __set_BASEPRI(frame_priority_mask);
     }
 
-    const unsigned char groups[5][3] = {
-        {R1, G1, B1}, {R2, G2, B2}, {R3, G3, B3},
-        {R4, G4, B4}, {R5, G5, B5}
-    };
     const unsigned char group_order[6] = {0, 1, 2, 3, 4, 1};
-    const unsigned char wire_order[3] = {1, 0, 2};
 
     for(unsigned char group : group_order) {
         for(unsigned char led = 0; led < 3; ++led) {
-            for(unsigned char channel : wire_order) {
-                const unsigned char value = groups[group][channel];
+            const unsigned char wire_values[3] = {
+                groups[group].green, groups[group].red, groups[group].blue};
+            for(unsigned char value : wire_values) {
                 for(unsigned char bit = 0; bit < 8; ++bit) {
                     write_z1_bit((value & (0x80U >> bit)) != 0U);
                 }

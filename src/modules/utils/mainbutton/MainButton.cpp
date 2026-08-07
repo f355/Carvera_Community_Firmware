@@ -669,19 +669,23 @@ void MainButton::on_set_public_data(void* argument)
 uint32_t MainButton::led_tick(uint32_t dummy)
 {
 	uint8_t state = THEKERNEL->get_state();
+	const uint8_t full = this->led_brightness;
+	const uint8_t orange_green = mainbutton_led_scale(24, full);
 	if (!this->button_pressed && THECONVEYOR->is_idle()){
 		switch (state) {
 			case HOLD:
 				this->hold_toggle ++;
-				this->set_led_colors(0, this->hold_toggle % 4  < 2 ? 104 : 0, 0);
+				this->set_led_colors(0, this->hold_toggle % 4  < 2 ? full : 0, 0);
 				break;
 			case SUSPEND:
 				this->hold_toggle ++;
-				this->set_led_colors(0, 0, this->hold_toggle % 4 < 2 ? 104 : 0);
+				this->set_led_colors(0, 0, this->hold_toggle % 4 < 2 ? full : 0);
 				break;
 			case WAIT:
 				this->hold_toggle ++;
-				this->set_led_colors(this->hold_toggle % 4  < 2 ? 104 : 0, this->hold_toggle % 4 <2 ? 24 : 0, 0);
+				this->set_led_colors(
+					this->hold_toggle % 4 < 2 ? full : 0,
+					this->hold_toggle % 4 < 2 ? orange_green : 0, 0);
 				break;
 			case TOOL:
 				this->hold_toggle ++;
@@ -692,11 +696,11 @@ uint32_t MainButton::led_tick(uint32_t dummy)
 				uint8_t b = 0;
 				if (tool.target_collet_type == 0){
 					r = 0;
-					g = 104;
-					b = 104;
+					g = full;
+					b = full;
 				}else{
-					r = 104;
-					g = 104;
+					r = full;
+					g = full;
 					b = 0;
 				}
 				switch(tool.target_tool)
@@ -795,24 +799,21 @@ uint32_t MainButton::led_tick(uint32_t dummy)
 	if (state != old_state) 
 	{
 		old_state = state;
-		const uint8_t orange_green = static_cast<uint8_t>(
-            (static_cast<unsigned int>(this->led_brightness) * 24U + 52U) / 104U);
 		switch (state) {
 			case IDLE:
-				this->set_led_colors(0, 0, this->led_brightness);
+				this->set_led_colors(0, 0, full);
 				break;
 			case RUN:
-				this->set_led_colors(0, this->led_brightness, 0);
+				this->set_led_colors(0, full, 0);
 				break;
 			case HOME:
-				this->set_led_colors(this->led_brightness, orange_green, 0);
+				this->set_led_colors(full, orange_green, 0);
 				break;
 			case ALARM:
-				this->set_led_colors(this->led_brightness, 0, 0);
+				this->set_led_colors(full, 0, 0);
 			    break;
 			case SLEEP:
-				this->set_led_colors(
-                    this->led_brightness, this->led_brightness, this->led_brightness);
+				this->set_led_colors(full, full, full);
 				break;
 		}
 	}
@@ -821,7 +822,7 @@ uint32_t MainButton::led_tick(uint32_t dummy)
 		this->hold_toggle ++;
 		if(this->hold_toggle % 4 == 0)
 		{
-			this->set_led_colors(this->led_brightness, 0, 0);
+			this->set_led_colors(full, 0, 0);
 		}
 	}
 	return 0;
@@ -829,7 +830,14 @@ uint32_t MainButton::led_tick(uint32_t dummy)
 
 void MainButton::set_led_color(unsigned char R1, unsigned char G1, unsigned char B1,unsigned char R2, unsigned char G2, unsigned char B2,unsigned char R3, unsigned char G3, unsigned char B3,unsigned char R4, unsigned char G4, unsigned char B4,unsigned char R5, unsigned char G5, unsigned char B5)
 {
+#if defined(MACHINE_Z1)
+	const MainButtonLedGroups groups{{
+		{R1, G1, B1}, {R2, G2, B2}, {R3, G3, B3}, {R4, G4, B4}, {R5, G5, B5}
+	}};
+	mainbutton_led_write_strip(groups);
+#else
 	mainbutton_led_write_strip(R1, G1, B1, R2, G2, B2, R3, G3, B3, R4, G4, B4, R5, G5, B5);
+#endif
 }
 
 /*
