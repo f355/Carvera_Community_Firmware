@@ -1,5 +1,3 @@
-#if defined(MACHINE_FAMILY_Z1)
-
 #include "RemoteConfigSource.h"
 
 #include "FirmConfigSource.h"
@@ -82,5 +80,3 @@ bool RemoteConfigSource::is_named(uint16_t check_sum) { return check_sum == name
 bool RemoteConfigSource::write(std::string, std::string) { return false; }
 
 std::string RemoteConfigSource::read(uint16_t[3]) { return {}; }
-
-#endif

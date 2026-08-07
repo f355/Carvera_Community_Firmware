@@ -1,8 +1,6 @@
 #ifndef SERIALPACKETTRANSPORT_H
 #define SERIALPACKETTRANSPORT_H
 
-#if defined(MACHINE_FAMILY_Z1)
-
 #include "RemoteTransfer.h"
 
 class SerialConsole;
@@ -19,5 +17,4 @@ class SerialPacketTransport : public remote::Transport {
     SerialConsole &serial_;
 };
 
-#endif
 #endif

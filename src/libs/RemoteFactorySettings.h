@@ -1,8 +1,6 @@
 #ifndef REMOTE_FACTORY_SETTINGS_H
 #define REMOTE_FACTORY_SETTINGS_H
 
-#if defined(MACHINE_FAMILY_Z1)
-
 #include "libs/FactorySettings.h"
 #include "modules/communication/RemoteTransfer.h"
 
@@ -28,5 +26,4 @@ class RemoteFactorySettings : private remote::RecordSink {
     FACTORY_SET candidate_;
 };
 
-#endif
 #endif

@@ -1,8 +1,6 @@
 #ifndef REMOTECONFIGSOURCE_H
 #define REMOTECONFIGSOURCE_H
 
-#if defined(MACHINE_FAMILY_Z1)
-
 #include "libs/ConfigSource.h"
 #include "modules/communication/RemoteTransfer.h"
 
@@ -27,5 +25,4 @@ class RemoteConfigSource : public ConfigSource, private remote::RecordSink {
   uint32_t accepted_records_ = 0;
 };
 
-#endif
 #endif

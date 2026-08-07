@@ -1,5 +1,3 @@
-#if defined(MACHINE_FAMILY_Z1)
-
 #include "SerialPacketTransport.h"
 
 #include "SerialConsole.h"
@@ -19,5 +17,3 @@ uint32_t SerialPacketTransport::now_ms() const
 {
     return us_ticker_read() / 1000;
 }
-
-#endif

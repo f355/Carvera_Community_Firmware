@@ -1,5 +1,3 @@
-#if defined(MACHINE_FAMILY_Z1)
-
 #include "RemoteFactorySettings.h"
 
 #include <cstring>
@@ -56,5 +54,3 @@ void RemoteFactorySettings::rollback()
 {
     candidate_ = original_;
 }
-
-#endif

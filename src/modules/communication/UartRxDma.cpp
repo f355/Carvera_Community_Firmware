@@ -1,5 +1,3 @@
-#if defined(MACHINE_FAMILY_Z1)
-
 #include "UartRxDma.h"
 
 #include <cstring>
@@ -166,5 +164,3 @@ extern "C" void DMA_IRQHandler()
         start_transfer();
     }
 }
-
-#endif
