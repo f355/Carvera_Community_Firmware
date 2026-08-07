@@ -100,6 +100,7 @@ Kernel::Kernel()
     laser_mode = false;
     vacuum_mode = false;
     extout_mode = false;
+    auto_blowing_mode = false;
     auto_blowing = false;
     static_removal = false;
     bed_cleaning = false;
@@ -482,7 +483,7 @@ std::string Kernel::get_query_string()
     str.append(buf, n);
 #if defined(MACHINE_FAMILY_Z1)
     n = snprintf(buf, sizeof(buf), ",%d,%d,%d,%d",
-        int(this->is_auto_blowing()), int(this->is_bed_cleaning()), 0,
+        int(this->get_auto_blowing_mode()), int(this->is_bed_cleaning()), 0,
         int(this->is_static_removal()));
 #else
 	// get extout_mode 

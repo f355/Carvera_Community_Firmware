@@ -291,12 +291,7 @@ void SimpleShell::on_gcode_received(void *argument)
                 }
 
                 THEKERNEL->set_auto_blowing_power(power);
-                THEKERNEL->set_auto_blowing(true);
-                struct spindle_status ss;
-                if(PublicData::get_value(pwm_spindle_control_checksum, get_spindle_status_checksum, &ss) && ss.state) {
-                    THEKERNEL->accessories->set_power(
-                        THEKERNEL->accessories->auto_blowing_switch(), power);
-                }
+                THEKERNEL->set_auto_blowing_mode(true);
                 gcode->stream->printf("turning auto blowing mode on\r\n");
             }
 			else if (gcode->subcode == 2) {
@@ -304,8 +299,7 @@ void SimpleShell::on_gcode_received(void *argument)
                     gcode->stream->printf("ERROR: bed cleaning is not configured\r\n");
                     return;
                 }
-                THECONVEYOR->wait_for_idle();
-                THEKERNEL->accessories->set_bed_cleaning(true);
+                THEKERNEL->set_bed_cleaning(true);
                 gcode->stream->printf("turning auto bed cleaning mode on\r\n");
             }
 			else if (gcode->subcode == 3) {
@@ -341,14 +335,11 @@ void SimpleShell::on_gcode_received(void *argument)
                 gcode->stream->printf("turning vacuum mode off\r\n");
 			}
 			else if (gcode->subcode == 1) {
-                THEKERNEL->set_auto_blowing(false);
-                THEKERNEL->accessories->set_power(
-                    THEKERNEL->accessories->auto_blowing_switch(), 0);
+                THEKERNEL->set_auto_blowing_mode(false);
                 gcode->stream->printf("turning auto blowing mode off\r\n");
             }
 			else if (gcode->subcode == 2) {
-                THECONVEYOR->wait_for_idle();
-                THEKERNEL->accessories->set_bed_cleaning(false);
+                THEKERNEL->set_bed_cleaning(false);
                 gcode->stream->printf("turning auto bed cleaning mode off\r\n");
             }
 			else if (gcode->subcode == 3) {

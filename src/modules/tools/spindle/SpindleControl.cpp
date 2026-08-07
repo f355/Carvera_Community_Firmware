@@ -87,11 +87,12 @@ void SpindleControl::on_gcode_received(void *argument)
                 }
             }
 
-            if(THEKERNEL->is_auto_blowing()) {
+            if(THEKERNEL->get_auto_blowing_mode()) {
                 const uint16_t name = THEKERNEL->accessories->auto_blowing_switch();
                 if(!THEKERNEL->accessories->bed_cleaning_owns(name)) {
                     THEKERNEL->accessories->set_power(name, THEKERNEL->get_auto_blowing_power());
                 }
+                THEKERNEL->set_auto_blowing(true);
             }
             // open extout if set
             if (THEKERNEL->get_extout_mode() &&
@@ -135,6 +136,7 @@ void SpindleControl::on_gcode_received(void *argument)
                 if(!THEKERNEL->accessories->bed_cleaning_owns(name)) {
                     THEKERNEL->accessories->set_power(name, 0);
                 }
+                THEKERNEL->set_auto_blowing(false);
             }
             // close extout if set
             if (THEKERNEL->get_extout_mode() &&
