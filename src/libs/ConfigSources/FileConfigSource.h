@@ -22,8 +22,8 @@ class FileConfigSource : public ConfigSource
 public:
     FileConfigSource(string config_file, const char *name);
     void transfer_values_to_cache( ConfigCache *cache );
-    bool handle_config_packet( ConfigCache *cache, const SerialPacket& packet, uint8_t *state,
-                               uint32_t *record_count, uint32_t *index );
+    bool handle_config_packet( const SerialPacket& packet, uint8_t *state, uint32_t *index,
+                               uint32_t *record_count, ConfigCache *cache );
     bool is_named( uint16_t check_sum );
     bool write( string setting, string value );
     string read( uint16_t check_sums[3] );

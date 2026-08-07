@@ -58,8 +58,8 @@ bool FileConfigSource::readLine(string& line, int lineno, FILE *fp)
 // Transfer all values found in the file to the passed cache
 // Receives configuration records from the link and updates the cache one line
 // at a time.
-bool FileConfigSource::handle_config_packet( ConfigCache *cache, const SerialPacket& packet, uint8_t *state,
-                                             uint32_t *record_count, uint32_t *index )
+bool FileConfigSource::handle_config_packet( const SerialPacket& packet, uint8_t *state, uint32_t *index,
+                                             uint32_t *record_count, ConfigCache *cache )
 {
     const uint16_t data_len = packet.length;
     char reply[8];
@@ -156,7 +156,7 @@ void FileConfigSource::transfer_values_to_cache( ConfigCache *cache )
         tries++;
 
         if (got) {
-            this->handle_config_packet(cache, packet, &state, &record_count, &index);
+            this->handle_config_packet(packet, &state, &index, &record_count, cache);
             if (packet.type == PTYPE_CONFIG_START) break;
             if (packet.type == PTYPE_CONFIG_CANCEL) return;
 }
@@ -175,7 +175,7 @@ void FileConfigSource::transfer_values_to_cache( ConfigCache *cache )
             continue;
         }
         if ((packet.type & 0xf0) != 0xD0) continue;
-        if (this->handle_config_packet(cache, packet, &state, &record_count, &index)) break;
+        if (this->handle_config_packet(packet, &state, &index, &record_count, cache)) break;
         tries = 0;
     }
     return;
@@ -305,7 +305,6 @@ string FileConfigSource::get_config_file()
         return "";
     }
 }
-
 
 
 

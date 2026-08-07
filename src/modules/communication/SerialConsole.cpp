@@ -169,11 +169,15 @@ void start_uart_rx_dma()
 void dma_rx_flush()
 {
     NVIC_DisableIRQ(DMA_IRQn);
+    const uint32_t first_dma_position = LPC_GPDMACH1->DMACCDestAddr;
     for (volatile int delay = 0; delay < 10; ++delay) {
     }
 
+    const uint32_t second_dma_position = LPC_GPDMACH1->DMACCDestAddr;
     const uint32_t dma_position =
-        LPC_GPDMACH1->DMACCDestAddr -
+        (first_dma_position == second_dma_position
+             ? first_dma_position
+             : second_dma_position) -
         reinterpret_cast<uint32_t>(uart_dma_buffers.rx_dma_buffer);
     if (dma_position != uart_dma_state.rx_dma_consumed) {
         const uint32_t count =
@@ -431,7 +435,6 @@ void SerialConsole::on_serial_char_received() {
             	
             case PTYPE_PLAY_DATA: {
                 // Accept job lines carrying the expected line number.
-                if (data_len < 10) break;
                 uint32_t line_no = ((uint32_t)(uint8_t)Serialbuff[7]<<24) | ((uint32_t)(uint8_t)Serialbuff[8]<<16)
                                  | ((uint32_t)(uint8_t)Serialbuff[9]<<8)  |  (uint32_t)(uint8_t)Serialbuff[10];
                 if (line_no != job_expected_line) {
@@ -439,6 +442,7 @@ void SerialConsole::on_serial_char_received() {
                     break;
                 }
                 job_line_error = 0;
+                if (data_len < 10) break;
 
                 // The payload aggregates several lines; split on LF.
                 uint16_t payload = data_len - 9;
