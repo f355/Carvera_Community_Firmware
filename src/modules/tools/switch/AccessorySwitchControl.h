@@ -22,6 +22,7 @@ class AccessorySwitchControl {
     {
         return auto_blowing_power_;
     }
+    void apply_chip_clear_power() const;
 
     bool set_state(uint16_t name, bool state) const;
     bool set_power(uint16_t name, float power) const;
@@ -39,6 +40,7 @@ class AccessorySwitchControl {
     uint16_t auto_blowing_switch_;
     uint16_t bed_cleaning_switch_;
     uint16_t bed_cleaning_fan_switch_;
+    float chip_clear_power_;
     float auto_blowing_power_;
     float bed_cleaning_fan_power_;
     bool bed_cleaning_enabled_;

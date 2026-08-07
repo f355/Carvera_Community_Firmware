@@ -32,6 +32,7 @@ wifi.enable                                                false
 laser_module_pin                                           0.11
 laser_module_static_removal_enable                        true
 accessory.chip_clear_switch                                extendout
+accessory.chip_clear_power                                 80
 accessory.auto_blowing_switch                              spindlefan
 accessory.auto_blowing_power                               30
 atc.homing_max_travel_mm                                   8

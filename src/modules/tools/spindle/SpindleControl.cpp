@@ -84,6 +84,7 @@ void SpindleControl::on_gcode_received(void *argument)
                 const uint16_t name = THEKERNEL->accessories->chip_clear_switch();
                 if(!THEKERNEL->accessories->bed_cleaning_owns(name)) {
                     THEKERNEL->accessories->set_state(name, true);
+                    THEKERNEL->accessories->apply_chip_clear_power();
                 }
             }
 

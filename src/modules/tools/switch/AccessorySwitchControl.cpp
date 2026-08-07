@@ -14,6 +14,7 @@
 namespace {
 constexpr uint16_t accessory_checksum = CHECKSUM("accessory");
 constexpr uint16_t chip_clear_switch_checksum = CHECKSUM("chip_clear_switch");
+constexpr uint16_t chip_clear_power_checksum = CHECKSUM("chip_clear_power");
 constexpr uint16_t auto_blowing_switch_checksum = CHECKSUM("auto_blowing_switch");
 constexpr uint16_t auto_blowing_power_checksum = CHECKSUM("auto_blowing_power");
 constexpr uint16_t bed_cleaning_checksum = CHECKSUM("bed_cleaning");
@@ -34,11 +35,18 @@ AccessorySwitchControl::AccessorySwitchControl()
       auto_blowing_switch_(read_switch_name(auto_blowing_switch_checksum, "nc")),
       bed_cleaning_switch_(read_switch_name(bed_cleaning_switch_checksum, "nc")),
       bed_cleaning_fan_switch_(read_switch_name(bed_cleaning_fan_switch_checksum, "nc")),
+      chip_clear_power_(THEKERNEL->config->value(accessory_checksum, chip_clear_power_checksum)->as_number(-1.0F)),
       auto_blowing_power_(THEKERNEL->config->value(accessory_checksum, auto_blowing_power_checksum)->as_number(30.0F)),
       bed_cleaning_fan_power_(
           THEKERNEL->config->value(accessory_checksum, bed_cleaning_fan_power_checksum)->as_number(100.0F)),
       bed_cleaning_enabled_(THEKERNEL->config->value(bed_cleaning_checksum, enable_checksum)->as_bool(false))
 {
+}
+
+void AccessorySwitchControl::apply_chip_clear_power() const
+{
+    if (chip_clear_power_ >= 0)
+        set_power(chip_clear_switch_, chip_clear_power_);
 }
 
 uint16_t AccessorySwitchControl::read_switch_name(uint16_t setting, const char *fallback)
