@@ -53,9 +53,15 @@ class TemperatureSwitch : public Module
         bool controls_bed_cleaning_fan;
         bool controls_auto_blowing_fan;
 
-
-        // our internal second counter
-        int cooldown_delay_counter;
+        enum class FanMode : uint8_t {
+            idle,
+            accessory,
+            laser,
+            thermal,
+            cooldown,
+        };
+        FanMode fan_mode;
+        uint32_t cooldown_elapsed_s;
 
 
 };

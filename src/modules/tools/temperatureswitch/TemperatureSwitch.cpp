@@ -118,8 +118,8 @@ TemperatureSwitch* TemperatureSwitch::load_config(uint16_t modcs)
     ts->controls_auto_blowing_fan = ts->temperatureswitch_switch_cs ==
         accessory_switch::configured_name(auto_blowing_switch_checksum, "nc");
 
-    // set initial state
-    ts->cooldown_delay_counter = -1;
+    ts->fan_mode = FanMode::idle;
+    ts->cooldown_elapsed_s = 0;
 
     ts->register_for_event(ON_SECOND_TICK);
     
@@ -142,14 +142,15 @@ void TemperatureSwitch::on_second_tick(void *argument)
         pad.value = this->bed_cleaning_fan_power;
         PublicData::set_value(
             switch_checksum, this->temperatureswitch_switch_cs, state_value_checksum, &pad);
-        cooldown_delay_counter = -77;
+        fan_mode = FanMode::accessory;
+        cooldown_elapsed_s = 0;
         return;
     }
 	if (THEKERNEL->get_laser_mode()) {
 		
 	    if(CARVERA == THEKERNEL->factory_set->MachineModel)
 	    {
-	    	if (cooldown_delay_counter != -88)
+			if (fan_mode != FanMode::laser)
 	    		THEKERNEL->streams->printf("Laser on, Turn on spindle fan...\r\n");
 	    	struct pad_switch pad;
 	    	pad.state = true;
@@ -158,7 +159,8 @@ void TemperatureSwitch::on_second_tick(void *argument)
 		    if (!ok) {
 		        THEKERNEL->streams->printf("Error turn on spindle fan.\r\n");
 		    }
-		    cooldown_delay_counter = -88;
+		    fan_mode = FanMode::laser;
+		    cooldown_elapsed_s = 0;
 		}
 	} else {
 		float current_temp = 0;
@@ -182,12 +184,11 @@ void TemperatureSwitch::on_second_tick(void *argument)
             PublicData::set_value(
                 switch_checksum, this->temperatureswitch_switch_cs,
                 state_value_checksum, &pad);
-            cooldown_delay_counter = -77;
+            fan_mode = FanMode::accessory;
+            cooldown_elapsed_s = 0;
             return;
         }
 	    if (current_temp >= this->temperatureswitch_threshold_temp) {
-//	    	if (cooldown_delay_counter != -99 && !THEKERNEL->is_uploading())
-//	    		THEKERNEL->streams->printf("Spindle temp: [%.2f], Turn on spindle fan...\r\n", current_temp);
 	    	struct pad_switch pad;
 	    	pad.state = true;
 	    	pad.value = temperatureswitch_cooldown_power_init + (current_temp - temperatureswitch_threshold_temp) * temperatureswitch_cooldown_power_step;
@@ -203,19 +204,22 @@ void TemperatureSwitch::on_second_tick(void *argument)
 			    }
 		        
 		    }
-	    	cooldown_delay_counter = -99;
+			fan_mode = FanMode::thermal;
+			cooldown_elapsed_s = 0;
 	    } else {
-            if (cooldown_delay_counter == -77) {
+            if (fan_mode == FanMode::accessory) {
                 bool switch_state = false;
                 PublicData::set_value(
                     switch_checksum, this->temperatureswitch_switch_cs,
                     state_checksum, &switch_state);
-                cooldown_delay_counter = -1;
-            } else if (cooldown_delay_counter == -88 || cooldown_delay_counter == -99) {
-	    		cooldown_delay_counter = 0;
-	    	} else if (cooldown_delay_counter >= 0) {
-	    		cooldown_delay_counter ++;
-	    		if (cooldown_delay_counter > temperatureswitch_cooldown_delay) {
+                fan_mode = FanMode::idle;
+                cooldown_elapsed_s = 0;
+            } else if (fan_mode == FanMode::laser || fan_mode == FanMode::thermal) {
+				fan_mode = FanMode::cooldown;
+				cooldown_elapsed_s = 0;
+			} else if (fan_mode == FanMode::cooldown) {
+				cooldown_elapsed_s++;
+				if (cooldown_elapsed_s > temperatureswitch_cooldown_delay) {
 //	    			if (!THEKERNEL->is_uploading())
 //	    				THEKERNEL->streams->printf("Spindle temp: [%.2f], Turn off spindle fan...\r\n", current_temp);
 	    			bool switch_state = false;
@@ -230,7 +234,8 @@ void TemperatureSwitch::on_second_tick(void *argument)
 					    	THEKERNEL->streams->printf("Error turn off fan.\r\n");
 					    }
 	    		    }
-	    			cooldown_delay_counter = -1;
+					fan_mode = FanMode::idle;
+					cooldown_elapsed_s = 0;
 	    		}
 	    	}
 		}
