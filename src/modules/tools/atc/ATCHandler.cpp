@@ -7,8 +7,6 @@
 
 #include "ATCHandler.h"
 #include "libs/FirmwareFileSystem.h"
-#include "libs/AtcProfileDefaults.h"
-#include "libs/RotaryMovePolicy.h"
 
 #include "libs/Module.h"
 #include "libs/Kernel.h"
@@ -94,7 +92,6 @@
 #define manual_tool_change_x_checksum CHECKSUM("manual_tool_change_x")
 #define manual_tool_change_y_checksum CHECKSUM("manual_tool_change_y")
 #define manual_probe_z_checksum CHECKSUM("manual_probe_z")
-#define split_rotary_xy_moves_checksum CHECKSUM("split_rotary_xy_moves")
 #define clearance_x_checksum		CHECKSUM("clearance_x")
 #define clearance_y_checksum		CHECKSUM("clearance_y")
 #define clearance_z_checksum		CHECKSUM("clearance_z")
@@ -1269,17 +1266,10 @@ void ATCHandler::queue_manual_tool_change_position(bool force_absolute)
 {
 	char buff[100];
 	const char *prefix = force_absolute ? "G90 G53 G0" : "G53 G0";
-	const auto order = rotary_move::clearance_order(this->split_rotary_xy_moves);
-
-	if (order == rotary_move::XYOrder::y_then_x) {
-		snprintf(buff, sizeof(buff), "%s Y%.3f", prefix, THEROBOT->from_millimeters(manual_tool_change_y));
-		this->script_queue.push(buff);
-		snprintf(buff, sizeof(buff), "%s X%.3f", prefix, THEROBOT->from_millimeters(manual_tool_change_x));
-		this->script_queue.push(buff);
-	} else {
-		snprintf(buff, sizeof(buff), "%s X%.3f Y%.3f", prefix, THEROBOT->from_millimeters(manual_tool_change_x), THEROBOT->from_millimeters(manual_tool_change_y));
-		this->script_queue.push(buff);
-	}
+	snprintf(buff, sizeof(buff), "%s X%.3f Y%.3f", prefix,
+		THEROBOT->from_millimeters(manual_tool_change_x),
+		THEROBOT->from_millimeters(manual_tool_change_y));
+	this->script_queue.push(buff);
 }
 
 void ATCHandler::fill_drop_scripts(int old_tool) {
@@ -1792,16 +1782,15 @@ void ATCHandler::on_config_reload(void *argument)
 	this->anchor2_offset_x = THEKERNEL->config->value(coordinate_checksum, anchor2_offset_x_checksum)->as_number(90  );
 	this->anchor2_offset_y = THEKERNEL->config->value(coordinate_checksum, anchor2_offset_y_checksum)->as_number(45.65F  );
 	
-	const auto defaults = atc_profile::legacy_defaults(
-		CARVERA == THEKERNEL->factory_set->MachineModel);
+	const bool is_carvera = CARVERA == THEKERNEL->factory_set->MachineModel;
 	this->toolrack_z = THEKERNEL->config->value(
-		coordinate_checksum, toolrack_z_checksum)->as_number(defaults.toolrack_z);
+		coordinate_checksum, toolrack_z_checksum)->as_number(is_carvera ? -105.0F : -108.0F);
 	this->toolrack_offset_x = THEKERNEL->config->value(
-		coordinate_checksum, toolrack_offset_x_checksum)->as_number(defaults.toolrack_offset_x);
+		coordinate_checksum, toolrack_offset_x_checksum)->as_number(is_carvera ? 356.0F : 126.0F);
 	this->toolrack_offset_y = THEKERNEL->config->value(
-		coordinate_checksum, toolrack_offset_y_checksum)->as_number(defaults.toolrack_offset_y);
+		coordinate_checksum, toolrack_offset_y_checksum)->as_number(is_carvera ? 0.0F : 196.0F);
 	this->lowest_tool_number = THEKERNEL->config->value(
-		atc_checksum, lowest_tool_number_checksum)->as_int(defaults.lowest_tool_number);
+		atc_checksum, lowest_tool_number_checksum)->as_int(is_carvera ? 0 : 1);
 
 	// Load configurable probe position (absolute MCS coordinates) before first use
 	this->probe_mcs_x = THEKERNEL->config->value(coordinate_checksum, probe_mcs_x_checksum)->as_number(NAN);
@@ -1860,12 +1849,11 @@ void ATCHandler::on_config_reload(void *argument)
 		}
 	}
 
-#if defined(MACHINE_Z1)
-	const auto z1_manual_coordinates = atc_profile::z1_manual_coordinates(
-		this->anchor1_x, this->anchor1_y,
-		this->toolrack_offset_x, this->toolrack_offset_y, this->toolrack_z);
-	probe_mx_mm = z1_manual_coordinates.probe_x;
-	probe_my_mm = z1_manual_coordinates.probe_y;
+#if defined(MACHINE_FAMILY_Z1)
+	const float manual_parking_x = this->anchor1_x + this->toolrack_offset_x + 132.0F;
+	const float manual_parking_y = this->anchor1_y + this->toolrack_offset_y;
+	probe_mx_mm = this->anchor1_x + 181.0F;
+	probe_my_mm = this->anchor1_y + 181.0F;
 #endif
 
 		// Use one-off offsets if configured, otherwise use standard manual position
@@ -1875,13 +1863,13 @@ void ATCHandler::on_config_reload(void *argument)
 			probe_mz_mm = isnan(this->probe_mcs_z) ? (probe_mz_mm) : this->probe_mcs_z;
 		}
 
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
 	this->manual_tool_change_x = THEKERNEL->config->value(
-		coordinate_checksum, manual_tool_change_x_checksum)->as_number(z1_manual_coordinates.parking_x);
+		coordinate_checksum, manual_tool_change_x_checksum)->as_number(manual_parking_x);
 	this->manual_tool_change_y = THEKERNEL->config->value(
-		coordinate_checksum, manual_tool_change_y_checksum)->as_number(z1_manual_coordinates.parking_y);
+		coordinate_checksum, manual_tool_change_y_checksum)->as_number(manual_parking_y);
 	this->manual_probe_z = THEKERNEL->config->value(
-		coordinate_checksum, manual_probe_z_checksum)->as_number(z1_manual_coordinates.probe_z);
+		coordinate_checksum, manual_probe_z_checksum)->as_number(this->toolrack_z);
 #else
 	this->manual_tool_change_x = THEKERNEL->config->value(
 		coordinate_checksum, manual_tool_change_x_checksum)->as_number(probe_mx_mm - 22.0F);
@@ -1890,24 +1878,19 @@ void ATCHandler::on_config_reload(void *argument)
 	this->manual_probe_z = THEKERNEL->config->value(
 		coordinate_checksum, manual_probe_z_checksum)->as_number(toolrack_z - 10.0F);
 #endif
-	const bool split_rotary_xy_moves = THEKERNEL->config->value(
-		coordinate_checksum, split_rotary_xy_moves_checksum)->as_bool(false);
-	this->split_rotary_xy_moves = rotary_move::enabled(
-		split_rotary_xy_moves, THEKERNEL->factory_set->FuncSetting & (1 << 0));
-	
 	this->rotation_offset_x = THEKERNEL->config->value(
-		coordinate_checksum, rotation_offset_x_checksum)->as_number(defaults.rotation_offset_x);
+		coordinate_checksum, rotation_offset_x_checksum)->as_number(is_carvera ? -8.0F : 30.0F);
 	this->rotation_offset_y = THEKERNEL->config->value(
-		coordinate_checksum, rotation_offset_y_checksum)->as_number(defaults.rotation_offset_y);
+		coordinate_checksum, rotation_offset_y_checksum)->as_number(is_carvera ? 37.5F : 82.5F);
 	this->rotation_offset_z = THEKERNEL->config->value(
-		coordinate_checksum, rotation_offset_z_checksum)->as_number(defaults.rotation_offset_z);
+		coordinate_checksum, rotation_offset_z_checksum)->as_number(is_carvera ? 22.5F : 23.0F);
 
 	this->clearance_x = THEKERNEL->config->value(
-		coordinate_checksum, clearance_x_checksum)->as_number(defaults.clearance_x);
+		coordinate_checksum, clearance_x_checksum)->as_number(is_carvera ? -75.0F : -5.0F);
 	this->clearance_y = THEKERNEL->config->value(
-		coordinate_checksum, clearance_y_checksum)->as_number(defaults.clearance_y);
+		coordinate_checksum, clearance_y_checksum)->as_number(is_carvera ? -3.0F : -21.0F);
 	this->clearance_z = THEKERNEL->config->value(
-		coordinate_checksum, clearance_z_checksum)->as_number(defaults.clearance_z);
+		coordinate_checksum, clearance_z_checksum)->as_number(is_carvera ? -3.0F : -5.0F);
 	this->rotation_width = THEKERNEL->config->value(coordinate_checksum, rotation_width_checksum)->as_number(100 );
 
 	this->skip_path_origin = THEKERNEL->config->value(atc_checksum, skip_path_origin_checksum)->as_bool(false);
@@ -3368,8 +3351,7 @@ void ATCHandler::on_main_loop(void *argument)
 		// goto z clearance
 		rapid_move(true, NAN, NAN, this->clearance_z, NAN, NAN);
 		// goto x and y clearance
-		rapid_move_xy(true, this->clearance_x, this->clearance_y, NAN,
-			rotary_move::clearance_order(this->split_rotary_xy_moves));
+		rapid_move_xy(true, this->clearance_x, this->clearance_y, NAN);
 		THECONVEYOR->wait_for_idle();
 		THEROBOT->pop_state();
 		g28_triggered = false;
@@ -3377,8 +3359,7 @@ void ATCHandler::on_main_loop(void *argument)
         rapid_move(true, NAN, NAN, this->clearance_z, NAN, NAN);
 		if (goto_position == 0 || goto_position == 1) {
 			// goto clearance
-	        rapid_move_xy(true, this->clearance_x, this->clearance_y, NAN,
-				rotary_move::clearance_order(this->split_rotary_xy_moves));
+	        rapid_move_xy(true, this->clearance_x, this->clearance_y, NAN);
 		} else if (goto_position == 2) {
 			// goto work origin
 			// shrink A value first before move
@@ -3397,16 +3378,14 @@ void ATCHandler::on_main_loop(void *argument)
 				ma = ma - deltwa;
 				THEROBOT->reset_axis_position(ma, A_AXIS);
 			}
-			rapid_move_xy(false, 0, 0, 0,
-				rotary_move::destination_order(this->split_rotary_xy_moves));
+			rapid_move_xy(false, 0, 0, 0);
 		} else if (goto_position == 3) {
 			// goto anchor 1
 			rapid_move(true, this->anchor1_x, this->anchor1_y, NAN, NAN, NAN);
 		} else if (goto_position == 4) {
 			// goto anchor 2
 			rapid_move_xy(true, this->anchor1_x + this->anchor2_offset_x,
-				this->anchor1_y + this->anchor2_offset_y, NAN,
-				rotary_move::destination_order(this->split_rotary_xy_moves));
+				this->anchor1_y + this->anchor2_offset_y, NAN);
 		} else if (goto_position == 5) {
 			// goto designative work position
 			if (position_x < 8888 && position_y < 8888 && position_a < 88888888 && position_b < 88888888) {
@@ -3636,17 +3615,9 @@ void ATCHandler::rapid_move(bool mc, float x, float y, float z, float a, float b
 
 }
 
-void ATCHandler::rapid_move_xy(bool mc, float x, float y, float a, rotary_move::XYOrder order)
+void ATCHandler::rapid_move_xy(bool mc, float x, float y, float a)
 {
-	if (order == rotary_move::XYOrder::x_then_y) {
-		rapid_move(mc, x, NAN, NAN, NAN, NAN);
-		rapid_move(mc, NAN, y, NAN, a, NAN);
-	} else if (order == rotary_move::XYOrder::y_then_x) {
-		rapid_move(mc, NAN, y, NAN, a, NAN);
-		rapid_move(mc, x, NAN, NAN, NAN, NAN);
-	} else {
-		rapid_move(mc, x, y, NAN, a, NAN);
-	}
+	rapid_move(mc, x, y, NAN, a, NAN);
 }
 
 

@@ -201,7 +201,7 @@ void ZProbe::after_config_cache_clear()
 void ZProbe::on_main_loop(void *argument)
 {
     bool keep_3d_probe_powered = CARVERA_AIR == THEKERNEL->factory_set->MachineModel;
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     keep_3d_probe_powered = true;
 #endif
 
