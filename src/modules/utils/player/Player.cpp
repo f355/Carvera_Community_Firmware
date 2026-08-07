@@ -955,6 +955,11 @@ void Player::finish_streamed_abort()
     message.line = 0;
     THEKERNEL->call_event(ON_CONSOLE_LINE_RECEIVED, &message);
 
+    if (THEKERNEL->get_laser_mode()) {
+        message.message = "laserabort";
+        THEKERNEL->call_event(ON_CONSOLE_LINE_RECEIVED, &message);
+    }
+
     THEROBOT->reset_position_from_current_actuator_position();
     THEKERNEL->planner->reset_after_abort();
     THEKERNEL->conveyor->clear_motion_abort();
