@@ -22,7 +22,6 @@
 #include "ATCHandlerPublicAccess.h"
 #include "Gcode.h"
 #include "modules/robot/Conveyor.h"
-#include "MainButtonLed.h"
 #include "StepperMotor.h"
 #include "Robot.h"
 
@@ -67,7 +66,6 @@ MainButton::MainButton()
     this->light_countdown_us = us_ticker_read();
     this->power_fan_countdown_us = us_ticker_read();
     this->old_state = IDLE;
-    this->led_brightness = 104;
 }
 
 void MainButton::on_module_loaded()
@@ -82,17 +80,13 @@ void MainButton::on_module_loaded()
     this->main_button_LED_G.from_string( THEKERNEL->config->value( main_button_LED_G_pin_checksum )->as_string("1.15"))->as_output();
     this->main_button_LED_B.from_string( THEKERNEL->config->value( main_button_LED_B_pin_checksum )->as_string("1.14"))->as_output();
     
-    const char* main_button_default = CARVERA_AIR == THEKERNEL->factory_set->MachineModel
-        ? "2.13!^" : "1.16^";
-    this->main_button.from_string(THEKERNEL->config->value(
-        main_button_pin_checksum)->as_string(main_button_default))->as_input();
+    this->main_button.from_string(
+        THEKERNEL->config->value(main_button_pin_checksum)->as_string("1.16^"))->as_input();
     this->poll_frequency = THEKERNEL->config->value( main_button_poll_frequency_checksum )->as_number(20);
     this->long_press_time_ms = THEKERNEL->config->value( main_long_press_time_ms_checksum )->as_number(3000);
     this->long_press_enable = THEKERNEL->config->value( main_button_long_press_checksum )->as_string("");
-    const char* e_stop_default = CARVERA_AIR == THEKERNEL->factory_set->MachineModel
-        ? "0.20^" : "0.26^";
-    this->e_stop.from_string(THEKERNEL->config->value(
-        e_stop_pin_checksum)->as_string(e_stop_default))->as_input();
+    this->e_stop.from_string(
+        THEKERNEL->config->value(e_stop_pin_checksum)->as_string("0.26^"))->as_input();
     this->PS12.from_string( THEKERNEL->config->value( ps12_pin_checksum )->as_string("0.22"))->as_output();
     this->PS24.from_string( THEKERNEL->config->value( ps24_pin_checksum )->as_string("0.10"))->as_output();
     this->power_fan_delay_s = THEKERNEL->config->value( power_fan_delay_s_checksum )->as_int(30);
@@ -103,8 +97,8 @@ void MainButton::on_module_loaded()
 
     this->enable_light = THEKERNEL->config->value(get_checksum("switch"), get_checksum("light"), get_checksum("startup_state"))->as_bool(false);
     this->turn_off_light_min = THEKERNEL->config->value(light_checksum, turn_off_min_checksum )->as_number(10);
-    this->led_brightness = static_cast<uint8_t>(std::clamp(
-        THEKERNEL->config->value(light_checksum, led_brightness_checksum)->as_int(104), 0, 255));
+    this->led.set_brightness(static_cast<uint8_t>(std::clamp(
+        THEKERNEL->config->value(light_checksum, led_brightness_checksum)->as_int(104), 0, 255)));
 
     this->stop_on_cover_open = THEKERNEL->config->value( stop_on_cover_open_checksum )->as_bool(false); // @deprecated
 
@@ -125,10 +119,10 @@ void MainButton::on_module_loaded()
 	    this->main_button_LED_G.set(0);
 	    this->main_button_LED_B.set(0);
 	}
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     else
 #else
-	else if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
+    else if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
 #endif
     {
     	this->set_led_colors(0, 0, 0);
@@ -669,8 +663,8 @@ void MainButton::on_set_public_data(void* argument)
 uint32_t MainButton::led_tick(uint32_t dummy)
 {
 	uint8_t state = THEKERNEL->get_state();
-	const uint8_t full = this->led_brightness;
-	const uint8_t orange_green = mainbutton_led_scale(24, full);
+	const uint8_t full = this->led.brightness();
+	const uint8_t orange_green = this->led.scale(24);
 	if (!this->button_pressed && THECONVEYOR->is_idle()){
 		switch (state) {
 			case HOLD:
@@ -828,159 +822,15 @@ uint32_t MainButton::led_tick(uint32_t dummy)
 	return 0;
 }
 
-void MainButton::set_led_color(unsigned char R1, unsigned char G1, unsigned char B1,unsigned char R2, unsigned char G2, unsigned char B2,unsigned char R3, unsigned char G3, unsigned char B3,unsigned char R4, unsigned char G4, unsigned char B4,unsigned char R5, unsigned char G5, unsigned char B5)
+void MainButton::set_led_colors(unsigned char red, unsigned char green, unsigned char blue)
 {
-#if defined(MACHINE_Z1)
-	const MainButtonLedGroups groups{{
-		{R1, G1, B1}, {R2, G2, B2}, {R3, G3, B3}, {R4, G4, B4}, {R5, G5, B5}
-	}};
-	mainbutton_led_write_strip(groups);
-#else
-	mainbutton_led_write_strip(R1, G1, B1, R2, G2, B2, R3, G3, B3, R4, G4, B4, R5, G5, B5);
-#endif
+    this->led.set_all({red, green, blue});
 }
 
-/*
-void MainButton::set_led_color(unsigned char R, unsigned char G, unsigned char B)
+void MainButton::set_led_num(unsigned char front_red, unsigned char front_green, unsigned char front_blue,
+                             unsigned char back_red, unsigned char back_green, unsigned char back_blue,
+                             unsigned char number, bool row)
 {
-	unsigned char i, j, temp[3];
-	temp[0] = R;
-	temp[1] = G;
-	temp[2] = B;
-	for (i = 0; i < 3; i++) {
-		for (j = 0; j < 8; j++) {
-			if (temp[i] & (0x80 >> j))
-			{
-				LPC_GPIO1->FIOSET = 1 << 15; //0x00008000;
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				LPC_GPIO1->FIOCLR = 1 << 15;
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-			}
-			else
-			{
-				LPC_GPIO1->FIOSET = 1 << 15;
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				LPC_GPIO1->FIOCLR = 1 << 15;
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-				__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();
-			}
-		}
-	}
-}
-*/
-
-void MainButton::set_led_colors(unsigned char R, unsigned char G, unsigned char B)
-{
-#if !defined(MACHINE_Z1)
-    //__disable_irq();
-    // stop TIMER0 and TIMER1 for save time
-	NVIC_DisableIRQ(TIMER0_IRQn);
-	NVIC_DisableIRQ(TIMER1_IRQn);
-#endif
-	set_led_color(R, G, B, R, G, B, R, G, B, R, G, B, R, G, B);
-//	set_led_color(R, G, B);
-//	set_led_color(R, G, B);
-//	set_led_color(R, G, B);
-//	set_led_color(R, G, B);
-#if !defined(MACHINE_Z1)
-    //__enable_irq();
-    NVIC_EnableIRQ(TIMER0_IRQn);     // Enable interrupt handler
-	NVIC_EnableIRQ(TIMER1_IRQn);     // Enable interrupt handler
-#endif
-}
-
-void MainButton::set_led_num(unsigned char ColorFR, unsigned char ColorFG, unsigned char ColorFB, unsigned char ColorBR, unsigned char ColorBG, unsigned char ColorBB, unsigned char num, bool row)
-{
-#if !defined(MACHINE_Z1)
-    __disable_irq();
-#endif
-	if (!row){
-		switch(num){
-			case 1:
-				set_led_color(ColorFR, ColorFG, ColorFB, ColorBR, ColorBG, ColorBB, ColorBR, ColorBG, ColorBB, ColorBR, ColorBG, ColorBB, ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				break;	
-			case 2:
-				set_led_color(ColorFR, ColorFG, ColorFB, ColorBR, ColorBG, ColorBB, ColorFR, ColorFG, ColorFB, ColorBR, ColorBG, ColorBB, ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorFR, ColorFG, ColorFB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				break;	
-			case 3:
-				set_led_color(ColorFR, ColorFG, ColorFB, ColorBR, ColorBG, ColorBB, ColorFR, ColorFG, ColorFB, ColorBR, ColorBG, ColorBB, ColorFR, ColorFG, ColorFB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorFR, ColorFG, ColorFB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorFR, ColorFG, ColorFB);
-				break;	
-			default:
-				break;
-		}
-	}else{
-		switch(num){
-			case 1:
-				set_led_color(ColorFR, ColorFG, ColorFB, ColorBR, ColorBG, ColorBB, ColorBR, ColorBG, ColorBB, ColorBR, ColorBG, ColorBB, ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				break;	
-			case 2:
-				set_led_color(ColorFR, ColorFG, ColorFB, ColorFR, ColorFG, ColorFB, ColorBR, ColorBG, ColorBB, ColorBR, ColorBG, ColorBB, ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorFR, ColorFG, ColorFB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				break;	
-			case 3:
-				set_led_color(ColorFR, ColorFG, ColorFB, ColorFR, ColorFG, ColorFB, ColorFR, ColorFG, ColorFB, ColorBR, ColorBG, ColorBB, ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorFR, ColorFG, ColorFB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorFR, ColorFG, ColorFB);
-				break;
-			case 4:
-				set_led_color(ColorFR, ColorFG, ColorFB, ColorFR, ColorFG, ColorFB, ColorFR, ColorFG, ColorFB, ColorFR, ColorFG, ColorFB, ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorFR, ColorFG, ColorFB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorFR, ColorFG, ColorFB);
-				break;
-			case 5:
-				set_led_color(ColorFR, ColorFG, ColorFB, ColorFR, ColorFG, ColorFB, ColorFR, ColorFG, ColorFB, ColorFR, ColorFG, ColorFB, ColorFR, ColorFG, ColorFB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorFR, ColorFG, ColorFB);
-				//set_led_color(ColorBR, ColorBG, ColorBB);
-				//set_led_color(ColorFR, ColorFG, ColorFB);
-				break;
-			default:
-				break;
-		}
-	}
-    
-#if !defined(MACHINE_Z1)
-    __enable_irq();
-#endif
+    this->led.set_number(
+        {front_red, front_green, front_blue}, {back_red, back_green, back_blue}, number, row);
 }

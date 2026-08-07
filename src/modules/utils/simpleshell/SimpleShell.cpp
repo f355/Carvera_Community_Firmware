@@ -135,7 +135,7 @@ const SimpleShell::ptentry_t SimpleShell::commands_table[] = {
 	{"time",   SimpleShell::time_command},
     {"test",     SimpleShell::test_command},
     {"model",  SimpleShell::model_command},
-#if !defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_CARVERA)
     {"check_5th",  SimpleShell::test_5th_command},
 #endif
     {"check_4th",  SimpleShell::test_4th_command},
