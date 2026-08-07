@@ -24,7 +24,7 @@ struct canopen_status {
     bool bus_ready;
     uint32_t bitrate;
     uint8_t node_id;
-    uint8_t slave_node_id;
+    uint8_t remote_node_id;
     uint32_t heartbeat_ms;
     CANBus::Statistics bus;
     bool have_last_rx;
@@ -67,7 +67,7 @@ class CANopen : public Module {
     bool bus_ready;
     uint32_t bitrate;
     uint8_t node_id;
-    uint8_t slave_node_id;
+    uint8_t remote_node_id;
     uint32_t heartbeat_ms;
     uint32_t last_heartbeat_us;
     uint32_t last_remote_heartbeat_us;

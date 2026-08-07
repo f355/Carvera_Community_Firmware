@@ -77,7 +77,7 @@ uint32_t parsed_subcode(const Gcode *gcode)
 } // namespace
 
 CANopen::CANopen()
-    : can(nullptr), enabled(false), bus_ready(false), bitrate(1000000), node_id(10), slave_node_id(1),
+    : can(nullptr), enabled(false), bus_ready(false), bitrate(1000000), node_id(10), remote_node_id(1),
       heartbeat_ms(1000), last_heartbeat_us(0), last_remote_heartbeat_us(0), last_sdo_abort(0), remote_state(0),
       have_remote_heartbeat(false), have_last_rx(false)
 {
@@ -103,8 +103,8 @@ void CANopen::configure()
     const int configured_node = THEKERNEL->config->value(canopen_checksum, can_node_id_checksum)->as_int(10);
     node_id = canopen::valid_node_id(configured_node) ? static_cast<uint8_t>(configured_node) : 0;
 
-    const int configured_slave = THEKERNEL->config->value(canopen_checksum, slave_node_id_checksum)->as_int(1);
-    slave_node_id = canopen::valid_node_id(configured_slave) ? static_cast<uint8_t>(configured_slave) : 0;
+    const int configured_remote = THEKERNEL->config->value(canopen_checksum, slave_node_id_checksum)->as_int(1);
+    remote_node_id = canopen::valid_node_id(configured_remote) ? static_cast<uint8_t>(configured_remote) : 0;
 
     const int configured_heartbeat =
         THEKERNEL->config->value(canopen_checksum, can_heartbeat_ms_checksum)->as_int(1000);
@@ -118,7 +118,7 @@ void CANopen::configure()
 
 bool CANopen::start()
 {
-    if (!supported_bitrate(bitrate) || !canopen::valid_node_id(node_id) || !canopen::valid_node_id(slave_node_id) ||
+    if (!supported_bitrate(bitrate) || !canopen::valid_node_id(node_id) || !canopen::valid_node_id(remote_node_id) ||
         heartbeat_ms == UINT32_MAX) {
         THEKERNEL->streams->printf("ERROR: Invalid CANopen configuration\n");
         bus_ready = false;
@@ -146,7 +146,7 @@ void CANopen::handle_rx(const mbed::CANMessage &message, uint32_t now)
         return;
     last_rx = message;
     have_last_rx = true;
-    if (message.id == canopen::heartbeat_cob_id(slave_node_id) && message.len == 1) {
+    if (message.id == canopen::heartbeat_cob_id(remote_node_id) && message.len == 1) {
         remote_state = message.data[0];
         last_remote_heartbeat_us = now;
         have_remote_heartbeat = true;
@@ -295,7 +295,7 @@ bool CANopen::addressed_node(Gcode *gcode, uint8_t &node) const
         node = static_cast<uint8_t>(requested);
         return true;
     }
-    node = slave_node_id;
+    node = remote_node_id;
     return true;
 }
 
@@ -317,7 +317,7 @@ void CANopen::report(StreamOutput *stream)
 
     stream->printf("  Bitrate: %lu\n", bitrate);
     stream->printf("  Local node: %u\n", node_id);
-    stream->printf("  Remote node: %u\n", slave_node_id);
+    stream->printf("  Remote node: %u\n", remote_node_id);
     stream->printf("  Heartbeat: %lu ms\n", heartbeat_ms);
     stream->printf("  Bus ready: %s\n", bus_ready ? "yes" : "no");
 
@@ -520,7 +520,7 @@ void CANopen::on_get_public_data(void *argument)
     status.bus_ready = bus_ready;
     status.bitrate = bitrate;
     status.node_id = node_id;
-    status.slave_node_id = slave_node_id;
+    status.remote_node_id = remote_node_id;
     status.heartbeat_ms = heartbeat_ms;
     status.bus = can != nullptr ? can->statistics() : CANBus::Statistics{};
     status.have_last_rx = have_last_rx;
