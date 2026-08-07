@@ -45,10 +45,10 @@ class SerialConsole : public Module, public StreamOutput {
         char getc_result;
 
         int get_baud() const { return current_baud_rate; }
-#if !defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_CARVERA)
         void set_baud_temporary(int new_baud);
 #endif
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
         int receive_packet(makera::Packet& packet, uint32_t timeout_ms = 100);
 #endif
 
@@ -62,7 +62,7 @@ class SerialConsole : public Module, public StreamOutput {
         int temp_baud_rate;                       // non-zero = temporary baud active
         uint32_t last_activity_ms;                // for 15s timeout revert
         uint32_t makera_frame_started_ms;
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
         bool rx_dispatch_enabled;
         int rx_lookahead;
         bool handle_rx_error();

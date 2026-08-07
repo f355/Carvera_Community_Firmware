@@ -13,8 +13,7 @@
 #define THEROBOT THEKERNEL->robot
 
 #include "Module.h"
-#include "I2C.h" // mbed.h lib
-#include "EepromData.h"
+#include "Eeprom.h"
 #include "FactorySettings.h"
 #include <array>
 #include <vector>
@@ -99,7 +98,7 @@ class Kernel {
         Kernel();
 
         ~Kernel() {
-            delete this->i2c;
+            delete this->eeprom;
             delete this->eeprom_data;
             delete this->factory_set;
         }
@@ -204,7 +203,6 @@ class Kernel {
         bool write_Factory_data();
         void erase_Factory_data();
         void read_Factroy_SD();
-        bool Check_Factory_Data(unsigned char *data, unsigned int len);
         bool Factroy_readLine(std::string& line, int lineno, FILE *fp);
         std::string get_query_string();
 
@@ -255,9 +253,8 @@ class Kernel {
         float* local_vars;        // #101–#120: user defined variables
 
     private:
-        bool read_eeprom_bytes(uint16_t address, unsigned char *data, size_t size);
         // When a module asks to be called for a specific event ( a hook ), this is where that request is remembered
-        mbed::I2C* i2c;
+        Eeprom* eeprom;
         std::array<std::vector<Module*>, NUMBER_OF_DEFINED_EVENTS> hooks;
         uint32_t stop_request_time;
         void protocol_from_name(const std::string& name, ProtocolMode& protocol);
@@ -292,8 +289,6 @@ class Kernel {
             bool flex_compensation_load_error:1;
             bool config_load_error:1;
         };
-        int iic_page_write(unsigned char u8PageNum, unsigned char u8len, unsigned char *pu8Array);
-
 };
 
 #endif

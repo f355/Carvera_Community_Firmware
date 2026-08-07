@@ -1,4 +1,4 @@
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
 
 #include "RemoteConfigSource.h"
 
@@ -18,8 +18,7 @@ constexpr remote::PacketTypes config_packets{PTYPE_CONFIG_START,
                                              PTYPE_CONFIG_DATA,
                                              PTYPE_CONFIG_FINISH,
                                              PTYPE_CONFIG_CANCEL,
-                                             remote::config_record_payload_size,
-                                             remote::CompletionPolicy::idle_timeout_after_data};
+                                             remote::config_record_payload_size};
 }  // namespace
 
 RemoteConfigSource::RemoteConfigSource(SerialConsole& serial) : serial_(serial) {
@@ -28,8 +27,20 @@ RemoteConfigSource::RemoteConfigSource(SerialConsole& serial) : serial_(serial) 
 
 void RemoteConfigSource::transfer_values_to_cache(ConfigCache* cache) {
   active_cache_ = cache;
+  accepted_records_ = 0;
   SerialPacketTransport transport(serial_);
-  const remote::Result result = remote::receive_records(transport, *this, config_packets);
+  remote::Result result = remote::receive_records(transport, *this, config_packets);
+
+  // TODO(f355): Remove this when the ESP32 reports the number of config lines it actually sends.
+  if (result == remote::Result::timeout && accepted_records_ != 0) {
+    result = remote::Result::success;
+  }
+
+  if (result != remote::Result::success) {
+    cache->clear();
+    FirmConfigSource embedded("firm");
+    embedded.transfer_values_to_cache(cache);
+  }
   active_cache_ = nullptr;
 
   if (result != remote::Result::success) {
@@ -60,15 +71,11 @@ uint32_t RemoteConfigSource::accept(uint32_t, const uint8_t* data, std::size_t s
     }
     begin = i + 1;
   }
+  accepted_records_ += accepted;
   return accepted;
 }
 
-void RemoteConfigSource::rollback() {
-  if (active_cache_ == nullptr) return;
-  active_cache_->clear();
-  FirmConfigSource embedded("firm");
-  embedded.transfer_values_to_cache(active_cache_);
-}
+void RemoteConfigSource::rollback() {}
 
 bool RemoteConfigSource::is_named(uint16_t check_sum) { return check_sum == name_checksum; }
 

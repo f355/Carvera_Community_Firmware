@@ -15,7 +15,7 @@ using namespace std;
 #include <string>
 
 // The Makefile imports the selected machine family's profiles as binary data.
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
 extern char _binary_config_z1_default_start;
 extern char _binary_config_z1_default_end;
 extern char _binary_config_z1pro_default_start;
@@ -30,7 +30,7 @@ extern char _binary_config2_default_end;
 FirmConfigSource::FirmConfigSource(const char* name){
     this->name_checksum = get_checksum(name);
 
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
 	switch (THEKERNEL->factory_set->MachineModel)
 	{
 		case Z1PRO:

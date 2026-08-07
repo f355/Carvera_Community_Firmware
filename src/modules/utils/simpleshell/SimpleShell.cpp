@@ -135,7 +135,7 @@ const SimpleShell::ptentry_t SimpleShell::commands_table[] = {
     {"fset",  SimpleShell::fset_command},
     {"enable_4th_hd", SimpleShell::enable_4th_hd},
     {"disable_4th_hd", SimpleShell::disable_4th_hd},
-#if !defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_CARVERA)
     {"baud",         SimpleShell::baud_command},
 #endif
     {"debugmode",    SimpleShell::debugmode_command},
@@ -1368,31 +1368,32 @@ void SimpleShell::ftype_command( string parameters, StreamOutput *stream )
 }
 // print out build model
 void SimpleShell::model_command( string parameters, StreamOutput *stream )
-{		    	
+{
+	const auto model_number = static_cast<unsigned>(THEKERNEL->factory_set->MachineModel);
 	switch (THEKERNEL->factory_set->MachineModel)
 	{
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
 		case Z1:
-			stream->printf("model = %s, %d, %d, %d\n", "Z1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
+			stream->printf("model = %s, %u, %d, %d\n", "Z1", model_number, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
 			break;
 		case Z1PRO:
-			stream->printf("model = %s, %d, %d, %d\n", "Z1Pro", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
+			stream->printf("model = %s, %u, %d, %d\n", "Z1Pro", model_number, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
 			break;
 		default:
-			stream->printf("model = %s, %d, %d, %d\n", "Z1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
+			stream->printf("model = %s, %u, %d, %d\n", "Z1", model_number, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
 			break;
 #else
 		case CARVERA:			
-			stream->printf("model = %s, %d, %d, %d\n", "C1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
+			stream->printf("model = %s, %u, %d, %d\n", "C1", model_number, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
 			break;
 		case CARVERA_AIR:			
-			stream->printf("model = %s, %d, %d, %d\n", "CA1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
+			stream->printf("model = %s, %u, %d, %d\n", "CA1", model_number, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
             if(THEKERNEL->is_flex_compensation_load_error()) {
                 stream->printf("ERROR: Could not load flex compensation data\n");
             }
             break;
 		default:
-			stream->printf("model = %s, %d, %d, %d\n", "C1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
+			stream->printf("model = %s, %u, %d, %d\n", "C1", model_number, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
 			break;
 #endif
 	}
@@ -1553,13 +1554,13 @@ void SimpleShell::fset_command( string parameters, StreamOutput *stream)
     	string s = shift_parameter( parameters );
     	if (s == "model") {
     		if (!parameters.empty()) {
-                const uint8_t model = machine_model_from_name(
+                const Machine model = machine_model_from_name(
                     std::string_view(parameters.data(), parameters.size()));
-                if (model == 0) {
+                if (model == Machine::unknown) {
                     stream->printf("Unable to recognize parameter model. \n");
                 } else {
                     THEKERNEL->factory_set->MachineModel = model;
-                    if (model == CARVERA) {
+                    if (model == Machine::carvera) {
                         THEKERNEL->factory_set->FuncSetting |= 0x04;
                     }
                     THEKERNEL->write_Factory_data();
@@ -1669,7 +1670,7 @@ void SimpleShell::disable_4th_hd( string parameters, StreamOutput *stream)
 	}
 }
 
-#if !defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_CARVERA)
 void SimpleShell::baud_command(string parameters, StreamOutput *stream)
 {
     if (THEKERNEL->serial == nullptr) {

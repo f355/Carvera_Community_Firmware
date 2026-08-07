@@ -152,7 +152,7 @@ void MainButton::on_second_tick(void *)
     // check if sd card is ok
 	if (!this->sd_ok && !THEKERNEL->is_halted()) {
         THEKERNEL->set_halt_reason(SD_ERROR);
-			THEKERNEL->streams->printf("ERROR: SD card error\n");
+		THEKERNEL->streams->printf("ERROR: SD card error\n");
         THEKERNEL->call_event(ON_HALT, nullptr);
 	}
 #endif

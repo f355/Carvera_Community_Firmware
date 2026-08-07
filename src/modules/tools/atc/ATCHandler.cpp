@@ -1712,7 +1712,7 @@ void ATCHandler::on_module_loaded()
 
 	// load data from eeprom
 	this->active_tool = THEKERNEL->eeprom_data->TOOL;
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
 	this->ref_tool_mz = THEKERNEL->eeprom_data->REFMZ;
 #else
 	if (THEKERNEL->eeprom_data->REFMZ != this->ref_tool_mz)
@@ -2062,7 +2062,7 @@ bool ATCHandler::probe_detect() {
     uint32_t probe_time;
     bool ok = PublicData::get_value(zprobe_checksum, get_zprobe_time_checksum, 0, &probe_time);
     if (ok) {
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
         if (us_ticker_read() - probe_time < 10 * 1000 * 1000) {
 #else
         if (us_ticker_read() - probe_time < 5 * 1000 * 1000) {

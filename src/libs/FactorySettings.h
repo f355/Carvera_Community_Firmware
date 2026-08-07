@@ -3,32 +3,29 @@
 #include <cstdint>
 #include <string_view>
 
+#include "MachineModel.h"
+
 struct FACTORY_SET {
-  char MachineModel;
-  char FuncSetting;
-  char reserve1;
-  char reserve2;
+    Machine MachineModel;
+    char FuncSetting;
+    char reserve1;
+    char reserve2;
 };
 
-namespace factory_settings {
+static_assert(sizeof(FACTORY_SET) == 4, "Unexpected factory settings record size");
 
-enum class Key : uint8_t {
-  unknown,
-  machine_model,
-  a_axis_home,
-  c_axis_home,
-  atc,
-  ce1_expand,
+class FactorySettings {
+  public:
+    enum class LineResult : uint8_t { ignored, applied, invalid };
+
+    explicit FactorySettings(FACTORY_SET &values) : values_(values) {}
+    LineResult apply_line(std::string_view line);
+
+  private:
+    enum class Key : uint8_t { unknown, machine_model, a_axis_home, c_axis_home, atc, ce1_expand };
+
+    static Key key_from_name(std::string_view name);
+    void set_bit(uint8_t bit, bool enabled);
+
+    FACTORY_SET &values_;
 };
-
-struct Setting {
-  Key key;
-  uint8_t value;
-};
-
-enum class ParseResult : uint8_t { ignored, setting, invalid };
-
-ParseResult parse(std::string_view line, Setting& setting);
-bool apply(FACTORY_SET& factory, const Setting& setting);
-
-}  // namespace factory_settings

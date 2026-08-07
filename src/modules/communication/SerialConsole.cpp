@@ -26,7 +26,7 @@ using std::string;
 #include "checksumm.h"
 #include "ConfigValue.h"
 #include "version.h"
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
 #include "UartRxDma.h"
 #endif
 
@@ -43,7 +43,7 @@ static char makera_cmd_payloads[MAKERA_CMD_QUEUE_DEPTH][MAKERA_CMD_MAX_LEN];
 static uint16_t makera_cmd_lengths[MAKERA_CMD_QUEUE_DEPTH];
 static volatile uint8_t makera_cmd_head;
 static volatile uint8_t makera_cmd_tail;
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
 static uint32_t last_version_us;
 constexpr uint32_t version_interval_us = 5 * 1000 * 1000;
 #endif
@@ -63,7 +63,7 @@ SerialConsole::SerialConsole( PinName tx_pin, PinName rx_pin, int baud_rate ){
     this->makera_cmd_queue_clear();
     this->reset_makera_command_parser();
     this->reset_file_parser();
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     this->rx_dispatch_enabled = false;
     this->rx_lookahead = -1;
     this->serial->attach(nullptr, mbed::Serial::RxIrq);
@@ -82,7 +82,7 @@ void SerialConsole::on_module_loaded() {
     halt_flag = false;
     diagnose_flag = false;
 
-#if !defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_CARVERA)
     default_baud_rate = THEKERNEL->config->value(uart_checksum, baud_rate_setting_checksum)->as_number(current_baud_rate);
     if (default_baud_rate != current_baud_rate) {
         this->serial->baud(default_baud_rate);
@@ -101,7 +101,7 @@ void SerialConsole::on_module_loaded() {
     THEKERNEL->streams->append_stream(this);
 }
 
-#if !defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_CARVERA)
 void SerialConsole::set_baud_temporary(int new_baud) {
     this->temp_baud_rate = new_baud;
     this->current_baud_rate = new_baud;
@@ -111,7 +111,7 @@ void SerialConsole::set_baud_temporary(int new_baud) {
 #endif
 
 void SerialConsole::set_rx_enabled(bool enabled) {
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     this->rx_dispatch_enabled = enabled;
 #else
     if (enabled) {
@@ -138,7 +138,7 @@ void SerialConsole::on_set_public_data(void *argument) {
 // Drain bytes supplied by the active IRQ- or DMA-backed transport.
 void SerialConsole::on_serial_char_received() {
 	while (this->ready()) {
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
         if (handle_rx_error()) continue;
 #endif
 		char received = this->_getc();
@@ -210,7 +210,7 @@ void SerialConsole::on_serial_char_received() {
 
 void SerialConsole::on_idle(void * argument)
 {
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     handle_rx_error();
 #endif
 	if (THEKERNEL->is_uploading()) return;
@@ -220,11 +220,11 @@ void SerialConsole::on_idle(void * argument)
         reset_makera_command_parser();
     }
 
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     if (rx_dispatch_enabled) on_serial_char_received();
 #endif
 
-#if !defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_CARVERA)
     if (temp_baud_rate != 0) {
         uint32_t now_ms = us_ticker_read() / 1000;
         if ((now_ms - last_activity_ms) >= 15000) {
@@ -267,7 +267,7 @@ void SerialConsole::on_idle(void * argument)
         THEKERNEL->call_event(ON_HALT, nullptr);
     }
 
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     const uint32_t now_us = us_ticker_read();
     if (now_us - last_version_us > version_interval_us) {
         Version version;
@@ -328,7 +328,7 @@ int SerialConsole::gets(char** buf, int size)
 {
 	if (communication_protocol == PROTOCOL_MAKERA) {
         while (this->ready()) {
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
             if (handle_rx_error()) continue;
 #endif
             uint8_t received = static_cast<uint8_t>(this->_getc());
@@ -436,12 +436,7 @@ void SerialConsole::process_makera_byte(uint8_t received)
     }
     makera_frame_started_ms = 0;
 
-#if defined(MACHINE_Z1)
-    // TODO(f355): try re-enabling this and testing it on the machine
-    // if (!decoded_packet.crc_valid) return;
-#else
     if (!decoded_packet.crc_valid) return;
-#endif
     dispatch_makera_packet(decoded_packet);
 }
 
@@ -479,7 +474,7 @@ void SerialConsole::dispatch_makera_packet(const makera::Packet& packet)
     }
 }
 
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
 int SerialConsole::receive_packet(makera::Packet& packet, uint32_t timeout_ms)
 {
     reset_makera_command_parser();
@@ -563,7 +558,7 @@ int SerialConsole::_putc(int c)
 
 int SerialConsole::_getc()
 {
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     if (rx_lookahead >= 0) {
         const int result = rx_lookahead;
         rx_lookahead = -1;
@@ -578,7 +573,7 @@ int SerialConsole::_getc()
 
 bool SerialConsole::ready()
 {
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     if (rx_lookahead >= 0) return true;
     uint8_t byte = 0;
     if (!uart_rx_dma::try_get(byte)) return false;
@@ -589,7 +584,7 @@ bool SerialConsole::ready()
 #endif
 }
 
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
 bool SerialConsole::handle_rx_error()
 {
     if (!uart_rx_dma::take_error()) return false;

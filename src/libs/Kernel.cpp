@@ -9,8 +9,6 @@
 #include "libs/FirmwareFileSystem.h"
 #include "libs/Module.h"
 #include "libs/Config.h"
-#include "libs/CRC16.h"
-#include "libs/EepromDump.h"
 #include "libs/nuts_bolts.h"
 #include "libs/SlowTicker.h"
 #include "libs/Adc.h"
@@ -45,8 +43,8 @@
 #include "mbed.h"
 #include "utils.h"
 #include "WifiPublicAccess.h"
-#if defined(MACHINE_Z1)
-#include "libs/RemoteFactoryProvider.h"
+#if defined(MACHINE_FAMILY_Z1)
+#include "libs/RemoteFactorySettings.h"
 #endif
 
 #ifndef NO_TOOLS_LASER
@@ -76,10 +74,7 @@ Kernel* Kernel::instance;
 static float ahb_local_vars[20] LOCATED_IN_AHBSRAM;
 static float ahb_local_params[30] LOCATED_IN_AHBSRAM;
 
-#define	EEP_MAX_PAGE_SIZE	32
-#define EEPROM_DATA_STARTPAGE	1
-#define EEPROM_FACTORYSET_PAGE	16
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
 constexpr int boot_serial_baud = 230400;
 #else
 constexpr int boot_serial_baud = 115200;
@@ -126,13 +121,11 @@ Kernel::Kernel()
 
     instance = this; // setup the Singleton instance of the kernel
 
-    // init I2C
-    this->i2c = new mbed::I2C(P0_27, P0_28);
-    this->i2c->frequency(200000);
+    this->eeprom = new Eeprom();
 
     // Bring up streams + serial console first so factory and config parser
-    // errors are visible on the host link. Carvera may reconfigure the baud
-    // from config later; the Z1 interprocessor link remains fixed at 230400.
+    // errors are visible on the serial link. Carvera may reconfigure the baud
+    // from config later; the Z1 serial link remains fixed at 230400.
     this->streams = new StreamOutputPool();
     this->serial  = new(AHB) SerialConsole(P2_8, P2_9, boot_serial_baud);
     this->streams->append_stream(this->serial);
@@ -140,17 +133,16 @@ Kernel::Kernel()
     this->factory_set = new FACTORY_SET();
     // read Factory setting data from eeprom
     this->read_Factory_data();
-#if defined(MACHINE_Z1)
-    if (this->factory_set->MachineModel != Z1 &&
-        this->factory_set->MachineModel != Z1PRO) {
+#if defined(MACHINE_FAMILY_Z1)
+    if (!is_z1(this->factory_set->MachineModel)) {
         *this->factory_set = FACTORY_SET{Z1, 0, 0, 0};
     }
 
-    RemoteFactoryProvider remote_factory(*this->factory_set);
-    const remote::Result factory_result = remote_factory.fetch(*this->serial);
-    if (factory_result == remote::Result::success && remote_factory.changed()) {
+    RemoteFactorySettings remote_factory_settings(*this->factory_set);
+    const remote::Result factory_result = remote_factory_settings.fetch(*this->serial);
+    if (factory_result == remote::Result::success && remote_factory_settings.changed()) {
         const FACTORY_SET previous = *this->factory_set;
-        *this->factory_set = remote_factory.value();
+        *this->factory_set = remote_factory_settings.value();
         if (write_Factory_data()) {
             system_reset(false);
         } else {
@@ -159,7 +151,7 @@ Kernel::Kernel()
     } else if (factory_result != remote::Result::success &&
                factory_result != remote::Result::cancelled) {
         this->streams->printf(
-            "ERROR: remote factory transfer failed (%u); using stored settings\n",
+            "ERROR: factory settings transfer failed (%u); using stored settings\n",
             static_cast<unsigned>(factory_result));
     }
 #else
@@ -207,7 +199,7 @@ Kernel::Kernel()
         this->serial = nullptr;
     } else {
         // add_module() runs SerialConsole::on_module_loaded(). Carvera applies
-        // uart.baud_rate there; the Z1 interprocessor link remains fixed.
+        // uart.baud_rate there; the Z1 serial link remains fixed.
         this->add_module( this->serial );
     }
 
@@ -538,7 +530,9 @@ std::string Kernel::get_query_string()
     }
     
     // machine state
-    n = snprintf(buf, sizeof(buf), "|C:%d,%d,%d,%d", THEKERNEL->factory_set->MachineModel,THEKERNEL->factory_set->FuncSetting,THEROBOT->inch_mode,THEROBOT->absolute_mode);
+    n = snprintf(buf, sizeof(buf), "|C:%u,%d,%d,%d",
+                 static_cast<unsigned>(THEKERNEL->factory_set->MachineModel),
+                 THEKERNEL->factory_set->FuncSetting, THEROBOT->inch_mode, THEROBOT->absolute_mode);
     if(n > sizeof(buf)) n = sizeof(buf);
     str.append(buf, n);
 
@@ -776,336 +770,33 @@ void Kernel::unregister_for_event(_EVENT_ENUM id_event, Module *mod)
     }
 }
 
-bool Kernel::read_eeprom_bytes(uint16_t address, unsigned char *data, size_t size)
-{
-    constexpr size_t eeprom_size = 4096;
-    if (data == nullptr || size == 0 || size > eeprom_size || address > eeprom_size - size) {
-        return false;
-    }
-    memset(data, 0xFF, size);
-    this->i2c->is_timed_out();
-
-    this->i2c->start();
-    if (!this->i2c->write(0xA0) ||
-        !this->i2c->write(static_cast<unsigned char>(address >> 8)) ||
-        !this->i2c->write(static_cast<unsigned char>(address))) {
-        this->i2c->stop();
-        this->i2c->is_timed_out();
-        return false;
-    }
-    this->i2c->start();
-    if (!this->i2c->write(0xA1)) {
-        this->i2c->stop();
-        this->i2c->is_timed_out();
-        return false;
-    }
-
-    for (size_t i = 0; i < size; ++i) {
-        data[i] = this->i2c->read(i + 1 < size ? mbed::I2C::ACK : mbed::I2C::NoACK);
-    }
-
-    this->i2c->stop();
-    return !this->i2c->is_timed_out();
-}
-
 void Kernel::read_eeprom_data()
 {
-    constexpr uint16_t address = EEPROM_DATA_STARTPAGE * EEP_MAX_PAGE_SIZE;
-#if defined(MACHINE_Z1)
-    eeprom_layout::Z1Record stored{};
-    if (read_eeprom_bytes(address, reinterpret_cast<unsigned char *>(&stored), sizeof(stored))) {
-        eeprom_layout::decode_z1(stored, *this->eeprom_data);
-    } else {
-        this->streams->printf("ERROR: EEPROM data read failed\n");
-    }
-#else
-    if (!read_eeprom_bytes(address, reinterpret_cast<unsigned char *>(this->eeprom_data), sizeof(*this->eeprom_data))) {
-        *this->eeprom_data = {};
-        this->streams->printf("ERROR: EEPROM data read failed\n");
-    }
-#endif
-    wait(0.05);
+    this->eeprom->read_data(*this->eeprom_data, *this->streams);
 }
 
 void Kernel::dump_eeprom(StreamOutput *stream)
 {
-    constexpr uint16_t eeprom_size = 4096;
-    std::array<uint8_t, eeprom_dump::row_size> bytes;
-    uint16_t crc = 0;
-
-    for (uint16_t address = 0; address < eeprom_size; address += bytes.size()) {
-        if (!read_eeprom_bytes(address, bytes.data(), bytes.size())) {
-            stream->printf("ERROR: EEPROM read failed at %04X\r\n", address);
-            return;
-        }
-        crc = crc16::ccitt_update(crc, bytes.data(), bytes.size());
-        const auto row = eeprom_dump::format_row(address, bytes);
-        stream->printf("%s\r\n", row.data());
-    }
-    stream->printf("CRC16-CCITT:%04X\r\n", crc);
+    this->eeprom->dump(*stream);
 }
 
-void Kernel::write_eeprom_data()
-{
-	constexpr size_t size = eeprom_layout::runtime_record_size();
-	std::array<unsigned char, size> data_buffer;
-	unsigned int writenum = 0;
-	unsigned int result = 0;
-	unsigned int pagenum = 0;
-	unsigned int bytenum =0;
-	unsigned char * writeptr = 0;
-	unsigned int u8Pagebegin=EEPROM_DATA_STARTPAGE;
+void Kernel::write_eeprom_data() { this->eeprom->write_data(*this->eeprom_data, *this->streams); }
 
-#if defined(MACHINE_Z1)
-	eeprom_layout::Z1Record stored{};
-	if (!read_eeprom_bytes(EEPROM_DATA_STARTPAGE * EEP_MAX_PAGE_SIZE,
-	                       reinterpret_cast<unsigned char *>(&stored), sizeof(stored))) {
-		this->streams->printf("ERROR: EEPROM data preservation read failed\n");
-		return;
-	}
-	eeprom_layout::update_z1(*this->eeprom_data, stored);
-	memcpy(data_buffer.data(), &stored, sizeof(stored));
-#else
-	memcpy(data_buffer.data(), this->eeprom_data, size);
-#endif
+void Kernel::erase_eeprom_data() { this->eeprom->erase_data(*this->streams); }
 
-	writeptr = data_buffer.data();
-	while(writenum < size)
-	{
-		bytenum = (size-pagenum*EEP_MAX_PAGE_SIZE) >= EEP_MAX_PAGE_SIZE ? EEP_MAX_PAGE_SIZE : size-pagenum*EEP_MAX_PAGE_SIZE;
-		result = iic_page_write(u8Pagebegin+pagenum, bytenum, (unsigned char *)writeptr);
-		wait(0.1);
-		if(result == 0)
-		{
-			pagenum ++;
-			writenum += bytenum;
-			writeptr += bytenum;
-		}
-		else
-		{
-			break;
-		}
-	}
-	if (result != 0) {
-		this->streams->printf("ERROR: EEPROM data write error:%d\n",pagenum);
-	} else {
-//		this->streams->printf("EEPROM data write finished.\n");
-	}
+void Kernel::check_eeprom_data() {
+    if (this->eeprom->check_data(*this->eeprom_data)) this->write_eeprom_data();
 }
 
-void Kernel::erase_eeprom_data()
-{
-	constexpr size_t size = eeprom_layout::runtime_record_size();
-	std::array<unsigned char, size> data_buffer{};
-	unsigned int writenum = 0;
-	unsigned int result = 0;
-	unsigned int pagenum = 0;
-	unsigned int bytenum =0;
-	unsigned char * writeptr = 0;
-	unsigned int u8Pagebegin=EEPROM_DATA_STARTPAGE;
+void Kernel::read_Factory_data() { this->eeprom->read_factory_settings(*this->factory_set); }
 
-	writeptr = data_buffer.data();
-	while(writenum < size)
-	{
-		bytenum = (size-pagenum*EEP_MAX_PAGE_SIZE) >= EEP_MAX_PAGE_SIZE ? EEP_MAX_PAGE_SIZE : size-pagenum*EEP_MAX_PAGE_SIZE;
-		result = iic_page_write(u8Pagebegin+pagenum, bytenum, (unsigned char *)writeptr);
-		wait(0.05);
-		if(result == 0)
-		{
-			pagenum ++;
-			writenum += bytenum;
-			writeptr += bytenum;
-		}
-		else
-		{
-			break;
-		}
-	}
-	if (result != 0) {
-		this->streams->printf("ERROR: EEPROM data erase error.\n");
-	} else {
-		this->streams->printf("EEPROM data erase finished.\n");
-	}
+bool Kernel::write_Factory_data() {
+    if (this->eeprom->write_factory_settings(*this->factory_set)) return true;
+    this->streams->printf("ERROR: factory settings write failed\n");
+    return false;
 }
 
-void Kernel::check_eeprom_data()
-{
-	bool needrewtite = false;
-	if(isnan(this->eeprom_data->TLO))
-	{
-		this->eeprom_data->TLO = 0;
-		needrewtite = true;
-	}
-	if(isnan(this->eeprom_data->REFMZ))
-	{
-		this->eeprom_data->REFMZ = 0;
-		needrewtite = true;
-	}
-	if(isnan(this->eeprom_data->TOOLMZ))
-	{
-		this->eeprom_data->TOOLMZ = 0;
-		needrewtite = true;
-	}
-	if(isnan(this->eeprom_data->reserve))
-	{
-		this->eeprom_data->reserve = 0;
-		needrewtite = true;
-	}
-	if(!eeprom_layout::valid_tool_number(this->eeprom_data->TOOL))
-	{
-		this->eeprom_data->TOOL = 0;
-		needrewtite = true;
-	}
-
-    if(this->eeprom_data->current_wcs > 5 || this->eeprom_data->current_wcs < 0)
-    {
-        this->eeprom_data->current_wcs = 0;
-        needrewtite = true;
-    }
-	
-	for (int wcs_index = 0; wcs_index < 6; wcs_index++){
-        if (isnan(this->eeprom_data->WCSrotation[wcs_index])){
-            this->eeprom_data->WCSrotation[wcs_index] = 0;
-            needrewtite = true;
-        }
-		for (int axis = 0; axis < 4; axis++) {
-			if (isnan(this->eeprom_data->WCScoord[wcs_index][axis])){
-				this->eeprom_data->WCScoord[wcs_index][axis] = 0;
-				needrewtite = true;
-			}
-		}
-	}
-    if(!((this->eeprom_data->tool_not_calibrated & ~1) == 0))
-	{
-		this->eeprom_data->tool_not_calibrated = true;
-		needrewtite = true;
-	}
-	if(needrewtite)
-		this->write_eeprom_data();
-}
-
-void Kernel::read_Factory_data()
-{
-	unsigned int size = sizeof(FACTORY_SET)+4;	//0x5A 0xA5 DATA CRC(2byte)
-	char i2c_buffer[size];
-
-    short address = EEPROM_FACTORYSET_PAGE*EEP_MAX_PAGE_SIZE;
-    i2c_buffer[0] = (unsigned char)(address >> 8);
-    i2c_buffer[1] = (unsigned char)((unsigned char)address & 0xff);
-
-    this->i2c->start();
-    this->i2c->write(0xA0);
-    this->i2c->write(i2c_buffer[0]);
-    this->i2c->write(i2c_buffer[1]);
-    this->i2c->start();
-    this->i2c->write(0xA1);
-
-    for (size_t i = 0; i < size; i ++) {
-    	i2c_buffer[i] = this->i2c->read(1);
-    }
-
-	this->i2c->stop();
-	this->i2c->stop();
-
-    wait(0.05);
-	
-	if( Check_Factory_Data((unsigned char*)i2c_buffer, sizeof(FACTORY_SET)+2 ) )
-	{
-    	memcpy(this->factory_set, &i2c_buffer[2], sizeof(FACTORY_SET));
-    }
-    else
-    {
-    	this->factory_set->MachineModel = 1;
-    	this->factory_set->FuncSetting = 0x04;
-    	this->factory_set->reserve1 = 0;
-    	this->factory_set->reserve2 = 0;
-    	
-    }
-    
-    if(this->factory_set->MachineModel == 1)
-    {
-    	this->factory_set->FuncSetting |= 0x04;
-    }
-}
-
-bool Kernel::write_Factory_data()
-{
-	unsigned int size = sizeof(FACTORY_SET);
-	unsigned int datalen = size + 4;
-	char Data_buffer[datalen];
-	unsigned int writenum = 0;
-	unsigned int result = 0;
-	unsigned int pagenum = 0;
-	unsigned int bytenum =0;
-	unsigned char * writeptr = 0;
-	unsigned int u8Pagebegin=EEPROM_FACTORYSET_PAGE;
-	
-	Data_buffer[0] = 0x5A;
-	Data_buffer[1] = 0xA5;
-	memcpy(&Data_buffer[2], this->factory_set, sizeof(FACTORY_SET));
-
-	unsigned short crc = crc16::ccitt((unsigned char*)Data_buffer, size+2);
-	Data_buffer[size+2] = crc & 0xff;
-	Data_buffer[size+3] = (crc>>8) & 0xff;
-
-	writeptr = (unsigned char *)Data_buffer;
-	while(writenum < datalen)
-	{
-		bytenum = (datalen-pagenum*EEP_MAX_PAGE_SIZE) >= EEP_MAX_PAGE_SIZE ? EEP_MAX_PAGE_SIZE : datalen-pagenum*EEP_MAX_PAGE_SIZE;
-		result = iic_page_write(u8Pagebegin+pagenum, bytenum, (unsigned char *)writeptr);
-		wait(0.1);
-		if(result == 0)
-		{
-			pagenum ++;
-			writenum += bytenum;
-			writeptr += bytenum;
-		}
-		else
-		{
-			break;
-		}
-	}
-	if (result != 0) {
-		this->streams->printf("ERROR: FACTORY setting data write error:%d\n",pagenum);
-	}
-	return result == 0;
-}
-
-void Kernel::erase_Factory_data()
-{
-	unsigned int size = sizeof(FACTORY_SET)+4;	//5A A5 DATA CRC
-	char Data_buffer[size];
-	unsigned int writenum = 0;
-	unsigned int result = 0;
-	unsigned int pagenum = 0;
-	unsigned int bytenum =0;
-	unsigned char * writeptr = 0;
-	unsigned int u8Pagebegin=EEPROM_FACTORYSET_PAGE;
-
-	memset(Data_buffer, 0, sizeof(Data_buffer));
-
-
-	writeptr = (unsigned char *)Data_buffer;
-	while(writenum < size)
-	{
-		bytenum = (size-pagenum*EEP_MAX_PAGE_SIZE) >= EEP_MAX_PAGE_SIZE ? EEP_MAX_PAGE_SIZE : size-pagenum*EEP_MAX_PAGE_SIZE;
-		result = iic_page_write(u8Pagebegin+pagenum, bytenum, (unsigned char *)writeptr);
-		wait(0.05);
-		if(result == 0)
-		{
-			pagenum ++;
-			writenum += bytenum;
-			writeptr += bytenum;
-		}
-		else
-		{
-			break;
-		}
-	}
-	if (result != 0) {
-		this->streams->printf("ERROR: FACTORY setting data erase error.\n");
-	}
-}
+void Kernel::erase_Factory_data() { this->eeprom->erase_factory_settings(); }
 
 void Kernel::read_Factroy_SD()
 {
@@ -1119,11 +810,11 @@ void Kernel::read_Factroy_SD()
         	string line;
         	if(Factroy_readLine(line, ln++, lp)) 
         	{ 
-				factory_settings::Setting setting{};
-				const auto result = factory_settings::parse(line, setting);
-				if (result == factory_settings::ParseResult::setting) {
-					bneedwrite |= factory_settings::apply(*this->factory_set, setting);
-				} else if (result == factory_settings::ParseResult::invalid) {
+				FactorySettings settings(*this->factory_set);
+				const auto result = settings.apply_line(line);
+				if (result == FactorySettings::LineResult::applied) {
+					bneedwrite = true;
+				} else if (result == FactorySettings::LineResult::invalid) {
 					THEKERNEL->streams->printf("ERROR: invalid factory file line: %s\r\n", line.c_str());
 				}
         	}
@@ -1165,67 +856,6 @@ bool Kernel::Factroy_readLine(string& line, int lineno, FILE *fp)
 
     return false;
 }
-
-bool Kernel::Check_Factory_Data(unsigned char *data, unsigned int len)
-{
-	if((data[0] == 0x5A) && (data[1] == 0xA5))
-	{
-		unsigned short crc = crc16::ccitt(data, len);
-		if( ((crc&0xff) == data[len]) && (((crc>>8)&0xff) == data[len+1]) )
-		{
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
-	else
-	{
-		return false;
-	}
-}
-
-int Kernel::iic_page_write(unsigned char u8PageNum, unsigned char u8len, unsigned char *pu8Array)
-{
-	unsigned char   i;
-	unsigned int  	u16ByteAdd;
-	unsigned char   u8HighAdd;
-	unsigned char   u8LowAdd;
-	unsigned char   *pu8ByteArray;
-
-	u16ByteAdd = (unsigned int)u8PageNum;
-	u16ByteAdd = (u16ByteAdd<<5);
-	u8LowAdd = (unsigned char)u16ByteAdd;
-	u8HighAdd = (unsigned char)(u16ByteAdd>>8);
-
-	if (u8len == 0)
-	{
-		return 1;
-	}
-
-
-	this->i2c->start();
-	this->i2c->write(0xA0);
-
-	this->i2c->write(u8HighAdd);
-	this->i2c->write(u8LowAdd);
-
-	pu8ByteArray = pu8Array;
-
-	/* write the array to eeprom */
-	for(i=0;i<u8len;i++)
-	{
-		this->i2c->write(*pu8ByteArray);
-		pu8ByteArray++;
-	}
-
-	this->i2c->stop();
-	this->i2c->stop();
-
-	return 0;
-}
-
 
 void Kernel::set_tool_waiting(bool f) { 
 	this->tool_waiting = f; 

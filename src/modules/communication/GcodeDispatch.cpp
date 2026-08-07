@@ -26,6 +26,7 @@
 #include "SimpleShell.h"
 #include "utils.h"
 #include "LPC17xx.h"
+#include "system_LPC17xx.h"
 #include "version.h"
 
 #define panel_display_message_checksum CHECKSUM("display_message")

@@ -1,7 +1,7 @@
 #ifndef REMOTECONFIGSOURCE_H
 #define REMOTECONFIGSOURCE_H
 
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
 
 #include "libs/ConfigSource.h"
 #include "modules/communication/RemoteTransfer.h"
@@ -24,6 +24,7 @@ class RemoteConfigSource : public ConfigSource, private remote::RecordSink {
 
   SerialConsole& serial_;
   ConfigCache* active_cache_ = nullptr;
+  uint32_t accepted_records_ = 0;
 };
 
 #endif
