@@ -232,7 +232,7 @@ void SimpleShell::on_gcode_received(void *argument)
             else if (gcode->subcode == 1) {
 				THEKERNEL->set_extout_mode(true);
                 if (gcode->has_letter('S')) {
-                    uint16_t s = gcode->get_uint('S');
+                    uint16_t s = gcode->get_int('S');
                     if (s < 101) THEKERNEL->play_spindle_fan_value = s;
 			    	}
                 PacketMessage(PTYPE_NORMAL_INFO, "turning auto blowing mode on\r\n", 0, gcode->stream);

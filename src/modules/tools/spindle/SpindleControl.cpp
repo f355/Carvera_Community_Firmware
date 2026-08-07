@@ -75,15 +75,26 @@ void SpindleControl::on_gcode_received(void *argument)
         	}
         	
             // open vacuum if set
-        	if (THEKERNEL->get_vacuum_mode()) {
-        		// open vacuum
-        		bool b = true;
-                PublicData::set_value(
-                    switch_checksum,
-                    CARVERA == THEKERNEL->factory_set->MachineModel ?
-                        vacuum_checksum : extendout_checksum,
-                    state_checksum, &b);
-        	}
+	        	if (THEKERNEL->get_vacuum_mode()) {
+	        		bool b = true;
+                if (CARVERA == THEKERNEL->factory_set->MachineModel) {
+                    PublicData::set_value(
+                        switch_checksum, vacuum_checksum, state_checksum, &b);
+                } else {
+                    PublicData::set_value(
+                        switch_checksum, extendout_checksum, state_checksum, &b);
+                    struct pad_switch pad;
+                    bool ok = PublicData::get_value(
+                        switch_checksum, vacuum_checksum, 0, &pad);
+                    if (ok) {
+                        pad.state = true;
+                        pad.value = pad.defaultvalue;
+                        PublicData::set_value(
+                            switch_checksum, extendout_checksum,
+                            state_value_checksum, &pad);
+                    }
+                }
+	        	}
         	
             // open extout if set
         	if (THEKERNEL->get_extout_mode()) {
