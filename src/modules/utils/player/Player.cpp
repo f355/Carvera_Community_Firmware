@@ -6,9 +6,6 @@
 */
 
 #include "Player.h"
-#if defined(MACHINE_Z1)
-#include "PlayerLinkProtocol.h"
-#endif
 #include "libs/FirmwareFileSystem.h"
 
 #include "libs/Kernel.h"
@@ -51,6 +48,35 @@
 #include "mbed.h"
 #include "libs/compiler.h"
 
+#if defined(MACHINE_FAMILY_Z1)
+namespace {
+uint16_t read_u16(const uint8_t *data)
+{
+    return (static_cast<uint16_t>(data[0]) << 8) | data[1];
+}
+
+uint32_t read_u32(const uint8_t *data)
+{
+    return (static_cast<uint32_t>(data[0]) << 24) | (static_cast<uint32_t>(data[1]) << 16)
+        | (static_cast<uint32_t>(data[2]) << 8) | data[3];
+}
+
+template <typename Byte> void write_u16(Byte *data, uint16_t value)
+{
+    data[0] = static_cast<uint8_t>(value >> 8);
+    data[1] = static_cast<uint8_t>(value);
+}
+
+template <typename Byte> void write_u32(Byte *data, uint32_t value)
+{
+    data[0] = static_cast<uint8_t>(value >> 24);
+    data[1] = static_cast<uint8_t>(value >> 16);
+    data[2] = static_cast<uint8_t>(value >> 8);
+    data[3] = static_cast<uint8_t>(value);
+}
+} // namespace
+#endif
+
 #define home_on_boot_checksum             CHECKSUM("home_on_boot")
 #define on_boot_gcode_checksum            CHECKSUM("on_boot_gcode")
 #define on_boot_gcode_enable_checksum     CHECKSUM("on_boot_gcode_enable")
@@ -89,7 +115,7 @@ char md5buf[64] LOCATED_IN_AHBSRAM;
 #define TIMEOUT_MS 10
 #define RETRYTIMES 10
 
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
 namespace {
 constexpr std::size_t streamed_line_count = 20;
 constexpr std::size_t streamed_low_water = 6;
@@ -104,7 +130,7 @@ Player::Player()
     this->playing_file = false;
     this->local_line_source.attach(nullptr);
     this->line_source = &this->local_line_source;
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     this->streamed_line_source = StreamedPlayerSource(streamed_line_storage, streamed_line_count);
     this->streamed_state = StreamedState::idle;
     this->streamed_file_id = 0;
@@ -230,7 +256,7 @@ bool Player::prepare_ocode_prescan(StreamOutput* stream, const char* fail_msg)
 
 void Player::select_file(string argument, bool force_prescan)
 {
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     if (this->streamed_session_active()) {
         THEKERNEL->streams->printf("ERROR: abort streamed playback before selecting a local file\r\n");
         return;
@@ -384,7 +410,7 @@ void Player::on_gcode_received(void *argument)
     Gcode *gcode = static_cast<Gcode *>(argument);
     string args = get_arguments(gcode->get_command());
     if (gcode->has_m) {
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
         if (this->streamed_session_active() &&
             (gcode->m == 23 || gcode->m == 32 || gcode->m == 97 || gcode->m == 98)) {
             gcode->stream->printf("ERROR: local file and macro commands are unavailable during streamed playback\r\n");
@@ -663,7 +689,7 @@ void Player::play_command( string parameters, StreamOutput *stream )
     this->last_filename = this->filename;
 
     if (this->playing_file || THEKERNEL->is_suspending() || THEKERNEL->is_waiting()
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
         || this->streamed_session_active()
 #endif
     ) {
@@ -671,7 +697,7 @@ void Player::play_command( string parameters, StreamOutput *stream )
         return;
     }
 
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     this->start_streamed_playback(stream, options);
     return;
 #endif
@@ -743,7 +769,7 @@ void Player::play_command( string parameters, StreamOutput *stream )
     THEROBOT->reset_position_from_current_actuator_position();
 }
 
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
 void Player::start_streamed_playback(StreamOutput *stream, const string& options)
 {
     this->close_line_source();
@@ -757,7 +783,7 @@ void Player::start_streamed_playback(StreamOutput *stream, const string& options
         ? nullptr : THEKERNEL->streams;
 
     char payload[2];
-    player_link::write_u16(payload, this->streamed_file_id);
+    write_u16(payload, this->streamed_file_id);
     THEKERNEL->serial->PacketMessage(PTYPE_PLAY_START, payload, sizeof(payload));
     this->streamed_last_request_us = us_ticker_read();
     stream->printf("Playing %s\r\n", this->filename.c_str());
@@ -770,9 +796,9 @@ void Player::request_streamed_lines()
     const uint32_t line = this->streamed_line_source.next_expected_line();
     const uint16_t count = static_cast<uint16_t>(this->streamed_line_source.available());
     char payload[8];
-    player_link::write_u16(payload, this->streamed_file_id);
-    player_link::write_u32(payload + 2, line);
-    player_link::write_u16(payload + 6, count);
+    write_u16(payload, this->streamed_file_id);
+    write_u32(payload + 2, line);
+    write_u16(payload + 6, count);
     THEKERNEL->serial->PacketMessage(PTYPE_PLAY_DATA, payload, sizeof(payload));
     this->streamed_last_request_line = line;
     this->streamed_last_request_us = us_ticker_read();
@@ -784,7 +810,7 @@ void Player::maintain_streamed_source()
     if (this->streamed_state == StreamedState::opening) {
         if (us_ticker_read() - this->streamed_last_request_us > streamed_retry_us) {
             char payload[2];
-            player_link::write_u16(payload, this->streamed_file_id);
+            write_u16(payload, this->streamed_file_id);
             THEKERNEL->serial->PacketMessage(PTYPE_PLAY_START, payload, sizeof(payload));
             this->streamed_last_request_us = us_ticker_read();
         }
@@ -793,8 +819,8 @@ void Player::maintain_streamed_source()
     if (this->streamed_state == StreamedState::seeking) {
         if (us_ticker_read() - this->streamed_last_request_us > streamed_retry_us) {
             char payload[6];
-            player_link::write_u16(payload, this->streamed_file_id);
-            player_link::write_u32(payload + 2, this->goto_line);
+            write_u16(payload, this->streamed_file_id);
+            write_u32(payload + 2, this->goto_line);
             THEKERNEL->serial->PacketMessage(PTYPE_PLAY_GOTO, payload, sizeof(payload));
             this->streamed_last_request_us = us_ticker_read();
         }
@@ -819,14 +845,14 @@ void Player::handle_link_packet(const player_link_packet& packet)
 {
     if (packet.type == PTYPE_PLAY_VIEW) {
         if (this->streamed_state != StreamedState::opening || packet.payload_length < 6) return;
-        const uint16_t file_id = player_link::read_u16(packet.payload);
+        const uint16_t file_id = read_u16(packet.payload);
         if (file_id != this->streamed_file_id) {
             THEKERNEL->streams->printf("ERROR: streamed job identity mismatch\r\n");
             this->streamed_state = StreamedState::idle;
             THEKERNEL->serial->PacketMessage(PTYPE_PLAY_CANCEL, nullptr, 0);
             return;
         }
-        const uint32_t size = player_link::read_u32(packet.payload + 2);
+        const uint32_t size = read_u32(packet.payload + 2);
         this->streamed_line_source.begin(file_id, size);
         this->line_source = &this->streamed_line_source;
         this->file_size = size;
@@ -848,8 +874,8 @@ void Player::handle_link_packet(const player_link_packet& packet)
 
     if (packet.type == PTYPE_PLAY_DATA) {
         if (packet.payload_length < 6 || !this->streamed_line_source.is_open()) return;
-        const uint16_t file_id = player_link::read_u16(packet.payload);
-        const uint32_t first_line = player_link::read_u32(packet.payload + 2);
+        const uint16_t file_id = read_u16(packet.payload);
+        const uint32_t first_line = read_u32(packet.payload + 2);
         const auto result = this->streamed_line_source.accept(
             file_id, first_line, packet.payload + 6, packet.payload_length - 6);
         if (result == StreamedPlayerSource::AcceptResult::line_too_long) {
@@ -865,10 +891,10 @@ void Player::handle_link_packet(const player_link_packet& packet)
 
     if (packet.type == PTYPE_PLAY_GOTO_DATA) {
         if (this->streamed_state != StreamedState::seeking || packet.payload_length < 10) return;
-        const uint16_t file_id = player_link::read_u16(packet.payload);
+        const uint16_t file_id = read_u16(packet.payload);
         if (file_id != this->streamed_file_id) return;
-        const uint32_t line = player_link::read_u32(packet.payload + 2);
-        const uint32_t offset = player_link::read_u32(packet.payload + 6);
+        const uint32_t line = read_u32(packet.payload + 2);
+        const uint32_t offset = read_u32(packet.payload + 6);
         this->streamed_line_source.begin(file_id, this->file_size, line, offset);
         this->line_source = &this->streamed_line_source;
         this->played_lines = line;
@@ -946,7 +972,7 @@ void Player::goto_command( string parameters, StreamOutput *stream )
         return;
     }
 
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     if (this->line_source == &this->streamed_line_source) {
         string line_str = shift_parameter(parameters);
         if (line_str.empty()) return;
@@ -954,8 +980,8 @@ void Player::goto_command( string parameters, StreamOutput *stream )
         this->goto_line = strtoul(line_str.c_str(), &end, 10);
         this->goto_line = this->goto_line < 1 ? 1 : this->goto_line;
         char payload[6];
-        player_link::write_u16(payload, this->streamed_file_id);
-        player_link::write_u32(payload + 2, this->goto_line);
+        write_u16(payload, this->streamed_file_id);
+        write_u32(payload + 2, this->goto_line);
         this->streamed_line_source.close();
         this->streamed_state = StreamedState::seeking;
         THEKERNEL->serial->PacketMessage(PTYPE_PLAY_GOTO, payload, sizeof(payload));
@@ -1025,7 +1051,7 @@ void Player::progress_command( string parameters, StreamOutput *stream )
 
 void Player::abort_command( string parameters, StreamOutput *stream )
 {
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     if (this->streamed_state == StreamedState::aborting) {
         stream->printf("Abort already pending\r\n");
         return;
@@ -1035,7 +1061,7 @@ void Player::abort_command( string parameters, StreamOutput *stream )
     PublicData::set_value( atc_handler_checksum, abort_checksum, nullptr );
 
     if(!playing_file && (line_source == nullptr || !line_source->is_open())
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
         && !this->streamed_session_active()
 #endif
     ) {
@@ -1043,7 +1069,7 @@ void Player::abort_command( string parameters, StreamOutput *stream )
         return;
     }
 
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     if (this->streamed_session_active()) {
         this->save_last_progress();
         THEKERNEL->serial->PacketMessage(PTYPE_PLAY_CANCEL, nullptr, 0);
@@ -1172,7 +1198,7 @@ void Player::clear_macro_file_queue(){
 
 void Player::on_main_loop(void *argument)
 {
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     if (this->streamed_state == StreamedState::aborting) {
         if (THEKERNEL->conveyor->is_idle()) {
             this->finish_streamed_abort();
@@ -1199,7 +1225,7 @@ void Player::on_main_loop(void *argument)
 
     }
 
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     this->maintain_streamed_source();
 #endif
 
@@ -1208,7 +1234,7 @@ void Player::on_main_loop(void *argument)
             return;
         }
 
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
         this->maintain_streamed_source();
 #endif
 
@@ -1389,12 +1415,12 @@ void Player::on_main_loop(void *argument)
         }
 
         if (read_result == PlayerLineSource::ReadResult::waiting) {
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
             this->maintain_streamed_source();
 #endif
             return;
         }
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
         if (this->line_source == &this->streamed_line_source &&
             !THEKERNEL->conveyor->is_idle()) return;
 #endif
@@ -1412,11 +1438,11 @@ void Player::on_main_loop(void *argument)
         goto_line = 0;
         file_size = 0;
 
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
         const bool streamed = this->line_source == &this->streamed_line_source;
 #endif
         this->close_line_source();
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
         if (streamed) this->streamed_state = StreamedState::idle;
 #endif
 
@@ -1560,7 +1586,7 @@ void Player::on_set_public_data(void *argument)
     } else if (pdr->second_element_is(resume_play_checksum)) {
         this->resume_command("", &(StreamOutput::NullStream));
         pdr->set_taken();
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     } else if (pdr->second_element_is(link_packet_checksum)) {
         this->handle_link_packet(*static_cast<player_link_packet *>(pdr->get_data_ptr()));
         pdr->set_taken();
@@ -1712,7 +1738,7 @@ void Player::resume_command(string parameters, StreamOutput *stream )
         stream->printf("Not suspended\n");
         return;
     }
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
     if (this->streamed_state == StreamedState::seeking) {
         stream->printf("Stream seek is still pending\n");
         return;

@@ -11,7 +11,7 @@
 #include "Module.h"
 #include "OCodeHandler.h"
 #include "PlayerLineSource.h"
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
 #include "StreamedPlayerSource.h"
 #endif
 
@@ -65,7 +65,7 @@ class Player : public Module {
         void test_command(string parameters, StreamOutput* stream );
 
         void sync_progress_max();
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
         void start_streamed_playback(StreamOutput* stream, const string& options);
         void handle_link_packet(const player_link_packet& packet);
         void request_streamed_lines();
@@ -111,7 +111,7 @@ class Player : public Module {
         OCodeHandler ocode_handler;
 
         FilePlayerLineSource local_line_source;
-#if defined(MACHINE_Z1)
+#if defined(MACHINE_FAMILY_Z1)
         enum class StreamedState : uint8_t {
             idle,
             opening,
