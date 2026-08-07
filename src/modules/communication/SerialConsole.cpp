@@ -65,6 +65,7 @@ SerialConsole::SerialConsole( PinName tx_pin, PinName rx_pin, int baud_rate ){
     this->reset_file_parser();
 #if defined(MACHINE_Z1)
     this->rx_dispatch_enabled = false;
+    this->rx_lookahead = -1;
     this->serial->attach(nullptr, mbed::Serial::RxIrq);
     uart_rx_dma::initialize();
 #endif
@@ -89,7 +90,7 @@ void SerialConsole::on_module_loaded() {
     }
 #endif
 
-    this->attach_irq(true);
+    this->set_rx_enabled(true);
 
     // We only call the command dispatcher in the main loop, nowhere else
     this->register_for_event(ON_MAIN_LOOP);
@@ -109,11 +110,11 @@ void SerialConsole::set_baud_temporary(int new_baud) {
 }
 #endif
 
-void SerialConsole::attach_irq(bool enable_irq) {
+void SerialConsole::set_rx_enabled(bool enabled) {
 #if defined(MACHINE_Z1)
-    this->rx_dispatch_enabled = enable_irq;
+    this->rx_dispatch_enabled = enabled;
 #else
-	if (enable_irq) {
+    if (enabled) {
 	    this->serial->attach(this, &SerialConsole::on_serial_char_received, mbed::Serial::RxIrq);
 	} else {
 	    this->serial->attach(nullptr, mbed::Serial::RxIrq);
@@ -128,7 +129,7 @@ void SerialConsole::on_set_public_data(void *argument) {
 
     if(pdr->second_element_is(set_serial_rx_irq_checksum)) {
         bool enable_irq = *static_cast<bool *>(pdr->get_data_ptr());
-        this->attach_irq(enable_irq);
+        this->set_rx_enabled(enable_irq);
         pdr->set_taken();
     }
 }
@@ -563,7 +564,13 @@ int SerialConsole::_putc(int c)
 int SerialConsole::_getc()
 {
 #if defined(MACHINE_Z1)
-    return uart_rx_dma::get();
+    if (rx_lookahead >= 0) {
+        const int result = rx_lookahead;
+        rx_lookahead = -1;
+        return result;
+    }
+    uint8_t byte = 0;
+    return uart_rx_dma::try_get(byte) ? byte : -1;
 #else
     return this->serial->getc();
 #endif
@@ -572,7 +579,11 @@ int SerialConsole::_getc()
 bool SerialConsole::ready()
 {
 #if defined(MACHINE_Z1)
-    return uart_rx_dma::ready();
+    if (rx_lookahead >= 0) return true;
+    uint8_t byte = 0;
+    if (!uart_rx_dma::try_get(byte)) return false;
+    rx_lookahead = byte;
+    return true;
 #else
     return this->serial->readable();
 #endif

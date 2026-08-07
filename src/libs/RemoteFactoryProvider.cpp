@@ -2,12 +2,10 @@
 
 #include "RemoteFactoryProvider.h"
 
-#include <cstdlib>
 #include <cstring>
-#include <string>
 
+#include "FactorySettings.h"
 #include "PublicData.h"
-#include "checksumm.h"
 #include "modules/communication/SerialPacketTransport.h"
 #include "utils.h"
 
@@ -18,22 +16,7 @@ constexpr remote::PacketTypes factory_packets{PTYPE_FACTORY_START,
                                               PTYPE_FACTORY_FINISH,
                                               PTYPE_FACTORY_CANCEL,
                                               remote::factory_record_payload_size,
-                                              false};
-
-constexpr uint16_t machine_model_checksum = CHECKSUM("Machine_Model");
-constexpr uint16_t a_axis_home_checksum = CHECKSUM("A_Axis_home_enable");
-constexpr uint16_t c_axis_home_checksum = CHECKSUM("C_Axis_home_enable");
-constexpr uint16_t atc_checksum = CHECKSUM("Atc_enable");
-constexpr uint16_t ce1_expand_checksum = CHECKSUM("CE1_Expand");
-
-void set_bit(char& value, uint8_t bit, bool enabled) {
-  uint8_t bits = static_cast<uint8_t>(value);
-  if (enabled)
-    bits |= static_cast<uint8_t>(1U << bit);
-  else
-    bits &= static_cast<uint8_t>(~(1U << bit));
-  value = static_cast<char>(bits);
-}
+                                              remote::CompletionPolicy::explicit_finish};
 }  // namespace
 
 RemoteFactoryProvider::RemoteFactoryProvider(const FACTORY_SET& current) : original_(current), candidate_(current) {}
@@ -55,41 +38,12 @@ uint32_t RemoteFactoryProvider::accept(uint32_t, const uint8_t* data, std::size_
   }
   if (size == 0) return 1;
 
-  const std::string line(reinterpret_cast<const char*>(data), size);
-  const std::size_t key_begin = line.find_first_not_of(" \t");
-  if (key_begin == std::string::npos || line[key_begin] == '#') return 1;
-  const std::size_t key_end = line.find_first_of(" \t", key_begin);
-  if (key_end == std::string::npos) return 0;
-  const std::size_t value_begin = line.find_first_not_of(" \t", key_end);
-  if (value_begin == std::string::npos || line[value_begin] == '#') return 0;
-
-  const std::string key = line.substr(key_begin, key_end - key_begin);
-  char* end = nullptr;
-  const long parsed = std::strtol(line.c_str() + value_begin, &end, 10);
-  if (end == line.c_str() + value_begin || parsed < 0 || parsed > 255) return 0;
-  while (*end == ' ' || *end == '\t' || *end == '\r') ++end;
-  if (*end != '\0' && *end != '#') return 0;
-
-  const uint16_t checksum = get_checksum(key);
-  const uint8_t value = static_cast<uint8_t>(parsed);
-  switch (checksum) {
-    case machine_model_checksum:
-      candidate_.MachineModel = value;
-      break;
-    case a_axis_home_checksum:
-      set_bit(candidate_.FuncSetting, 0, value == 1);
-      break;
-    case c_axis_home_checksum:
-      set_bit(candidate_.FuncSetting, 1, value == 1);
-      break;
-    case atc_checksum:
-      set_bit(candidate_.FuncSetting, 2, value == 1);
-      break;
-    case ce1_expand_checksum:
-      set_bit(candidate_.FuncSetting, 3, value == 1);
-      break;
-    default:
-      break;
+  factory_settings::Setting setting{};
+  const auto result = factory_settings::parse(
+      std::string_view(reinterpret_cast<const char*>(data), size), setting);
+  if (result == factory_settings::ParseResult::invalid) return 0;
+  if (result == factory_settings::ParseResult::setting) {
+    factory_settings::apply(candidate_, setting);
   }
   return 1;
 }

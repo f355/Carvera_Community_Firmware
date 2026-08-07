@@ -15,6 +15,7 @@
 #include "Module.h"
 #include "I2C.h" // mbed.h lib
 #include "EepromData.h"
+#include "FactorySettings.h"
 #include <array>
 #include <vector>
 #include <string>
@@ -92,13 +93,6 @@ enum ATC_STATE {
 	ATC_AUTOLEVEL   = 6,
 	ATC_DONE		= 9
 };
-
-typedef struct {
-	char  MachineModel;
-	char  FuncSetting;
-	char  reserve1;
-	char  reserve2;
-} FACTORY_SET;
 
 class Kernel {
     public:
@@ -212,7 +206,6 @@ class Kernel {
         void read_Factroy_SD();
         bool Check_Factory_Data(unsigned char *data, unsigned int len);
         bool Factroy_readLine(std::string& line, int lineno, FILE *fp);
-        bool process_line(const std::string &buffer, uint16_t *check_sum, unsigned char *value);
         std::string get_query_string();
 
         std::string get_diagnose_string();

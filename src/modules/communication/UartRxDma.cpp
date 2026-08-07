@@ -31,9 +31,19 @@ bool dma_irq_enabled() {
   return (NVIC->ISER[irq >> 5] & (1UL << (irq & 0x1f))) != 0;
 }
 
-void restore_dma_irq(bool enabled) {
-  if (enabled) NVIC_EnableIRQ(DMA_IRQn);
-}
+class DmaIrqGuard {
+ public:
+  DmaIrqGuard() : restore_(dma_irq_enabled()) { NVIC_DisableIRQ(DMA_IRQn); }
+  ~DmaIrqGuard() {
+    if (restore_) NVIC_EnableIRQ(DMA_IRQn);
+  }
+
+  DmaIrqGuard(const DmaIrqGuard&) = delete;
+  DmaIrqGuard& operator=(const DmaIrqGuard&) = delete;
+
+ private:
+  bool restore_;
+};
 
 void append_locked(const uint8_t* source, std::size_t length) {
   if (storage.ring.push(source, length) != length) {
@@ -105,32 +115,17 @@ void initialize() {
   NVIC_EnableIRQ(DMA_IRQn);
 }
 
-bool ready() {
-  const bool restore = dma_irq_enabled();
-  NVIC_DisableIRQ(DMA_IRQn);
+bool try_get(uint8_t& byte) {
+  DmaIrqGuard guard;
   capture_partial_locked();
-  const bool result = storage.ring.size() != 0;
-  restore_dma_irq(restore);
-  return result;
-}
-
-int get() {
-  const bool restore = dma_irq_enabled();
-  NVIC_DisableIRQ(DMA_IRQn);
-  capture_partial_locked();
-  uint8_t byte = 0;
-  const bool available = storage.ring.pop(&byte, 1) == 1;
-  restore_dma_irq(restore);
-  return available ? byte : -1;
+  return storage.ring.pop(&byte, 1) == 1;
 }
 
 bool take_error() {
-  const bool restore = dma_irq_enabled();
-  NVIC_DisableIRQ(DMA_IRQn);
+  DmaIrqGuard guard;
   const bool overflow = storage.ring.take_overflow();
   const bool error = transport_error || overflow;
   transport_error = false;
-  restore_dma_irq(restore);
   return error;
 }
 

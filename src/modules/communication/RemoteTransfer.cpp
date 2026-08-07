@@ -43,7 +43,8 @@ Result receive_records(Transport& transport, RecordSink& sink, const PacketTypes
     return result;
   };
   auto timeout = [&] {
-    if (types.data_timeout_completes && phase == Phase::data && next_index > 1) {
+    if (types.completion_policy == CompletionPolicy::idle_timeout_after_data &&
+        phase == Phase::data && next_index > 1) {
       if (!sink.commit()) return fail(Result::sink_error);
       transport.send(types.cancel, nullptr, 0);
       return Result::success;
@@ -54,7 +55,9 @@ Result receive_records(Transport& transport, RecordSink& sink, const PacketTypes
   send_request();
   for (;;) {
     const uint32_t now_ms = transport.now_ms();
-    const bool awaiting_terminal_timeout = types.data_timeout_completes && phase == Phase::data && next_index > 1;
+    const bool awaiting_terminal_timeout =
+        types.completion_policy == CompletionPolicy::idle_timeout_after_data &&
+        phase == Phase::data && next_index > 1;
     const uint32_t timeout_base_ms = awaiting_terminal_timeout ? last_progress_ms : started_ms;
     if (now_ms - timeout_base_ms >= overall_timeout_ms) {
       return timeout();

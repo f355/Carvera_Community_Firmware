@@ -19,7 +19,7 @@ constexpr remote::PacketTypes config_packets{PTYPE_CONFIG_START,
                                              PTYPE_CONFIG_FINISH,
                                              PTYPE_CONFIG_CANCEL,
                                              remote::config_record_payload_size,
-                                             true};
+                                             remote::CompletionPolicy::idle_timeout_after_data};
 }  // namespace
 
 RemoteConfigSource::RemoteConfigSource(SerialConsole& serial) : serial_(serial) {

@@ -14,6 +14,8 @@ constexpr uint16_t config_record_payload_size = 0x200;
 static_assert(config_record_payload_size + 4 <= makera::max_payload_size,
               "configuration records must fit in a Makera frame");
 
+enum class CompletionPolicy : uint8_t { explicit_finish, idle_timeout_after_data };
+
 struct PacketTypes {
   uint8_t start;
   uint8_t view;
@@ -21,7 +23,7 @@ struct PacketTypes {
   uint8_t finish;
   uint8_t cancel;
   uint16_t record_payload_size;
-  bool data_timeout_completes;
+  CompletionPolicy completion_policy;
 };
 
 enum class Result : uint8_t { success, cancelled, timeout, protocol_error, sink_error };

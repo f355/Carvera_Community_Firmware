@@ -1107,12 +1107,6 @@ void Kernel::erase_Factory_data()
 	}
 }
 
-#define Machine_Model_checksum             		CHECKSUM("Machine_Model")
-#define A_Axis_home_enable_checksum             CHECKSUM("A_Axis_home_enable")
-#define C_Axis_home_enable_checksum             CHECKSUM("C_Axis_home_enable")
-#define ATC_enable_checksum             		CHECKSUM("Atc_enable")
-#define CE1_Expand								CHECKSUM("CE1_Expand")
-
 void Kernel::read_Factroy_SD()
 {
 	string file_name = "/sd/factory.ini";
@@ -1125,58 +1119,13 @@ void Kernel::read_Factroy_SD()
         	string line;
         	if(Factroy_readLine(line, ln++, lp)) 
         	{ 
-        		uint16_t keychecksum;
-        		unsigned char value;
-        		if(process_line(line, &keychecksum, &value))
-        		{
-        			switch(keychecksum)
-        			{
-        				case Machine_Model_checksum:
-        					this->factory_set->MachineModel = value;
-        					bneedwrite = true;
-        					break;
-        				case A_Axis_home_enable_checksum:
-        					if( 1 == value )
-        						this->factory_set->FuncSetting |= 1<<0;
-        					else
-        						this->factory_set->FuncSetting &= ~(1<<0);
-        					
-        					bneedwrite = true;
-        					break;
-        				case C_Axis_home_enable_checksum:
-        					if( 1 == value )
-        						this->factory_set->FuncSetting |= 1<<1;
-        					else
-        						this->factory_set->FuncSetting &= ~(1<<1);
-        						
-        					bneedwrite = true;
-        					break;
-        				case ATC_enable_checksum:
-        					if( 1 == value )
-        						this->factory_set->FuncSetting |= 1<<2;
-        					else
-        						this->factory_set->FuncSetting &= ~(1<<2);
-        					
-        					bneedwrite = true;
-        					break;
-        				case CE1_Expand:
-        					if( 1 == value )
-        						this->factory_set->FuncSetting |= 1<<3;
-        					else
-        						this->factory_set->FuncSetting &= ~(1<<3);
-        					
-        					bneedwrite = true;
-        					break;
-        				default:
-        					break;
-        					
-        			}
-        			
-        		}
-        		else
-        		{
-        			continue;	
-        		}
+				factory_settings::Setting setting{};
+				const auto result = factory_settings::parse(line, setting);
+				if (result == factory_settings::ParseResult::setting) {
+					bneedwrite |= factory_settings::apply(*this->factory_set, setting);
+				} else if (result == factory_settings::ParseResult::invalid) {
+					THEKERNEL->streams->printf("ERROR: invalid factory file line: %s\r\n", line.c_str());
+				}
         	}
         	else
         	{
@@ -1216,42 +1165,6 @@ bool Kernel::Factroy_readLine(string& line, int lineno, FILE *fp)
 
     return false;
 }
-
-bool Kernel::process_line(const string &buffer, uint16_t *check_sum, unsigned char *value)
-{
-	if( buffer[0] == '#' ) {
-        return false;
-    }
-    if( buffer.length() < 3 ) {
-        return false;
-    }
-
-    size_t begin_key = buffer.find_first_not_of(" \t");
-    if(begin_key == string::npos || buffer[begin_key] == '#') return false; // comment line or blank line
-    
-    size_t end_key = buffer.find_first_of(" \t", begin_key);
-    if(end_key == string::npos) {
-        THEKERNEL->streams->printf("ERROR: factory file line %s is invalid, no key value pair found\r\n", buffer.c_str());
-        return false;
-    }
-
-    size_t begin_value = buffer.find_first_not_of(" \t", end_key);
-    if(begin_value == string::npos || buffer[begin_value] == '#') {
-        THEKERNEL->streams->printf("ERROR: factory file line %s has no value\r\n", buffer.c_str());
-        return false;
-    }
-    
-    string key= buffer.substr(begin_key,  end_key - begin_key);
-    *check_sum = get_checksum(key);
-    
-    size_t end_value = buffer.find_first_of("\r\n# \t", begin_value + 1);
-    size_t vsize = end_value == string::npos ? end_value : end_value - begin_value;
-    char* endPtr;
-    string sValue = buffer.substr(begin_value, vsize);
-    *value = std::strtol(sValue.c_str(), &endPtr, 10);
-    return true;
-}
-
 
 bool Kernel::Check_Factory_Data(unsigned char *data, unsigned int len)
 {
