@@ -9,7 +9,6 @@
 
 #include "libs/Module.h"
 #include "BlockQueue.h"
-#include "MotionAbortGate.h"
 
 class Block;
 
@@ -36,7 +35,7 @@ public:
     void flush_queue(void);
     void request_motion_abort();
     void clear_motion_abort();
-    bool motion_abort_requested() const { return abort_gate.active(); }
+    bool motion_abort_requested() const { return abort_motion; }
     float get_current_feedrate() const { return current_feedrate; }
     void force_queue() { check_queue(true); }
     bool set_continuous_mode(bool f);
@@ -51,7 +50,6 @@ private:
 
     using  Queue_t= BlockQueue;
     Queue_t queue;  // Queue of Blocks
-    MotionAbortGate abort_gate;
     void *saved_block;
     
     uint32_t queue_delay_time_ms;
@@ -63,6 +61,7 @@ private:
         volatile bool allow_fetch:1;
         bool flush:1;
         volatile bool hold_queue:1;
+        volatile bool abort_motion:1;
         volatile uint8_t continuous_mode:2;
     };
 

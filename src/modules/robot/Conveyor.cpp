@@ -65,6 +65,7 @@ Conveyor::Conveyor()
     flush= false;
     continuous_mode = 0;
     hold_queue= false;
+    abort_motion= false;
 }
 
 void Conveyor::on_module_loaded()
@@ -134,7 +135,7 @@ bool Conveyor::is_idle() const
 
 void Conveyor::request_motion_abort()
 {
-    abort_gate.request();
+    abort_motion = true;
     allow_fetch = false;
     flush = true;
     for (auto &actuator : THEROBOT->actuators) {
@@ -145,7 +146,7 @@ void Conveyor::request_motion_abort()
 void Conveyor::clear_motion_abort()
 {
     flush = false;
-    abort_gate.clear();
+    abort_motion = false;
 }
 
 // Wait for the queue to be empty and for all the jobs to finish in step ticker

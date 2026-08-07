@@ -55,6 +55,7 @@ class Player : public Module {
         void save_and_stop_spindle_on_suspend();
         void restore_spindle_on_resume();
         void clear_saved_spindle();
+        void save_last_progress(unsigned int unknown_size_percent = 0);
         void dispatch_gcode(const char *gcode_line);
         void goto_command( string parameters, StreamOutput* stream );
         void buffer_command( string parameters, StreamOutput* stream );
@@ -70,6 +71,7 @@ class Player : public Module {
         void request_streamed_lines();
         void maintain_streamed_source();
         bool streamed_session_active() const;
+        void reset_streamed_playback();
         void defer_streamed_abort();
         void finish_streamed_abort();
 #endif
@@ -110,14 +112,20 @@ class Player : public Module {
 
         FilePlayerLineSource local_line_source;
 #if defined(MACHINE_Z1)
+        enum class StreamedState : uint8_t {
+            idle,
+            opening,
+            playing,
+            seeking,
+            aborting,
+        };
+
         StreamedPlayerSource streamed_line_source;
+        StreamedState streamed_state;
         uint16_t streamed_file_id;
         uint32_t streamed_last_request_line;
         uint32_t streamed_last_request_us;
-        bool streamed_start_pending;
         bool streamed_retry_pending;
-        bool streamed_goto_pending;
-        bool streamed_abort_pending;
 #endif
         PlayerLineSource* line_source;
         // FILE* temp_file_handler;

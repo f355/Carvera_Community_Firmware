@@ -6,6 +6,9 @@
 */
 
 #include "Player.h"
+#if defined(MACHINE_Z1)
+#include "PlayerLinkProtocol.h"
+#endif
 #include "libs/FirmwareFileSystem.h"
 
 #include "libs/Kernel.h"
@@ -103,13 +106,11 @@ Player::Player()
     this->line_source = &this->local_line_source;
 #if defined(MACHINE_Z1)
     this->streamed_line_source = StreamedPlayerSource(streamed_line_storage, streamed_line_count);
+    this->streamed_state = StreamedState::idle;
     this->streamed_file_id = 0;
     this->streamed_last_request_line = 0;
     this->streamed_last_request_us = 0;
-    this->streamed_start_pending = false;
     this->streamed_retry_pending = false;
-    this->streamed_goto_pending = false;
-    this->streamed_abort_pending = false;
 #endif
     this->booted = false;
     this->elapsed_secs = 0;
@@ -143,6 +144,17 @@ void Player::close_line_source()
     }
     this->local_line_source.attach(nullptr);
     this->line_source = &this->local_line_source;
+}
+
+void Player::save_last_progress(unsigned int unknown_size_percent)
+{
+    this->last_played_lines = this->played_lines;
+    this->last_percent_complete = this->file_size > 0
+        ? static_cast<unsigned int>(roundf((this->played_cnt * 100.0F) / this->file_size))
+        : unknown_size_percent;
+    this->last_elapsed_secs = this->elapsed_secs;
+    this->last_filename = this->filename;
+    this->has_last_progress = true;
 }
 
 void Player::sync_progress_max()
@@ -652,7 +664,7 @@ void Player::play_command( string parameters, StreamOutput *stream )
 
     if (this->playing_file || THEKERNEL->is_suspending() || THEKERNEL->is_waiting()
 #if defined(MACHINE_Z1)
-        || this->streamed_start_pending
+        || this->streamed_session_active()
 #endif
     ) {
         stream->printf("Currently printing, abort print first\r\n");
@@ -739,15 +751,13 @@ void Player::start_streamed_playback(StreamOutput *stream, const string& options
     this->ocode_handler.reset();
     this->streamed_file_id = crc16::ccitt(
         reinterpret_cast<const uint8_t *>(this->filename.data()), this->filename.size());
-    this->streamed_start_pending = true;
+    this->streamed_state = StreamedState::opening;
     this->streamed_retry_pending = false;
     this->current_stream = options.find_first_of("Vv") == string::npos
         ? nullptr : THEKERNEL->streams;
 
-    char payload[2] {
-        static_cast<char>(this->streamed_file_id >> 8),
-        static_cast<char>(this->streamed_file_id)
-    };
+    char payload[2];
+    player_link::write_u16(payload, this->streamed_file_id);
     THEKERNEL->serial->PacketMessage(PTYPE_PLAY_START, payload, sizeof(payload));
     this->streamed_last_request_us = us_ticker_read();
     stream->printf("Playing %s\r\n", this->filename.c_str());
@@ -759,16 +769,10 @@ void Player::request_streamed_lines()
 
     const uint32_t line = this->streamed_line_source.next_expected_line();
     const uint16_t count = static_cast<uint16_t>(this->streamed_line_source.available());
-    char payload[8] {
-        static_cast<char>(this->streamed_file_id >> 8),
-        static_cast<char>(this->streamed_file_id),
-        static_cast<char>(line >> 24),
-        static_cast<char>(line >> 16),
-        static_cast<char>(line >> 8),
-        static_cast<char>(line),
-        static_cast<char>(count >> 8),
-        static_cast<char>(count)
-    };
+    char payload[8];
+    player_link::write_u16(payload, this->streamed_file_id);
+    player_link::write_u32(payload + 2, line);
+    player_link::write_u16(payload + 6, count);
     THEKERNEL->serial->PacketMessage(PTYPE_PLAY_DATA, payload, sizeof(payload));
     this->streamed_last_request_line = line;
     this->streamed_last_request_us = us_ticker_read();
@@ -777,27 +781,20 @@ void Player::request_streamed_lines()
 
 void Player::maintain_streamed_source()
 {
-    if (this->streamed_start_pending) {
+    if (this->streamed_state == StreamedState::opening) {
         if (us_ticker_read() - this->streamed_last_request_us > streamed_retry_us) {
-            char payload[2] {
-                static_cast<char>(this->streamed_file_id >> 8),
-                static_cast<char>(this->streamed_file_id)
-            };
+            char payload[2];
+            player_link::write_u16(payload, this->streamed_file_id);
             THEKERNEL->serial->PacketMessage(PTYPE_PLAY_START, payload, sizeof(payload));
             this->streamed_last_request_us = us_ticker_read();
         }
         return;
     }
-    if (this->streamed_goto_pending) {
+    if (this->streamed_state == StreamedState::seeking) {
         if (us_ticker_read() - this->streamed_last_request_us > streamed_retry_us) {
-            char payload[6] {
-                static_cast<char>(this->streamed_file_id >> 8),
-                static_cast<char>(this->streamed_file_id),
-                static_cast<char>(this->goto_line >> 24),
-                static_cast<char>(this->goto_line >> 16),
-                static_cast<char>(this->goto_line >> 8),
-                static_cast<char>(this->goto_line)
-            };
+            char payload[6];
+            player_link::write_u16(payload, this->streamed_file_id);
+            player_link::write_u32(payload + 2, this->goto_line);
             THEKERNEL->serial->PacketMessage(PTYPE_PLAY_GOTO, payload, sizeof(payload));
             this->streamed_last_request_us = us_ticker_read();
         }
@@ -815,25 +812,21 @@ void Player::maintain_streamed_source()
 
 bool Player::streamed_session_active() const
 {
-    return this->streamed_start_pending || this->line_source == &this->streamed_line_source;
+    return this->streamed_state != StreamedState::idle;
 }
 
 void Player::handle_link_packet(const player_link_packet& packet)
 {
     if (packet.type == PTYPE_PLAY_VIEW) {
-        if (!this->streamed_start_pending || packet.payload_length < 6) return;
-        const uint16_t file_id = (static_cast<uint16_t>(packet.payload[0]) << 8) |
-                                 packet.payload[1];
+        if (this->streamed_state != StreamedState::opening || packet.payload_length < 6) return;
+        const uint16_t file_id = player_link::read_u16(packet.payload);
         if (file_id != this->streamed_file_id) {
             THEKERNEL->streams->printf("ERROR: streamed job identity mismatch\r\n");
-            this->streamed_start_pending = false;
+            this->streamed_state = StreamedState::idle;
             THEKERNEL->serial->PacketMessage(PTYPE_PLAY_CANCEL, nullptr, 0);
             return;
         }
-        const uint32_t size = (static_cast<uint32_t>(packet.payload[2]) << 24) |
-                              (static_cast<uint32_t>(packet.payload[3]) << 16) |
-                              (static_cast<uint32_t>(packet.payload[4]) << 8) |
-                              packet.payload[5];
+        const uint32_t size = player_link::read_u32(packet.payload + 2);
         this->streamed_line_source.begin(file_id, size);
         this->line_source = &this->streamed_line_source;
         this->file_size = size;
@@ -844,7 +837,7 @@ void Player::handle_link_packet(const player_link_packet& packet)
         this->playing_lines = 0;
         this->goto_line = 0;
         this->has_last_progress = false;
-        this->streamed_start_pending = false;
+        this->streamed_state = StreamedState::playing;
         this->playing_file = true;
         THEROBOT->absolute_mode = true;
         THEROBOT->e_absolute_mode = true;
@@ -855,19 +848,14 @@ void Player::handle_link_packet(const player_link_packet& packet)
 
     if (packet.type == PTYPE_PLAY_DATA) {
         if (packet.payload_length < 6 || !this->streamed_line_source.is_open()) return;
-        const uint16_t file_id = (static_cast<uint16_t>(packet.payload[0]) << 8) |
-                                 packet.payload[1];
-        const uint32_t first_line = (static_cast<uint32_t>(packet.payload[2]) << 24) |
-                                    (static_cast<uint32_t>(packet.payload[3]) << 16) |
-                                    (static_cast<uint32_t>(packet.payload[4]) << 8) |
-                                    packet.payload[5];
+        const uint16_t file_id = player_link::read_u16(packet.payload);
+        const uint32_t first_line = player_link::read_u32(packet.payload + 2);
         const auto result = this->streamed_line_source.accept(
             file_id, first_line, packet.payload + 6, packet.payload_length - 6);
         if (result == StreamedPlayerSource::AcceptResult::line_too_long) {
             THEKERNEL->streams->printf("ERROR: streamed job line exceeds 128 bytes\r\n");
             THEKERNEL->serial->PacketMessage(PTYPE_PLAY_CANCEL, nullptr, 0);
-            this->playing_file = false;
-            this->close_line_source();
+            this->reset_streamed_playback();
         } else if (result == StreamedPlayerSource::AcceptResult::sequence_error ||
                    result == StreamedPlayerSource::AcceptResult::queue_full) {
             this->streamed_retry_pending = true;
@@ -876,24 +864,17 @@ void Player::handle_link_packet(const player_link_packet& packet)
     }
 
     if (packet.type == PTYPE_PLAY_GOTO_DATA) {
-        if (!this->streamed_goto_pending || packet.payload_length < 10) return;
-        const uint16_t file_id = (static_cast<uint16_t>(packet.payload[0]) << 8) |
-                                 packet.payload[1];
+        if (this->streamed_state != StreamedState::seeking || packet.payload_length < 10) return;
+        const uint16_t file_id = player_link::read_u16(packet.payload);
         if (file_id != this->streamed_file_id) return;
-        const uint32_t line = (static_cast<uint32_t>(packet.payload[2]) << 24) |
-                              (static_cast<uint32_t>(packet.payload[3]) << 16) |
-                              (static_cast<uint32_t>(packet.payload[4]) << 8) |
-                              packet.payload[5];
-        const uint32_t offset = (static_cast<uint32_t>(packet.payload[6]) << 24) |
-                                (static_cast<uint32_t>(packet.payload[7]) << 16) |
-                                (static_cast<uint32_t>(packet.payload[8]) << 8) |
-                                packet.payload[9];
+        const uint32_t line = player_link::read_u32(packet.payload + 2);
+        const uint32_t offset = player_link::read_u32(packet.payload + 6);
         this->streamed_line_source.begin(file_id, this->file_size, line, offset);
         this->line_source = &this->streamed_line_source;
         this->played_lines = line;
         this->file_line = line;
         this->played_cnt = offset;
-        this->streamed_goto_pending = false;
+        this->streamed_state = StreamedState::playing;
         this->request_streamed_lines();
         return;
     }
@@ -901,43 +882,43 @@ void Player::handle_link_packet(const player_link_packet& packet)
     if (packet.type == PTYPE_PLAY_ERROR) {
         this->streamed_line_source.mark_end(this->streamed_file_id);
     } else if (packet.type == PTYPE_PLAY_CANCEL) {
-        this->last_played_lines = this->played_lines;
-        this->last_percent_complete = this->file_size > 0
-            ? static_cast<unsigned int>(roundf((this->played_cnt * 100.0F) / this->file_size)) : 0;
-        this->last_elapsed_secs = this->elapsed_secs;
-        this->last_filename = this->filename;
-        this->has_last_progress = true;
-        this->playing_file = false;
-        this->streamed_start_pending = false;
-        this->streamed_goto_pending = false;
-        this->streamed_retry_pending = false;
-        this->close_line_source();
+        if (!this->streamed_session_active() || this->streamed_state == StreamedState::aborting) return;
+        this->save_last_progress();
         if (THEKERNEL->is_suspending()) {
             THEKERNEL->set_waiting(false);
             THEKERNEL->set_suspending(false);
             THEROBOT->pop_state();
             this->clear_saved_spindle();
         }
-        this->played_cnt = 0;
-        this->played_lines = 0;
-        this->file_line = 0;
-        this->playing_lines = 0;
-        this->goto_line = 0;
-        this->file_size = 0;
-        this->filename.clear();
-        this->current_stream = nullptr;
-        this->clear_buffered_queue();
-        this->clear_macro_file_queue();
-        this->ocode_handler.reset();
+        this->reset_streamed_playback();
         this->defer_streamed_abort();
     }
+}
+
+void Player::reset_streamed_playback()
+{
+    this->streamed_state = StreamedState::idle;
+    this->playing_file = false;
+    this->streamed_retry_pending = false;
+    this->close_line_source();
+    this->played_cnt = 0;
+    this->played_lines = 0;
+    this->file_line = 0;
+    this->playing_lines = 0;
+    this->goto_line = 0;
+    this->file_size = 0;
+    this->filename.clear();
+    this->current_stream = nullptr;
+    this->clear_buffered_queue();
+    this->clear_macro_file_queue();
+    this->ocode_handler.reset();
 }
 
 void Player::defer_streamed_abort()
 {
     THEKERNEL->conveyor->request_motion_abort();
     THEKERNEL->set_aborted(true);
-    this->streamed_abort_pending = true;
+    this->streamed_state = StreamedState::aborting;
 }
 
 void Player::finish_streamed_abort()
@@ -952,7 +933,7 @@ void Player::finish_streamed_abort()
     THEKERNEL->planner->reset_after_abort();
     THEKERNEL->conveyor->clear_motion_abort();
     THEKERNEL->set_aborted(false);
-    this->streamed_abort_pending = false;
+    this->streamed_state = StreamedState::idle;
     THEKERNEL->streams->printf("Aborted playing or paused file. \r\n");
 }
 #endif
@@ -972,16 +953,11 @@ void Player::goto_command( string parameters, StreamOutput *stream )
         char *end = nullptr;
         this->goto_line = strtoul(line_str.c_str(), &end, 10);
         this->goto_line = this->goto_line < 1 ? 1 : this->goto_line;
-        char payload[6] {
-            static_cast<char>(this->streamed_file_id >> 8),
-            static_cast<char>(this->streamed_file_id),
-            static_cast<char>(this->goto_line >> 24),
-            static_cast<char>(this->goto_line >> 16),
-            static_cast<char>(this->goto_line >> 8),
-            static_cast<char>(this->goto_line)
-        };
+        char payload[6];
+        player_link::write_u16(payload, this->streamed_file_id);
+        player_link::write_u32(payload + 2, this->goto_line);
         this->streamed_line_source.close();
-        this->streamed_goto_pending = true;
+        this->streamed_state = StreamedState::seeking;
         THEKERNEL->serial->PacketMessage(PTYPE_PLAY_GOTO, payload, sizeof(payload));
         this->streamed_last_request_us = us_ticker_read();
         stream->printf("Goto line %lu...\r\n", this->goto_line);
@@ -1050,7 +1026,7 @@ void Player::progress_command( string parameters, StreamOutput *stream )
 void Player::abort_command( string parameters, StreamOutput *stream )
 {
 #if defined(MACHINE_Z1)
-    if (this->streamed_abort_pending) {
+    if (this->streamed_state == StreamedState::aborting) {
         stream->printf("Abort already pending\r\n");
         return;
     }
@@ -1060,7 +1036,7 @@ void Player::abort_command( string parameters, StreamOutput *stream )
 
     if(!playing_file && (line_source == nullptr || !line_source->is_open())
 #if defined(MACHINE_Z1)
-        && !this->streamed_start_pending
+        && !this->streamed_session_active()
 #endif
     ) {
         stream->printf("Not currently playing\r\n");
@@ -1068,29 +1044,10 @@ void Player::abort_command( string parameters, StreamOutput *stream )
     }
 
 #if defined(MACHINE_Z1)
-    if (this->line_source == &this->streamed_line_source || this->streamed_start_pending) {
-        this->last_played_lines = this->played_lines;
-        this->last_percent_complete = this->file_size > 0
-            ? static_cast<unsigned int>(roundf((this->played_cnt * 100.0F) / this->file_size)) : 0;
-        this->last_elapsed_secs = this->elapsed_secs;
-        this->last_filename = this->filename;
-        this->has_last_progress = true;
+    if (this->streamed_session_active()) {
+        this->save_last_progress();
         THEKERNEL->serial->PacketMessage(PTYPE_PLAY_CANCEL, nullptr, 0);
-        this->playing_file = false;
-        this->streamed_start_pending = false;
-        this->streamed_goto_pending = false;
-        this->streamed_retry_pending = false;
-        this->close_line_source();
-        this->played_cnt = 0;
-        this->played_lines = 0;
-        this->file_line = 0;
-        this->playing_lines = 0;
-        this->goto_line = 0;
-        this->file_size = 0;
-        this->filename.clear();
-        this->clear_buffered_queue();
-        this->clear_macro_file_queue();
-        this->ocode_handler.reset();
+        this->reset_streamed_playback();
         if (THEKERNEL->is_suspending()) {
             THEKERNEL->set_waiting(false);
             THEKERNEL->set_suspending(false);
@@ -1103,11 +1060,7 @@ void Player::abort_command( string parameters, StreamOutput *stream )
 #endif
 
     // save last progress so status (?) continues to show |P:played_lines,percent_complete,elapsed_secs|
-    this->last_played_lines = this->played_lines;
-    this->last_percent_complete = (file_size > 0) ? (unsigned int)roundf((played_cnt * 100.0F) / file_size) : 0;
-    this->last_elapsed_secs = this->elapsed_secs;
-    this->last_filename = this->filename;
-    this->has_last_progress = true;
+    this->save_last_progress();
 
     this->current_stream = NULL;
 
@@ -1125,13 +1078,6 @@ void Player::abort_command( string parameters, StreamOutput *stream )
     this->filename = "";
     // end smoothie
 
-#if defined(MACHINE_Z1)
-    if (this->line_source == &this->streamed_line_source || this->streamed_start_pending) {
-        THEKERNEL->serial->PacketMessage(PTYPE_PLAY_CANCEL, nullptr, 0);
-        this->streamed_start_pending = false;
-        this->streamed_goto_pending = false;
-    }
-#endif
     this->close_line_source();
 
     THEKERNEL->set_suspending(false);
@@ -1227,7 +1173,7 @@ void Player::clear_macro_file_queue(){
 void Player::on_main_loop(void *argument)
 {
 #if defined(MACHINE_Z1)
-    if (this->streamed_abort_pending) {
+    if (this->streamed_state == StreamedState::aborting) {
         if (THEKERNEL->conveyor->is_idle()) {
             this->finish_streamed_abort();
         }
@@ -1454,11 +1400,7 @@ void Player::on_main_loop(void *argument)
 #endif
 
         // save last progress so status (?) continues to show |P:played_lines,percent_complete,elapsed_secs|
-        this->last_played_lines = this->played_lines;
-        this->last_percent_complete = (file_size > 0) ? (unsigned int)roundf((played_cnt * 100.0F) / file_size) : 100;
-        this->last_elapsed_secs = this->elapsed_secs;
-        this->last_filename = this->filename;
-        this->has_last_progress = true;
+        this->save_last_progress(100);
 
         this->ocode_handler.reset();
         this->playing_file = false;
@@ -1470,7 +1412,13 @@ void Player::on_main_loop(void *argument)
         goto_line = 0;
         file_size = 0;
 
+#if defined(MACHINE_Z1)
+        const bool streamed = this->line_source == &this->streamed_line_source;
+#endif
         this->close_line_source();
+#if defined(MACHINE_Z1)
+        if (streamed) this->streamed_state = StreamedState::idle;
+#endif
 
         this->current_stream = NULL;
 
@@ -1765,7 +1713,7 @@ void Player::resume_command(string parameters, StreamOutput *stream )
         return;
     }
 #if defined(MACHINE_Z1)
-    if (this->streamed_goto_pending) {
+    if (this->streamed_state == StreamedState::seeking) {
         stream->printf("Stream seek is still pending\n");
         return;
     }
