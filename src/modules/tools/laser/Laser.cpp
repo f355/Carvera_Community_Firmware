@@ -25,7 +25,7 @@
 #include "Conveyor.h"
 
 #include "libs/PublicData.h"
-#include "libs/ReentryGuard.h"
+#include "libs/GcodeRecursionGuard.h"
 #include "PublicDataRequest.h"
 #include "LaserPublicAccess.h"
 #include "SwitchPublicAccess.h"
@@ -243,7 +243,7 @@ void Laser::on_gcode_received(void *argument)
     if (gcode->has_m) {
         if (gcode->m == 3 && THEKERNEL->get_laser_mode())
 		{
-			ReentryGuard guard(handling_gcode);
+			GcodeRecursionGuard guard(handling_gcode);
 			if (!guard) return;
 
     		THECONVEYOR->wait_for_idle();
@@ -258,7 +258,7 @@ void Laser::on_gcode_received(void *argument)
     		this->testing = false;
     		// THEKERNEL->streams->printf("Laser on, S: %1.4f\n", THEROBOT->get_s_value());
 		} else if (gcode->m == 5 && THEKERNEL->get_laser_mode()) {
-			ReentryGuard guard(handling_gcode);
+			GcodeRecursionGuard guard(handling_gcode);
 			if (!guard) return;
 
     		THECONVEYOR->wait_for_idle();

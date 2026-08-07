@@ -579,7 +579,7 @@ void Endstops::on_idle(void *argument)
     
     if(THEKERNEL->is_halted()) return;
     
-    if(THEKERNEL->motor_alarm_scan_ready(us_ticker_read(), motor_alarm_settle_us)) {
+    if(THEKERNEL->stepper_alarm_scan_ready(us_ticker_read(), motor_alarm_settle_us)) {
         for(auto& i : motor_alarms) {
 			// check min and max endstops
 			if(debounced_get(&i->pin)) {

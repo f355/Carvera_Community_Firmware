@@ -6,7 +6,6 @@
 */
 
 #include "libs/Kernel.h"
-#include "libs/MotorAlarmGate.h"
 #include "libs/FirmwareFileSystem.h"
 #include "libs/Module.h"
 #include "libs/Config.h"
@@ -112,8 +111,8 @@ Kernel::Kernel()
     keep_alive_request = false;
     flex_compensation_load_error = false;
     config_load_error = false;
-    motor_driver_powered = false;
-    motor_driver_power_on_us = 0;
+    stepper_powered = false;
+    stepper_power_on_us = 0;
 
     // Point the variable arrays at their AHBSRAM-backed storage
     local_vars   = ahb_local_vars;
@@ -263,16 +262,18 @@ Kernel::Kernel()
     this->configurator = new Configurator();
 }
 
-void Kernel::set_motor_driver_power(bool powered, uint32_t now_us)
+void Kernel::set_stepper_power(bool powered, uint32_t now_us)
 {
-    motor_driver_powered = powered;
-    if (powered) motor_driver_power_on_us = now_us;
+    stepper_powered = powered;
+    if (powered)
+        stepper_power_on_us = now_us;
 }
 
-bool Kernel::motor_alarm_scan_ready(uint32_t now_us, uint32_t settle_us) const
+bool Kernel::stepper_alarm_scan_ready(uint32_t now_us, uint32_t settle_us) const
 {
-    return motor_alarm::ready(
-        motor_driver_powered, motor_driver_power_on_us, now_us, settle_us);
+    if (settle_us == 0)
+        return true;
+    return stepper_powered && now_us - stepper_power_on_us >= settle_us;
 }
 
 void Kernel::protocol_from_name(const std::string& name, ProtocolMode& protocol)

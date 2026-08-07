@@ -187,8 +187,8 @@ class Kernel {
         uint8_t get_halt_reason() const { return halt_reason; }
         void set_halted(bool h) { halted = h; }
 
-        void set_motor_driver_power(bool powered, uint32_t now_us);
-        bool motor_alarm_scan_ready(uint32_t now_us, uint32_t settle_us) const;
+        void set_stepper_power(bool powered, uint32_t now_us);
+        bool stepper_alarm_scan_ready(uint32_t now_us, uint32_t settle_us) const;
 
         void set_atc_state(uint8_t state) { atc_state = state; }
         uint8_t get_atc_state() const { return atc_state; }        
@@ -261,7 +261,7 @@ class Kernel {
         Eeprom* eeprom;
         std::array<std::vector<Module*>, NUMBER_OF_DEFINED_EVENTS> hooks;
         uint32_t stop_request_time;
-        uint32_t motor_driver_power_on_us;
+        uint32_t stepper_power_on_us;
         void protocol_from_name(const std::string& name, ProtocolMode& protocol);
         struct {
             bool use_leds:1;
@@ -293,7 +293,7 @@ class Kernel {
             bool flex_compensation_active:1;
             bool flex_compensation_load_error:1;
             bool config_load_error:1;
-            bool motor_driver_powered:1;
+            bool stepper_powered:1;
         };
 };
 

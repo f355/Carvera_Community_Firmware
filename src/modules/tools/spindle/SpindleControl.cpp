@@ -12,7 +12,7 @@
 #include "SpindleControl.h"
 #include "libs/StreamOutputPool.h"
 #include "libs/PublicData.h"
-#include "libs/ReentryGuard.h"
+#include "libs/GcodeRecursionGuard.h"
 #include "SwitchPublicAccess.h"
 #include "ATCHandlerPublicAccess.h"
 
@@ -45,7 +45,7 @@ void SpindleControl::on_gcode_received(void *argument)
         else if (gcode->m == 3)
         {
             if(THEKERNEL->is_halted()) return; // if in halted state ignore any commands
-            ReentryGuard guard(handling_gcode);
+            GcodeRecursionGuard guard(handling_gcode);
             if (!guard) return;
 
             if (!THEKERNEL->get_laser_mode()) {
@@ -100,7 +100,7 @@ void SpindleControl::on_gcode_received(void *argument)
         }
         else if (gcode->m == 5)
         {
-            ReentryGuard guard(handling_gcode);
+            GcodeRecursionGuard guard(handling_gcode);
             if (!guard) return;
 
             if (!THEKERNEL->get_laser_mode()) {
