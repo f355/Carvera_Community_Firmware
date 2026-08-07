@@ -64,7 +64,6 @@ class CANopen : public Module {
 
   CANBus* can;
   bool enabled;
-  bool master;
   bool bus_ready;
   uint32_t bitrate;
   uint8_t node_id;

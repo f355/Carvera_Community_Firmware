@@ -9,6 +9,8 @@
 
 class CANBus {
  public:
+  using RxFilter = bool (*)(const mbed::CANMessage&);
+
   struct Statistics {
     uint32_t transmitted;
     uint32_t received;
@@ -19,7 +21,7 @@ class CANBus {
     uint8_t rx_errors;
   };
 
-  CANBus(PinName rd, PinName td);
+  CANBus(PinName rd, PinName td, RxFilter rx_filter = nullptr);
   ~CANBus();
 
   bool start(uint32_t bitrate);
@@ -28,7 +30,6 @@ class CANBus {
   bool read(mbed::CANMessage& message);
 
   bool is_ready() const { return ready; }
-  uint32_t bitrate() const { return configured_bitrate; }
   Statistics statistics();
 
  private:
@@ -42,6 +43,7 @@ class CANBus {
 
   mbed::CAN can;
   LPC_CAN_TypeDef* controller;
+  RxFilter rx_filter;
   mbed::CANMessage rx_queue[rx_storage_size];
   volatile uint8_t rx_head;
   volatile uint8_t rx_tail;
@@ -50,7 +52,6 @@ class CANBus {
   uint32_t tx_count;
   uint32_t tx_failed_count;
   uint32_t tx_timeout_count;
-  uint32_t configured_bitrate;
   bool ready;
 };
 

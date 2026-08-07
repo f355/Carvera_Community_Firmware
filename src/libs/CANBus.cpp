@@ -13,14 +13,12 @@ constexpr uint32_t abort_tx_buffer_1_command = (1UL << 1) | (1UL << 5);
 
 bool valid_can2_pins(PinName rd, PinName td) { return rd == P0_4 && td == P0_5; }
 
-bool relevant_canopen_id(uint32_t id) {
-  return id == 0 || (id >= 0x580 && id <= 0x5ff) || (id >= 0x700 && id <= 0x77f);
-}
 }  // namespace
 
-CANBus::CANBus(PinName rd, PinName td)
+CANBus::CANBus(PinName rd, PinName td, RxFilter rx_filter)
     : can(rd, td),
       controller(valid_can2_pins(rd, td) ? LPC_CAN2 : nullptr),
+      rx_filter(rx_filter),
       rx_head(0),
       rx_tail(0),
       rx_count(0),
@@ -28,7 +26,6 @@ CANBus::CANBus(PinName rd, PinName td)
       tx_count(0),
       tx_failed_count(0),
       tx_timeout_count(0),
-      configured_bitrate(0),
       ready(false) {}
 
 CANBus::~CANBus() { stop(); }
@@ -47,7 +44,6 @@ bool CANBus::start(uint32_t bitrate) {
   tx_count = 0;
   tx_failed_count = 0;
   tx_timeout_count = 0;
-  configured_bitrate = bitrate;
   ready = true;
   NVIC_SetPriority(CAN_IRQn, 5);
   can.attach(this, &CANBus::on_receive);
@@ -124,10 +120,10 @@ bool CANBus::read(mbed::CANMessage& message) {
 void CANBus::on_receive() {
   mbed::CANMessage message;
   while (can.read(message)) {
-    if (message.format != CANStandard || message.type != CANData || message.id > 0x7ff ||
-        !relevant_canopen_id(message.id)) {
+    if (message.format != CANStandard || message.type != CANData || message.id > 0x7ff) {
       continue;
     }
+    if (rx_filter != nullptr && !rx_filter(message)) continue;
 
     const uint8_t head = rx_head;
     const uint8_t next = static_cast<uint8_t>((head + 1U) % rx_storage_size);

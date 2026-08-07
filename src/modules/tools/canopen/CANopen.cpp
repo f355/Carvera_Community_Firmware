@@ -2,9 +2,9 @@
 
 #include "CANopen.h"
 
+#include <array>
 #include <cstdlib>
 #include <cstring>
-#include <string>
 
 #include "CANopenProtocol.h"
 #include "Config.h"
@@ -24,21 +24,19 @@
 #define can_node_id_checksum CHECKSUM("can_node_id")
 #define slave_node_id_checksum CHECKSUM("slave_node_id")
 #define can_heartbeat_ms_checksum CHECKSUM("can_heartbeat_ms")
-#define can_role_checksum CHECKSUM("can_role")
 #define status_checksum CHECKSUM("status")
 #define send_frame_checksum CHECKSUM("send_frame")
 
 namespace {
 constexpr PinName can_rx_pin = P0_4;
 constexpr PinName can_tx_pin = P0_5;
-constexpr uint32_t sdo_request_base = 0x600;
 constexpr uint32_t sdo_timeout_us = 50000;
 constexpr uint32_t tx_timeout_us = 5000;
 constexpr uint16_t od_digital_inputs = 0x6000;
 constexpr uint16_t od_digital_outputs = 0x6001;
 constexpr uint16_t od_node_config = 0x6900;
 
-constexpr uint32_t baud_rates[] = {10000, 20000, 50000, 125000, 250000, 500000, 800000, 1000000};
+constexpr std::array<uint32_t, 8> baud_rates{10000, 20000, 50000, 125000, 250000, 500000, 800000, 1000000};
 
 bool supported_bitrate(uint32_t bitrate) {
   for (uint32_t supported : baud_rates) {
@@ -50,6 +48,8 @@ bool supported_bitrate(uint32_t bitrate) {
 bool valid_nmt_command(int command) {
   return command == 1 || command == 2 || command == 128 || command == 129 || command == 130;
 }
+
+bool accept_canopen_message(const mbed::CANMessage& message) { return canopen::relevant_receive_id(message.id); }
 
 uint32_t parsed_subcode(const Gcode* gcode) {
   const char* cursor = gcode->get_command();
@@ -68,7 +68,6 @@ uint32_t parsed_subcode(const Gcode* gcode) {
 CANopen::CANopen()
     : can(nullptr),
       enabled(false),
-      master(true),
       bus_ready(false),
       bitrate(1000000),
       node_id(10),
@@ -107,9 +106,6 @@ void CANopen::configure() {
                      ? static_cast<uint32_t>(configured_heartbeat)
                      : UINT32_MAX;
 
-  const std::string role = THEKERNEL->config->value(canopen_checksum, can_role_checksum)->as_string("master");
-  master = role != "slave";
-
   if (enabled) start();
 }
 
@@ -121,7 +117,7 @@ bool CANopen::start() {
     return false;
   }
 
-  if (can == nullptr) can = new (AHB) CANBus(can_rx_pin, can_tx_pin);
+  if (can == nullptr) can = new (AHB) CANBus(can_rx_pin, can_tx_pin, accept_canopen_message);
   bus_ready = can->start(bitrate);
   if (!bus_ready) {
     THEKERNEL->streams->printf("ERROR: Failed to start CAN at %lu bps\n", bitrate);
@@ -136,6 +132,7 @@ bool CANopen::start() {
 }
 
 void CANopen::handle_rx(const mbed::CANMessage& message, uint32_t now) {
+  if (!canopen::relevant_receive_id(message.id)) return;
   last_rx = message;
   have_last_rx = true;
   if (message.id == canopen::heartbeat_cob_id(slave_node_id) && message.len == 1) {
@@ -163,7 +160,7 @@ void CANopen::send_heartbeat(uint32_t now) {
 
 bool CANopen::send_nmt(uint8_t command, uint8_t node) {
   mbed::CANMessage message;
-  message.id = 0;
+  message.id = canopen::nmt_cob_id;
   message.len = 2;
   message.data[0] = command;
   message.data[1] = node;
@@ -224,9 +221,9 @@ bool CANopen::sdo_read(uint8_t node, uint16_t index, uint8_t subindex, uint32_t&
   drain_rx();
 
   mbed::CANMessage request;
-  request.id = sdo_request_base + node;
-  request.len = 8;
-  request.data[0] = 0x40;
+  request.id = canopen::sdo_request_cob_id(node);
+  request.len = canopen::max_data_length;
+  request.data[0] = canopen::sdo_upload_request_command;
   request.data[1] = index & 0xff;
   request.data[2] = index >> 8;
   request.data[3] = subindex;
@@ -243,9 +240,9 @@ bool CANopen::sdo_write(uint8_t node, uint16_t index, uint8_t subindex, uint32_t
   drain_rx();
 
   mbed::CANMessage request;
-  request.id = sdo_request_base + node;
-  request.len = 8;
-  request.data[0] = 0x23 | ((4 - size) << 2);
+  request.id = canopen::sdo_request_cob_id(node);
+  request.len = canopen::max_data_length;
+  request.data[0] = canopen::sdo_download_command(size);
   request.data[1] = index & 0xff;
   request.data[2] = index >> 8;
   request.data[3] = subindex;
@@ -285,7 +282,6 @@ void CANopen::report(StreamOutput* stream) {
   stream->printf("  Bitrate: %lu\n", bitrate);
   stream->printf("  Local node: %u\n", node_id);
   stream->printf("  Remote node: %u\n", slave_node_id);
-  stream->printf("  Role: %s\n", master ? "master" : "slave");
   stream->printf("  Heartbeat: %lu ms\n", heartbeat_ms);
   stream->printf("  Bus ready: %s\n", bus_ready ? "yes" : "no");
 
@@ -334,7 +330,7 @@ void CANopen::on_gcode_received(void* argument) {
     }
     const int id = gcode->get_int('X');
     const int length = gcode->has_letter('L') ? gcode->get_int('L') : 0;
-    if (id < 0 || id > 0x7ff || length < 0 || length > 8) {
+    if (id < 0 || id > static_cast<int>(canopen::standard_id_max) || length < 0 || length > canopen::max_data_length) {
       gcode->stream->printf("ERROR: Invalid CAN frame ID or length\n");
       return;
     }
@@ -393,7 +389,7 @@ void CANopen::on_gcode_received(void* argument) {
         report_sdo_failure(gcode->stream, "bitrate read");
         return;
       }
-      if (value < 8) {
+      if (value < baud_rates.size()) {
         gcode->stream->printf("node %u baud code: %lu (%lu bps)\n", node, value, baud_rates[value]);
       } else {
         gcode->stream->printf("node %u baud code: %lu\n", node, value);
@@ -408,11 +404,11 @@ void CANopen::on_gcode_received(void* argument) {
       int code = requested;
       if (requested >= 8) {
         code = -1;
-        for (unsigned int i = 0; i < sizeof(baud_rates) / sizeof(baud_rates[0]); ++i) {
+        for (unsigned int i = 0; i < baud_rates.size(); ++i) {
           if (baud_rates[i] == static_cast<uint32_t>(requested)) code = i;
         }
       }
-      if (code < 0 || code >= 8) {
+      if (code < 0 || code >= static_cast<int>(baud_rates.size())) {
         gcode->stream->printf("ERROR: Unsupported CAN bitrate\n");
         return;
       }
@@ -455,7 +451,7 @@ void CANopen::on_gcode_received(void* argument) {
       break;
     case 8: {
       const int command = gcode->has_letter('X') ? gcode->get_int('X') : 1;
-      if (!master || !valid_nmt_command(command) || !send_nmt(command, node)) {
+      if (!valid_nmt_command(command) || !send_nmt(command, node)) {
         gcode->stream->printf("ERROR: CANopen NMT command failed\n");
         return;
       }

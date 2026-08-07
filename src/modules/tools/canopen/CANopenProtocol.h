@@ -4,8 +4,13 @@
 
 namespace canopen {
 
+constexpr uint32_t nmt_cob_id = 0;
 constexpr uint32_t sdo_response_base = 0x580;
+constexpr uint32_t sdo_request_base = 0x600;
 constexpr uint32_t heartbeat_base = 0x700;
+constexpr uint32_t standard_id_max = 0x7ff;
+constexpr uint8_t max_data_length = 8;
+constexpr uint8_t sdo_upload_request_command = 0x40;
 
 struct FrameView {
   uint32_t id;
@@ -27,6 +32,17 @@ struct SdoResponse {
 constexpr bool valid_node_id(uint32_t node) { return node >= 1 && node <= 127; }
 
 constexpr uint32_t heartbeat_cob_id(uint8_t node) { return heartbeat_base + node; }
+
+constexpr uint32_t sdo_request_cob_id(uint8_t node) { return sdo_request_base + node; }
+
+constexpr bool relevant_receive_id(uint32_t id) {
+  return id == nmt_cob_id || (id >= sdo_response_base && id < sdo_request_base) ||
+         (id >= heartbeat_base && id < heartbeat_base + 0x80);
+}
+
+constexpr uint8_t sdo_download_command(uint8_t size) {
+  return size >= 1 && size <= 4 ? static_cast<uint8_t>(0x23U | ((4U - size) << 2U)) : 0;
+}
 
 constexpr uint32_t read_le32(const uint8_t* bytes) {
   return static_cast<uint32_t>(bytes[0]) | (static_cast<uint32_t>(bytes[1]) << 8) |
