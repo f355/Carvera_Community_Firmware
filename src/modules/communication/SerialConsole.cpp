@@ -30,9 +30,9 @@ using std::string;
 #define XBUFF_LENGTH 8208
 
 extern unsigned char xbuff[XBUFF_LENGTH];
-alignas(4) static unsigned char serial_protocol_buffer[544];
+static makera::FrameDecoder makera_frame_decoder;
+static makera::Packet decoded_packet;
 
-// Queue lives in main RAM (SerialConsole itself is AHB-allocated)
 enum { MAKERA_CMD_QUEUE_DEPTH = 4, MAKERA_CMD_MAX_LEN = 256 };
 static char makera_cmd_payloads[MAKERA_CMD_QUEUE_DEPTH][MAKERA_CMD_MAX_LEN];
 static uint16_t makera_cmd_lengths[MAKERA_CMD_QUEUE_DEPTH];
@@ -42,9 +42,9 @@ static volatile uint8_t makera_cmd_tail;
 // Serial reading module
 // Treats every received line as a command and passes it ( via event call ) to the command dispatcher.
 // The command dispatcher will then ask other modules if they can do something with it
-SerialConsole::SerialConsole( PinName tx_pin, PinName rx_pin, int baud_rate ){
-    this->serial = new mbed::Serial( tx_pin, rx_pin );
-    this->serial->baud(baud_rate);
+SerialConsole::SerialConsole(PinName tx_pin, PinName rx_pin, int baud_rate) : serial(tx_pin, rx_pin)
+{
+    this->serial.baud(baud_rate);
     this->previous_char = 0;
     this->current_baud_rate = baud_rate;
     this->default_baud_rate = baud_rate;
@@ -53,10 +53,6 @@ SerialConsole::SerialConsole( PinName tx_pin, PinName rx_pin, int baud_rate ){
     this->makera_cmd_queue_clear();
     this->reset_makera_command_parser();
     this->reset_file_parser();
-}
-
-SerialConsole::~SerialConsole(){
-    delete this->serial;
 }
 
 // Called when the module has just been loaded
@@ -68,7 +64,7 @@ void SerialConsole::on_module_loaded() {
 
     default_baud_rate = THEKERNEL->config->value(uart_checksum, baud_rate_setting_checksum)->as_number(current_baud_rate);
     if (default_baud_rate != current_baud_rate) {
-        this->serial->baud(default_baud_rate);
+        this->serial.baud(default_baud_rate);
         this->current_baud_rate = default_baud_rate;
     }
 
@@ -86,15 +82,15 @@ void SerialConsole::on_module_loaded() {
 void SerialConsole::set_baud_temporary(int new_baud) {
     this->temp_baud_rate = new_baud;
     this->current_baud_rate = new_baud;
-    this->serial->baud(new_baud);
+    this->serial.baud(new_baud);
     this->last_activity_ms = us_ticker_read() / 1000;
 }
 
 void SerialConsole::attach_irq(bool enable_irq) {
 	if (enable_irq) {
-	    this->serial->attach(this, &SerialConsole::on_serial_char_received, mbed::Serial::RxIrq);
+	    this->serial.attach(this, &SerialConsole::on_serial_char_received, mbed::Serial::RxIrq);
 	} else {
-	    this->serial->attach(nullptr, mbed::Serial::RxIrq);
+	    this->serial.attach(nullptr, mbed::Serial::RxIrq);
 	}
 }
 
@@ -113,8 +109,8 @@ void SerialConsole::on_set_public_data(void *argument) {
 
 // Called on Serial::RxIrq interrupt, meaning we have received a char
 void SerialConsole::on_serial_char_received() {
-	while (this->serial->readable()) {
-		char received = this->serial->getc();
+	while (this->serial.readable()) {
+		char received = this->serial.getc();
 		last_activity_ms = us_ticker_read() / 1000;
 
 		if(THEKERNEL->is_cachewait()) {
@@ -188,7 +184,7 @@ void SerialConsole::on_idle(void * argument)
     if (temp_baud_rate != 0) {
         uint32_t now_ms = us_ticker_read() / 1000;
         if ((now_ms - last_activity_ms) >= 15000) {
-            this->serial->baud(default_baud_rate);
+            this->serial.baud(default_baud_rate);
             this->current_baud_rate = default_baud_rate;
             this->temp_baud_rate = 0;
         }
@@ -277,8 +273,8 @@ int SerialConsole::puts(const char* s, int size)
 int SerialConsole::gets(char** buf, int size)
 {
 	if (communication_protocol == PROTOCOL_MAKERA) {
-        while (this->serial->readable()) {
-            uint8_t received = static_cast<uint8_t>(this->serial->getc());
+        while (this->serial.readable()) {
+            uint8_t received = static_cast<uint8_t>(this->serial.getc());
             uint16_t checksum;
 
             switch (file_parse_state) {
@@ -335,9 +331,7 @@ int SerialConsole::gets(char** buf, int size)
 
 void SerialConsole::reset_makera_command_parser()
 {
-    makera_header = 0;
-    makera_received = 0;
-    makera_data_length = 0;
+    makera_frame_decoder.reset();
 }
 
 bool SerialConsole::makera_cmd_queue_empty() const
@@ -370,41 +364,19 @@ bool SerialConsole::makera_cmd_queue_push(const char *data, uint16_t len)
 
 void SerialConsole::process_makera_byte(uint8_t received)
 {
-    if (makera_received < 2) {
-        makera_header = (makera_header << 8) | received;
-        if (makera_header == HEADER) {
-            serial_protocol_buffer[0] = (HEADER >> 8) & 0xff;
-            serial_protocol_buffer[1] = HEADER & 0xff;
-            makera_received = 2;
-        }
+    const makera::DecodeResult result = makera_frame_decoder.decode_byte(received, decoded_packet);
+    if (result != makera::DecodeResult::complete)
         return;
-    }
+    if (decoded_packet.crc_valid)
+        dispatch_makera_packet(decoded_packet);
+}
 
-    serial_protocol_buffer[makera_received++] = received;
-    if (makera_received == 4) {
-        makera_data_length = (serial_protocol_buffer[2] << 8) | serial_protocol_buffer[3];
-        if (makera_data_length < 3 || makera_data_length + 6 > sizeof(serial_protocol_buffer)) {
-            reset_makera_command_parser();
-        }
-        return;
-    }
-
-    if (makera_received < makera_data_length + 6) return;
-
-    uint16_t footer = (serial_protocol_buffer[makera_received - 2] << 8)
-                    | serial_protocol_buffer[makera_received - 1];
-    uint16_t received_crc = (serial_protocol_buffer[makera_received - 4] << 8)
-                          | serial_protocol_buffer[makera_received - 3];
-    uint16_t calculated_crc = crc16::ccitt(&serial_protocol_buffer[2], makera_data_length);
-    if (footer != FOOTER || received_crc != calculated_crc) {
-        reset_makera_command_parser();
-        return;
-    }
-
-    uint8_t command = serial_protocol_buffer[4];
+void SerialConsole::dispatch_makera_packet(const makera::Packet &packet)
+{
+    const uint8_t command = packet.type;
     if (command == PTYPE_CTRL_SINGLE) {
-        if (makera_data_length >= 4) {
-            uint8_t control = serial_protocol_buffer[5];
+        if (packet.payload_length >= 1) {
+            const uint8_t control = packet.payload[0];
             if (control == '?') {
                 query_flag = true;
             } else if (control == '*') {
@@ -427,14 +399,8 @@ void SerialConsole::process_makera_byte(uint8_t received)
             }
         }
     } else if (command == PTYPE_CTRL_MULTI || command == PTYPE_FILE_START) {
-        // Copy payload now so the parser can accept the next frame immediately
-        uint16_t payload_len = makera_data_length - 3;
-        makera_cmd_queue_push(reinterpret_cast<char *>(&serial_protocol_buffer[5]), payload_len);
-        reset_makera_command_parser();
-        return;
+        makera_cmd_queue_push(reinterpret_cast<const char *>(packet.payload), packet.payload_length);
     }
-
-    reset_makera_command_parser();
 }
 
 void SerialConsole::reset_file_parser()
@@ -491,17 +457,17 @@ void SerialConsole::on_protocol_changed()
 
 int SerialConsole::_putc(int c)
 {
-    return this->serial->putc(c);
+    return this->serial.putc(c);
 }
 
 int SerialConsole::_getc()
 {
-    return this->serial->getc();
+    return this->serial.getc();
 }
 
 bool SerialConsole::ready()
 {
-    return this->serial->readable();
+    return this->serial.readable();
 }
 
 // Does the queue have a given char ?
