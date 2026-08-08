@@ -153,10 +153,13 @@ temperatureswitch.power.cooldown_power_step 2.5
 
 # Homing and travel limits
 cover_endstop 1.9!v
+stepper_alarm_settle_ms 300
 
 # Probing and bed leveling
 zprobe.debounce_ms 1
 zprobe.calibrate_pin 1.10^
+# Stop probe TLO calibration when the electronic tool setter triggers.
+zprobe.require_probe_trigger_for_calibration false
 leveling-strategy.rectangular-grid.enable true
 leveling-strategy.rectangular-grid.size 15
 leveling-strategy.rectangular-grid.x_size 50
@@ -183,6 +186,10 @@ spindle.pulses_per_rev 4
 spindle.control_P 0.00001
 spindle.control_I 0.00005
 spindle.control_D 0.00005
+spindle.control_P_scale 0.37
+spindle.control_D_scale 0.95
+spindle.delayed_D_control true
+spindle.min_running_pwm 0.1
 spindle.alarm_pin 0.19^
 
 # User-adjustable defaults
@@ -203,8 +210,10 @@ coordinate.anchor2_offset_x 88.5
 coordinate.anchor2_offset_y 45.0
 coordinate.toolrack_offset_x 48.78
 coordinate.toolrack_offset_y 179.74
+coordinate.toolrack_z -108
 coordinate.rotation_offset_x 12.0
 coordinate.rotation_offset_y 85.5
+coordinate.rotation_offset_z 23.0
 coordinate.anchor_length 100.0
 coordinate.worksize_x 300.0
 coordinate.worksize_y 200.0
@@ -216,6 +225,7 @@ coordinate.clearance_z -1.0
 soft_endstop.enable false
 soft_endstop.x_min -206.0
 soft_endstop.y_min -206.0
+soft_endstop.rotary_y_min -160.0
 soft_endstop.z_min -102.0
 
 # Controller identity and tool-handling settings

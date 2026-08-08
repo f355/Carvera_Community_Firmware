@@ -125,12 +125,15 @@ Kernel::Kernel()
     probe_addr = 0;
     checkled = false;
     spindleon = false;
+    for (bool &axis_on : axis_is_on) axis_on = false;
     debug_flags = {};
     cachewait = false;
     disable_serial_console = false;
     keep_alive_request = false;
     flex_compensation_load_error = false;
     config_load_error = false;
+    steppers_powered = false;
+    steppers_powered_at_us = 0;
 
     // Point the variable arrays at their AHBSRAM-backed storage
     local_vars   = ahb_local_vars;
@@ -284,6 +287,18 @@ Kernel::Kernel()
 
     this->planner = new Planner();
     this->configurator = new Configurator();
+}
+
+void Kernel::on_steppers_powered(bool powered, uint32_t now_us)
+{
+    steppers_powered = powered;
+    if (powered)
+        steppers_powered_at_us = now_us;
+}
+
+bool Kernel::stepper_alarms_enabled(uint32_t now_us, uint32_t settle_us) const
+{
+    return steppers_powered && (settle_us == 0 || now_us - steppers_powered_at_us >= settle_us);
 }
 
 void Kernel::protocol_from_name(const std::string& name, ProtocolMode& protocol)
