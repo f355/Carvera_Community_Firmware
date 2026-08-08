@@ -19,7 +19,7 @@ class StreamOutput;
 
 // Config cache lives in a fixed region of RAM between the heap and stack,
 // avoiding any heap allocation. The address is computed as:
-//   __StackLimit - (capacity * sizeof(ConfigValue))
+//   __StackLimit - MPU guard - (capacity * sizeof(ConfigValue))
 // where __StackLimit is the linker-defined bottom of the stack area.
 // This memory is unused during boot (heap hasn't grown that high, stack
 // hasn't grown that low). After config_cache_clear(), it returns to being

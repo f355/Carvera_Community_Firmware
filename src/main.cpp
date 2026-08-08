@@ -135,7 +135,8 @@ void init() {
     vCharge = 1;
     */
 
-    Kernel* kernel = new Kernel();
+    static Kernel kernel_storage;
+    Kernel* kernel = &kernel_storage;
 
     // kernel->streams->printf("Smoothie Running @%ldMHz\r\n", SystemCoreClock / 1000000);
     SimpleShell::version_command("", kernel->streams);

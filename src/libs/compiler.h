@@ -12,7 +12,8 @@
 #include <stdint.h>
 
 extern unsigned int __StackLimit;
+#define STACK_MPU_GUARD_BYTES 32
 #define CONFIG_CACHE_STORAGE(Type, Capacity) \
-    reinterpret_cast<Type *>((uintptr_t)&__StackLimit - (Capacity) * sizeof(Type))
+    reinterpret_cast<Type *>((uintptr_t)&__StackLimit - STACK_MPU_GUARD_BYTES - (Capacity) * sizeof(Type))
 
 #endif

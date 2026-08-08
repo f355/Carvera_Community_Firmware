@@ -41,6 +41,7 @@ POOL_HEADER = 4
 MALLOC_HEADER = 8
 
 CONFIG_CACHE_CAPACITY = 350  # ConfigCache.h
+STACK_MPU_GUARD_BYTES = 32  # build/mbed_custom.cpp
 
 # Sizes only needed when --elf/gdb is unavailable. Prefer live DWARF sizeof().
 FALLBACK_SIZES = {
@@ -856,7 +857,7 @@ def estimate_budget(
 
     cache_bytes = CONFIG_CACHE_CAPACITY * sizes["ConfigValue"]
     full_heap_gap = stack_limit - bss_end
-    cache_live_usable = full_heap_gap - cache_bytes
+    cache_live_usable = full_heap_gap - cache_bytes - STACK_MPU_GUARD_BYTES
 
     always_active = as_bool(
         cfg.get("leveling-strategy.rectangular-grid.flex_compensation_always_active"),
@@ -920,7 +921,7 @@ def print_result(result: BudgetResult, cache_bytes: int, bss_end: int, stack_lim
     print(f"  machine: {result.machine} (firm defaults: {result.firm_default.name})")
     print(
         f"  main RAM: bss_end={bss_end:#010x} stack_limit={stack_limit:#010x} "
-        f"gap={result.full_heap_gap} cache={cache_bytes} "
+        f"gap={result.full_heap_gap} cache={cache_bytes} guard={STACK_MPU_GUARD_BYTES} "
         f"cache-live usable={result.cache_live_usable}"
     )
     deferred = [name for name, ok in result.deferred_loads.items() if ok]
@@ -1027,7 +1028,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     )
     print(
         f"  config cache: {CONFIG_CACHE_CAPACITY} x ConfigValue({sizes.get('ConfigValue', FALLBACK_SIZES['ConfigValue'])}) "
-        f"= {cache_bytes} bytes"
+        f"= {cache_bytes} bytes, MPU guard={STACK_MPU_GUARD_BYTES} bytes"
     )
     deferred_ok = [name for name, ok in deferred_loads.items() if ok]
     deferred_bad = [name for name, ok in deferred_loads.items() if not ok]

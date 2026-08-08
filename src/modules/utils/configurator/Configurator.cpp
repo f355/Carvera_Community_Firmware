@@ -144,7 +144,7 @@ void Configurator::config_load_command( string parameters, StreamOutput *stream 
             stream->printf( "ERROR: config cache failed to load\r\n");
             return;
         }
-        THEKERNEL->config->config_cache->dump(stream);
+        THEKERNEL->config->config_cache.dump(stream);
         THEKERNEL->config->config_cache_clear();
 
     } else if(source == "checksum") {

@@ -19,7 +19,7 @@ using namespace std;
 class FileConfigSource : public ConfigSource
 {
 public:
-    FileConfigSource(string config_file, const char *name);
+    FileConfigSource(const char *config_file, const char *name);
     void transfer_values_to_cache( ConfigCache *cache );
     void transfer_values_to_cache( ConfigCache *cache, const char * file_name );
     bool is_named( uint16_t check_sum );
@@ -27,12 +27,12 @@ public:
     bool remove( string setting );
     string read( uint16_t check_sums[3] );
     bool has_config_file();
-    void try_config_file(string candidate);
-    string get_config_file();
+    void try_config_file(const char *candidate);
+    const char *get_config_file();
 
 private:
     bool readLine(string& line, int lineno, FILE *fp);
-    string config_file;         // Path to the config file
+    const char *config_file;    // Path to the config file
     bool   config_file_found;   // Wether or not the config file's location is known
 };
 

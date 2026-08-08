@@ -27,47 +27,58 @@ extern "C" caddr_t _sbrk(int);
 // All values are read into a cache, that is then used by modules to read their configuration
 Config::Config()
 {
-    this->config_cache = NULL;
-
     // Config source for firm config found in src/config.default
-    this->config_sources.push_back( new FirmConfigSource("firm") );
+    static FirmConfigSource firm_config("firm");
+    this->add_source(&firm_config);
 
     // Config source for */config files
-    FileConfigSource *fcs = NULL;
-    if( file_exists("/local/config") )
-        fcs = new FileConfigSource("/local/config", "local");
-    else if( file_exists("/local/config.txt") )
-        fcs = new FileConfigSource("/local/config.txt", "local");
-    if( fcs != NULL ) {
-        this->config_sources.push_back( fcs );
-        fcs = NULL;
+    const char *local_path = nullptr;
+    if (file_exists("/local/config"))
+        local_path = "/local/config";
+    else if (file_exists("/local/config.txt"))
+        local_path = "/local/config.txt";
+    if (local_path != nullptr) {
+        static FileConfigSource local_config(local_path, "local");
+        this->add_source(&local_config);
     }
-    if( file_exists("/sd/config") )
-        fcs = new FileConfigSource("/sd/config", "sd");
-    else if( file_exists("/sd/config.txt") )
-        fcs = new FileConfigSource("/sd/config.txt", "sd");
-    if( fcs != NULL )
-        this->config_sources.push_back( fcs );
+
+    const char *sd_path = nullptr;
+    if (file_exists("/sd/config"))
+        sd_path = "/sd/config";
+    else if (file_exists("/sd/config.txt"))
+        sd_path = "/sd/config.txt";
+    if (sd_path != nullptr) {
+        static FileConfigSource sd_config(sd_path, "sd");
+        this->add_source(&sd_config);
+    }
 }
 
 Config::Config(ConfigSource *cs)
 {
-    this->config_cache = NULL;
-    this->config_sources.push_back( cs );
+    this->add_source(cs);
 }
 
 Config::~Config()
 {
     config_cache_clear();
-    for(auto i : this->config_sources) {
-        delete i;
-    }
+}
+
+void Config::add_source(ConfigSource *source)
+{
+    if (this->config_source_count < this->config_sources.size())
+        this->config_sources[this->config_source_count++] = source;
 }
 
 // Get a list of modules, used by module "pools" that look for the "enable" keyboard to find things like "moduletype.modulename.enable" as the marker of a new instance of a module
 void Config::get_module_list(vector<uint16_t> *list, uint16_t family)
 {
-    this->config_cache->collect(family, CHECKSUM("enable"), list);
+    if (!is_config_cache_loaded()) {
+        THEKERNEL->streams->printf("ERROR: config cache is not loaded\n");
+        THEKERNEL->set_config_load_error(true);
+        list->clear();
+        return;
+    }
+    this->config_cache.collect(family, CHECKSUM("enable"), list);
 }
 
 // Command to load config cache into buffer for multiple reads during init
@@ -76,46 +87,42 @@ void Config::config_cache_load(bool parse)
     // First clear the cache
     this->config_cache_clear();
 
-    this->config_cache= new ConfigCache;
-
     // Verify the malloc heap hasn't already grown into the config cache region.
     // _sbrk(0) returns the current top of the newlib heap, which is what every
     // allocation on this platform routes through.
     const auto heap_top = reinterpret_cast<uintptr_t>(_sbrk(0));
-    const auto cache_start = this->config_cache->start_address();
+    const auto cache_start = this->config_cache.start_address();
     if(heap_top > cache_start) {
         THEKERNEL->streams->printf("ERROR: not enough memory to load config cache "
             "(heap=0x%x, cache=0x%x)\n", heap_top, cache_start);
         THEKERNEL->set_config_load_error(true);
-        delete this->config_cache;
-        this->config_cache = NULL;
         return;
     }
 
+    this->config_cache_loaded = true;
+
     if(parse) {
         // For each ConfigSource in our stack
-        for( ConfigSource *source : this->config_sources ) {
-            source->transfer_values_to_cache(this->config_cache);
-        }
+        for (size_t i = 0; i < this->config_source_count; ++i)
+            this->config_sources[i]->transfer_values_to_cache(&this->config_cache);
     }
 }
 
 // Command to clear the config cache after init
 void Config::config_cache_clear()
 {
-    if(this->config_cache != NULL) {
+    if(this->config_cache_loaded) {
         // Verify the heap didn't grow into the config cache region
         const auto heap_top = reinterpret_cast<uintptr_t>(_sbrk(0));
-        const auto cache_start = this->config_cache->start_address();
+        const auto cache_start = this->config_cache.start_address();
         if(heap_top > cache_start) {
             THEKERNEL->streams->printf("FATAL: heap collided with config cache "
                 "(heap=0x%x, cache=0x%x)\n", heap_top, cache_start);
             system_reset(false);
         }
 
-        this->config_cache->clear();
-        delete this->config_cache;  // frees the small ConfigCache object itself
-        this->config_cache = NULL;
+        this->config_cache.clear();
+        this->config_cache_loaded = false;
     }
 }
 
@@ -145,7 +152,7 @@ ConfigValue *Config::value(uint16_t check_sums[])
         return &ConfigValue::dummy;
     }
 
-    ConfigValue *result = this->config_cache->lookup(check_sums);
+    ConfigValue *result = this->config_cache.lookup(check_sums);
 
     if(result == NULL) {
         ConfigValue::dummy.clear();
@@ -154,6 +161,3 @@ ConfigValue *Config::value(uint16_t check_sums[])
 
     return result;
 }
-
-
-
