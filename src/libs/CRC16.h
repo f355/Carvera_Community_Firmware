@@ -25,14 +25,15 @@ constexpr std::array<uint16_t, 256> make_table() {
 
 inline constexpr auto table = make_table();
 
-constexpr uint16_t ccitt(const uint8_t* data, std::size_t size) {
-  uint16_t crc = 0;
+constexpr uint16_t ccitt_update(uint16_t crc, const uint8_t* data, std::size_t size) {
   for (std::size_t i = 0; i < size; ++i) {
     const uint8_t index = static_cast<uint8_t>((crc >> 8) ^ data[i]);
     crc = static_cast<uint16_t>((crc << 8) ^ table[index]);
   }
   return crc;
 }
+
+constexpr uint16_t ccitt(const uint8_t* data, std::size_t size) { return ccitt_update(0, data, size); }
 
 static_assert(table[0x00] == 0x0000);
 static_assert(table[0x01] == 0x1021);
