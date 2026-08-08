@@ -4,6 +4,7 @@
 - Enhancement: Add Z1 streamed playback and abort handling.
 - Enhancement: Add Z1 homing, spindle safety, and manual tool changes.
 - Enhancement: Add Z1 cover inputs, accessories, and bed cleaning.
+- Enhancement: Add Z1 front-panel LEDs.
 
 [2.2.0c-RC1]
 - Enhancement: AnalogSpindleControl now supports optional RPM feedback and Alarm pin functionality, same as PWMSpindleControl. Same configuration keys (spindle.feedback_pin, spindle.pulses_per_rev, spindle.acc_ratio, and spindle.control_smoothing, spindle.alarm_pin)
