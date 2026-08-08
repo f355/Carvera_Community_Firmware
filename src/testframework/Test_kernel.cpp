@@ -33,6 +33,8 @@ This is aprt of the Smoothie test framework, it generates a Mockable Kernl so ke
 #include "FirmConfigSource.h"
 
 #include <array>
+
+static FirmConfigSource *test_config_source;
 #include <functional>
 #include <map>
 
@@ -111,7 +113,8 @@ void Kernel::unregister_for_event(_EVENT_ENUM id_event, Module *mod)
 
 void test_kernel_setup_config(const char* start, const char* end)
 {
-    THEKERNEL->config= new Config(new FirmConfigSource("rom", start, end) );
+    test_config_source = new FirmConfigSource("rom", start, end);
+    THEKERNEL->config = new Config(test_config_source);
     // Pre-load the config cache
     THEKERNEL->config->config_cache_load();
 }
@@ -120,6 +123,8 @@ void test_kernel_teardown()
 {
     delete THEKERNEL->config;
     THEKERNEL->config= nullptr;
+    delete test_config_source;
+    test_config_source = nullptr;
     event_callbacks.clear();
 }
 

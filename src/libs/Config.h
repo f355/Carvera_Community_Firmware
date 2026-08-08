@@ -9,13 +9,16 @@
 #define CONFIG_H
 
 
-using namespace std;
-#include <vector>
+#include <array>
 #include <string>
+#include <vector>
+
+#include "ConfigCache.h"
+
+using namespace std;
 
 class ConfigValue;
 class ConfigSource;
-class ConfigCache;
 
 class Config  {
     public:
@@ -36,10 +39,13 @@ class Config  {
         friend class  Configurator;
 
     private:
+        void add_source(ConfigSource *source);
         bool   has_characters(uint16_t check_sum, string str );
 
         ConfigCache* config_cache;            // A cache in which ConfigValues are kept
-        vector<ConfigSource*> config_sources; // A list of all possible coniguration sources
+        ConfigCache config_cache_storage;
+        array<ConfigSource*, 3> config_sources{};
+        size_t config_source_count{0};
 };
 
 #endif

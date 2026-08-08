@@ -12,6 +12,7 @@
 #define THECONVEYOR THEKERNEL->conveyor
 #define THEROBOT THEKERNEL->robot
 
+#include "FactorySettings.h"
 #include "Module.h"
 #include "I2C.h" // mbed.h lib
 #include <array>
@@ -107,22 +108,10 @@ typedef struct {
     float WCSrotation[6];
 } EEPROM_data;
 
-typedef struct {
-	char  MachineModel;
-	char  FuncSetting;
-	char  reserve1;
-	char  reserve2;
-} FACTORY_SET;
-
 class Kernel {
     public:
         Kernel();
-
-        ~Kernel() {
-            delete this->i2c;
-            delete this->eeprom_data;
-            delete this->factory_set;
-        }
+        ~Kernel() = default;
 
         static Kernel* instance; // the Singleton instance of Kernel usable anywhere
         const char* config_override_filename(){ return "/sd/config-override"; }
@@ -218,14 +207,14 @@ class Kernel {
         void write_eeprom_data();
         void erase_eeprom_data();
         void check_eeprom_data();
+        void dump_eeprom(StreamOutput *stream);
         
         void read_Factory_data();
-        void write_Factory_data();
+        bool write_Factory_data();
         void erase_Factory_data();
         void read_Factroy_SD();
         bool Check_Factory_Data(unsigned char *data, unsigned int len);
         bool Factroy_readLine(std::string& line, int lineno, FILE *fp);
-        bool process_line(const std::string &buffer, uint16_t *check_sum, unsigned char *value);
         std::string get_query_string();
 
         std::string get_diagnose_string();

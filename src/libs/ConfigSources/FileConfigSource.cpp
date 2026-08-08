@@ -20,7 +20,7 @@ using namespace std;
 
 #define include_checksum     CHECKSUM("include")
 
-FileConfigSource::FileConfigSource(string config_file, const char *name)
+FileConfigSource::FileConfigSource(const char *config_file, const char *name)
 {
     this->name_checksum = get_checksum(name);
     this->config_file = config_file;
@@ -37,7 +37,7 @@ bool FileConfigSource::readLine(string& line, int lineno, FILE *fp)
             if(lineno != 0) {
                 // report if it is not truncating a comment
                 if(strchr(buf, '#') == NULL) {
-                    THEKERNEL->streams->printf("Truncated long line %d in: %s\n", lineno, config_file.c_str());
+                    THEKERNEL->streams->printf("Truncated long line %d in: %s\n", lineno, config_file);
                     THEKERNEL->set_config_load_error(true);
                 }
             }
@@ -58,7 +58,7 @@ void FileConfigSource::transfer_values_to_cache( ConfigCache *cache )
     if( !this->has_config_file() ) {
         return;
     }
-    transfer_values_to_cache( cache, this->get_config_file().c_str());
+    transfer_values_to_cache(cache, this->get_config_file());
 }
 
 void FileConfigSource::transfer_values_to_cache( ConfigCache *cache, const char * file_name )
@@ -141,7 +141,7 @@ bool FileConfigSource::write( string setting, string value )
     get_checksums(setting_checksums, setting );
 
     // Open the config file ( find it if we haven't already found it )
-    FILE *lp = fwfs::fopen(this->get_config_file().c_str(), "r+");
+    FILE *lp = fwfs::fopen(this->get_config_file(), "r+");
 
     // search each line for a match
     while(!fwfs::feof(lp)) {
@@ -173,7 +173,7 @@ bool FileConfigSource::write( string setting, string value )
 
     // not found so append the new value
     fwfs::fclose(lp);
-    lp = fwfs::fopen(this->get_config_file().c_str(), "a");
+    lp = fwfs::fopen(this->get_config_file(), "a");
     fwfs::fputs("\n", lp);
     fwfs::fputs(setting.c_str(), lp);
     fwfs::fputs("         ", lp);
@@ -251,7 +251,7 @@ string FileConfigSource::read( uint16_t check_sums[3] )
     }
 
     // Open the config file ( find it if we haven't already found it )
-    FILE *lp = fwfs::fopen(this->get_config_file().c_str(), "r");
+    FILE *lp = fwfs::fopen(this->get_config_file(), "r");
     // For each line
     while(!fwfs::feof(lp)) {
         string line;
@@ -281,7 +281,7 @@ bool FileConfigSource::has_config_file()
 }
 
 // Tool function for get_config_file
-inline void FileConfigSource::try_config_file(string candidate)
+inline void FileConfigSource::try_config_file(const char *candidate)
 {
     if(file_exists(candidate)) {
         this->config_file_found = true;
@@ -289,7 +289,7 @@ inline void FileConfigSource::try_config_file(string candidate)
 }
 
 // Get the filename for the config file
-string FileConfigSource::get_config_file()
+const char *FileConfigSource::get_config_file()
 {
     if( this->config_file_found ) {
         return this->config_file;
@@ -302,7 +302,6 @@ string FileConfigSource::get_config_file()
         return "";
     }
 }
-
 
 
 

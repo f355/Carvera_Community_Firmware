@@ -9,7 +9,7 @@
 #define STREAMOUTPUTPOOL_H
 
 using namespace std;
-#include <set>
+#include <array>
 #include <string>
 #include <cstdio>
 #include <cstdarg>
@@ -25,14 +25,15 @@ public:
     int puts(const char* s, int size)
     {
         int r = 0;
-        for(set<StreamOutput*>::iterator i = this->streams.begin(); i != this->streams.end(); i++)
-        {   
+        for (StreamOutput *stream : this->streams) {
+            if (stream == nullptr)
+                continue;
             int k;
             if (communication_protocol == PROTOCOL_SMOOTHIE) {
-                k = (*i)->puts(s);
+                k = stream->puts(s);
             }
             else {
-                k = (*i)->puts(s,size);
+                k = stream->puts(s,size);
             }
             if (k > r)
                 r = k;
@@ -42,25 +43,35 @@ public:
 
     void append_stream(StreamOutput* stream)
     {
-        this->streams.insert(stream);
+        for (StreamOutput *existing : this->streams)
+            if (existing == stream)
+                return;
+        for (StreamOutput *&entry : this->streams) {
+            if (entry == nullptr) {
+                entry = stream;
+                return;
+            }
+        }
     }
 
     void remove_stream(StreamOutput* stream)
     {
-        this->streams.erase(stream);
+        for (StreamOutput *&entry : this->streams)
+            if (entry == stream)
+                entry = nullptr;
     }
 
     bool frames_protocol_output() const { return true; }
 
     void on_protocol_changed()
     {
-        for(set<StreamOutput*>::iterator i = this->streams.begin(); i != this->streams.end(); i++) {
-            (*i)->on_protocol_changed();
-        }
+        for (StreamOutput *stream : this->streams)
+            if (stream != nullptr)
+                stream->on_protocol_changed();
     }
 
 private:
-    set<StreamOutput*> streams;
+    std::array<StreamOutput*, 2> streams{};
 };
 
 #endif

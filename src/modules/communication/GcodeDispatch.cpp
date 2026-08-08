@@ -6,6 +6,7 @@
 */
 
 #include "GcodeDispatch.h"
+#include "system_LPC17xx.h"
 #include "libs/FirmwareFileSystem.h"
 
 #include "libs/Kernel.h"
