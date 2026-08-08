@@ -77,6 +77,7 @@ else ifeq "$(MACHINE)" "z1"
 OUTDIR = ../$(DEVICE)-z1
 DEFINES += -DMACHINE_FAMILY_Z1
 DEFINES += -DSTREAMED_JOB_PLAYBACK
+DEFINES += -DCANOPEN_SUPPORT
 NO_USB_HOST := 1
 NO_VESC_SPINDLE := 1
 NO_SD_CARD := 1
@@ -112,10 +113,11 @@ endif
 CPPSRCS1 = $(wildcard $(SRC)/*.cpp $(SRC)/*/*.cpp $(SRC)/*/*/*.cpp $(SRC)/*/*/*/*.cpp $(SRC)/*/*/*/*/*.cpp $(SRC)/*/*/*/*/*/*.cpp)
 ifeq "$(MACHINE)" "carvera"
 CPPSRCS1 := $(filter-out \
+	$(SRC)/libs/CANBus.cpp \
 	$(SRC)/libs/ConfigSources/RemoteConfigSource.cpp \
 	$(SRC)/modules/communication/RemoteTransfer.cpp \
 	$(SRC)/modules/communication/UartRxDma.cpp \
-,$(CPPSRCS1))
+	$(SRC)/modules/tools/canopen/%,$(CPPSRCS1))
 endif
 ifeq "$(NONETWORK)" "1"
 	CPPSRCS2 = $(filter-out $(SRC)/libs/Network/%,$(CPPSRCS1))
