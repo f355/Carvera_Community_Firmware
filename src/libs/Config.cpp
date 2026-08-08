@@ -18,6 +18,9 @@ using namespace std;
 #include "libs/utils.h"
 #include "libs/SerialMessage.h"
 #include "libs/ConfigSources/FileConfigSource.h"
+#if defined(MACHINE_FAMILY_Z1)
+#include "libs/ConfigSources/RemoteConfigSource.h"
+#endif
 
 extern "C" caddr_t _sbrk(int);
 #include "libs/ConfigSources/FirmConfigSource.h"
@@ -31,6 +34,10 @@ Config::Config()
     static FirmConfigSource firm_config("firm");
     this->add_source(&firm_config);
 
+#if defined(MACHINE_FAMILY_Z1)
+    static RemoteConfigSource remote_config(*THEKERNEL->serial);
+    this->add_source(&remote_config);
+#else
     // Config source for */config files
     const char *local_path = nullptr;
     if (file_exists("/local/config"))
@@ -51,6 +58,7 @@ Config::Config()
         static FileConfigSource sd_config(sd_path, "sd");
         this->add_source(&sd_config);
     }
+#endif
 }
 
 Config::Config(ConfigSource *cs)

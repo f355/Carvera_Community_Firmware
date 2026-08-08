@@ -46,7 +46,9 @@
 // #include "NetworkPublicAccess.h"
 #include "platform_memory.h"
 #include "SwitchPublicAccess.h"
+#if !defined(NO_SD_CARD)
 #include "SDFAT.h"
+#endif
 #include "FATFileSystem.h"
 #include "Thermistor.h"
 #include "md5.h"
@@ -591,16 +593,22 @@ void SimpleShell::ls_command( string parameters, StreamOutput *stream )
     }
 }
 
+#if !defined(NO_SD_CARD)
 extern SDFAT mounter;
+#endif
 
 void SimpleShell::remount_command( string parameters, StreamOutput *stream )
 {
+#if !defined(NO_SD_CARD)
     mounter.remount();
     if (communication_protocol == PROTOCOL_SMOOTHIE) {
         stream->printf("remounted\r\n");
     } else {
         PacketMessage(PTYPE_NORMAL_INFO, "remounted\r\n", 0, stream);
     }
+#else
+    stream->printf("ERROR: SD card is not available\r\n");
+#endif
 }
 
 // Delete a file
@@ -959,7 +967,7 @@ void SimpleShell::time_command( string parameters, StreamOutput *stream)
     	set_time(new_time);
     } else {
     	time_t old_time = time(NULL);
-    	stream->printf("time = %lld\n", old_time);
+        stream->printf("time = %ld\n", static_cast<long>(old_time));
     }
 }
 
@@ -1358,21 +1366,34 @@ void SimpleShell::ftype_command( string parameters, StreamOutput *stream )
 }
 // print out build model
 void SimpleShell::model_command( string parameters, StreamOutput *stream )
-{		    	
+{
+	const auto model_number = static_cast<unsigned>(THEKERNEL->factory_set->MachineModel);
 	switch (THEKERNEL->factory_set->MachineModel)
 	{
+#if defined(MACHINE_FAMILY_Z1)
+		case Z1:
+			stream->printf("model = %s, %u, %d, %d\n", "Z1", model_number, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
+			break;
+		case Z1PRO:
+			stream->printf("model = %s, %u, %d, %d\n", "Z1Pro", model_number, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
+			break;
+		default:
+			stream->printf("model = %s, %u, %d, %d\n", "Z1", model_number, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
+			break;
+#else
 		case CARVERA:			
-			stream->printf("model = %s, %d, %d, %d\n", "C1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
+			stream->printf("model = %s, %u, %d, %d\n", "C1", model_number, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
 			break;
 		case CARVERA_AIR:			
-			stream->printf("model = %s, %d, %d, %d\n", "CA1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
+			stream->printf("model = %s, %u, %d, %d\n", "CA1", model_number, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
             if(THEKERNEL->is_flex_compensation_load_error()) {
                 stream->printf("ERROR: Could not load flex compensation data\n");
             }
             break;
-		default:			
-			stream->printf("model = %s, %d, %d, %d\n", "C1", THEKERNEL->factory_set->MachineModel, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
+		default:
+			stream->printf("model = %s, %u, %d, %d\n", "C1", model_number, THEKERNEL->factory_set->FuncSetting, THEKERNEL->probe_addr);
 			break;
+#endif
 	}
     if(THEKERNEL->is_config_load_error()) {
         stream->printf("ERROR: config file had errors during boot, see SD\n");
@@ -1531,27 +1552,18 @@ void SimpleShell::fset_command( string parameters, StreamOutput *stream)
     	string s = shift_parameter( parameters );
     	if (s == "model") {
     		if (!parameters.empty()) {
-    			if (parameters.length() > 3) {
-    	    		stream->printf("model length should no more than 3\n");
-    	    	} else {
-    	    		if (parameters == "C1")
-        			{
-    					THEKERNEL->factory_set->MachineModel = 1;
-    					THEKERNEL->factory_set->FuncSetting |= 0x04;
-	            		THEKERNEL->write_Factory_data();
-    	    			stream->printf("fset model ok!\n");
-        			}
-        			else if (parameters == "CA1")
-    				{
-    					THEKERNEL->factory_set->MachineModel = 2;
-	            		THEKERNEL->write_Factory_data();
-    	    			stream->printf("fset model ok!\n");
-        			}
-        			else
-        			{
-        				stream->printf("Unable to recognize parameter model. \n");
-        			}
-    	    	}
+                const Machine model = machine_model_from_name(
+                    std::string_view(parameters.data(), parameters.size()));
+                if (model == Machine::unknown) {
+                    stream->printf("ERROR: unknown machine model '%s'\n", parameters.c_str());
+                } else {
+                    THEKERNEL->factory_set->MachineModel = model;
+                    if (model == Machine::carvera) {
+                        THEKERNEL->factory_set->FuncSetting |= 0x04;
+                    }
+                    THEKERNEL->write_Factory_data();
+                    stream->printf("fset model ok!\n");
+                }
     		}
     	} else if (s == "func") {
     		if (!parameters.empty()) {
@@ -1658,6 +1670,10 @@ void SimpleShell::disable_4th_hd( string parameters, StreamOutput *stream)
 
 void SimpleShell::baud_command(string parameters, StreamOutput *stream)
 {
+#if defined(MACHINE_FAMILY_Z1)
+    stream->printf("ERROR: the controller connection baud rate is fixed on Makera Z1\n");
+    return;
+#endif
     if (THEKERNEL->serial == nullptr) {
         stream->printf("error:Serial console not available\n");
         return;

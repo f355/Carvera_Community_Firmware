@@ -43,6 +43,9 @@
 #include "mbed.h"
 #include "utils.h"
 #include "WifiPublicAccess.h"
+#if defined(MACHINE_FAMILY_Z1)
+#include "modules/communication/RemoteTransfer.h"
+#endif
 
 #include <algorithm>
 
@@ -76,6 +79,13 @@ static float ahb_local_params[30] LOCATED_IN_AHBSRAM;
 #define	EEP_MAX_PAGE_SIZE	32
 #define EEPROM_DATA_STARTPAGE	1
 #define EEPROM_FACTORYSET_PAGE	16
+#if defined(MACHINE_FAMILY_Z1)
+constexpr int boot_serial_baud = 230400;
+constexpr FACTORY_SET default_factory_settings{Z1, 0, 0, 0};
+#else
+constexpr int boot_serial_baud = 115200;
+constexpr FACTORY_SET default_factory_settings{CARVERA, 0x04, 0, 0};
+#endif
 
 namespace {
 struct StockEepromData {
@@ -90,7 +100,6 @@ struct StockEepromData {
 
 static_assert(sizeof(StockEepromData) == 40, "Unexpected stock EEPROM record size");
 } // namespace
-
 // The kernel is the central point in Smoothie : it stores modules, and handles event calls
 Kernel::Kernel()
 {
@@ -138,12 +147,10 @@ Kernel::Kernel()
     this->i2c = &i2c_storage;
     this->i2c->frequency(200000);
 
-    // Bring up streams + serial console first so factory and config parser
-    // errors are visible on the host link. Baud is hard-coded here and gets
-    // re-applied from config later in SerialConsole::on_module_loaded().
+    // Bring up serial output first so factory and config errors are visible.
     static StreamOutputPool stream_output_storage;
     this->streams = &stream_output_storage;
-    static SerialConsole serial_console_storage(P2_8, P2_9, 115200);
+    static SerialConsole serial_console_storage(P2_8, P2_9, boot_serial_baud);
     this->serial = &serial_console_storage;
     this->streams->append_stream(this->serial);
 
@@ -151,8 +158,32 @@ Kernel::Kernel()
     this->factory_set = &factory_settings_storage;
     // read Factory setting data from eeprom
     this->read_Factory_data();
+#if defined(MACHINE_FAMILY_Z1)
+    const FACTORY_SET previous = *this->factory_set;
+    FACTORY_SET received = previous;
+    const remote::Result factory_result = remote::receive_factory_settings(*this->serial, previous, received);
+    const bool factory_changed = received.MachineModel != previous.MachineModel ||
+                                 received.FuncSetting != previous.FuncSetting ||
+                                 received.reserve1 != previous.reserve1 || received.reserve2 != previous.reserve2;
+    if (factory_result == remote::Result::success) {
+        bool stored = true;
+        if (factory_changed) {
+            *this->factory_set = received;
+            stored = write_Factory_data();
+            if (!stored) *this->factory_set = previous;
+        }
+        remote::finish_factory_settings(*this->serial, stored);
+        if (stored && factory_changed) system_reset(false);
+    } else if (factory_result != remote::Result::success &&
+               factory_result != remote::Result::cancelled) {
+        this->streams->printf(
+            "ERROR: factory settings transfer failed (%u); using stored settings\n",
+            static_cast<unsigned>(factory_result));
+    }
+#else
     // read Factory settings data from sd
     this->read_Factroy_SD();
+#endif
 
 
     // Config next, but does not load cache yet
@@ -193,8 +224,8 @@ Kernel::Kernel()
         this->streams->remove_stream(this->serial);
         this->serial = nullptr;
     } else {
-        // add_module() runs SerialConsole::on_module_loaded() which re-reads
-        // uart.baud_rate from config and applies it to the hardware.
+        // add_module() runs SerialConsole::on_module_loaded(). Carvera applies
+        // uart.baud_rate there; the Z1 serial link remains fixed.
         this->add_module( this->serial );
     }
 
@@ -526,7 +557,9 @@ std::string Kernel::get_query_string()
     }
     
     // machine state
-    n = snprintf(buf, sizeof(buf), "|C:%d,%d,%d,%d", THEKERNEL->factory_set->MachineModel,THEKERNEL->factory_set->FuncSetting,THEROBOT->inch_mode,THEROBOT->absolute_mode);
+    n = snprintf(buf, sizeof(buf), "|C:%u,%d,%d,%d",
+                 static_cast<unsigned>(THEKERNEL->factory_set->MachineModel),
+                 THEKERNEL->factory_set->FuncSetting, THEROBOT->inch_mode, THEROBOT->absolute_mode);
     if(n > sizeof(buf)) n = sizeof(buf);
     str.append(buf, n);
 
@@ -1005,14 +1038,10 @@ void Kernel::read_Factory_data()
     }
     else
     {
-    	this->factory_set->MachineModel = 1;
-    	this->factory_set->FuncSetting = 0x04;
-    	this->factory_set->reserve1 = 0;
-    	this->factory_set->reserve2 = 0;
-    	
+        *this->factory_set = default_factory_settings;
     }
     
-    if(this->factory_set->MachineModel == 1)
+    if(this->factory_set->MachineModel == Machine::carvera)
     {
     	this->factory_set->FuncSetting |= 0x04;
     }

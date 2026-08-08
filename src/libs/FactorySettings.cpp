@@ -59,7 +59,7 @@ FactorySettings::LineResult FactorySettings::apply_line(std::string_view line) {
 
   switch (key) {
     case Key::machine_model:
-      values_.MachineModel = value;
+      values_.MachineModel = static_cast<Machine>(value);
       break;
     case Key::a_axis_home:
       set_bit(0, value == 1);

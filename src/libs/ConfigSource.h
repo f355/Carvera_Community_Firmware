@@ -8,6 +8,7 @@
 #ifndef CONFIGSOURCE_H
 #define CONFIGSOURCE_H
 
+#include <cstdint>
 #include <string>
 
 class ConfigValue;

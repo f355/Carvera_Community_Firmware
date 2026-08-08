@@ -23,8 +23,6 @@
 
 // 9 WCS offsets
 #define MAX_WCS 9UL
-#define CARVERA		1
-#define CARVERA_AIR	2
 //Module manager
 class Config;
 class Module;
@@ -208,7 +206,6 @@ class Kernel {
         void erase_eeprom_data();
         void check_eeprom_data();
         void dump_eeprom(StreamOutput *stream);
-        
         void read_Factory_data();
         bool write_Factory_data();
         void erase_Factory_data();

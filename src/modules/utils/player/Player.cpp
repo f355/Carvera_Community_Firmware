@@ -21,7 +21,9 @@
 #include "checksumm.h"
 #include "Config.h"
 #include "ConfigValue.h"
+#if !defined(NO_SD_CARD)
 #include "SDFAT.h"
+#endif
 #include "md5.h"
 
 #include "modules/robot/Conveyor.h"
@@ -54,7 +56,9 @@
 #define spindle_suspend_restore_enable_checksum CHECKSUM("spindle_suspend_restore_enable")
 #define laser_module_clustering_checksum 	  CHECKSUM("laser_module_clustering")
 
+#if !defined(NO_SD_CARD)
 extern SDFAT mounter;
+#endif
 
 #define XBUFF_LENGTH	8208
 unsigned char xbuff[XBUFF_LENGTH] LOCATED_IN_AHBSRAM; /* 2 for data length, 8192 for XModem + 3 head chars + 2 crc + nul */
@@ -351,7 +355,9 @@ void Player::on_gcode_received(void *argument)
 
         }      
         else if (gcode->m == 21) { // Dummy code; makes Octoprint happy -- supposed to initialize SD card
+#if !defined(NO_SD_CARD)
             mounter.remount();
+#endif
             gcode->stream->printf("SD card ok\r\n");
 
         } else if (gcode->m == 23) { // select file

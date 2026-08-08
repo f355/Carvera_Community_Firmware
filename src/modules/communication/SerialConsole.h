@@ -31,7 +31,7 @@ class SerialConsole : public Module, public StreamOutput {
         void on_idle(void * argument);
         void on_set_public_data(void *argument);
         bool has_char(char letter);
-        void attach_irq(bool enable_irq);
+        void set_rx_enabled(bool enabled);
 
         int _putc(int c);
         int _getc(void);
@@ -45,6 +45,9 @@ class SerialConsole : public Module, public StreamOutput {
 
         int get_baud() const { return current_baud_rate; }
         void set_baud_temporary(int new_baud);
+#if defined(MACHINE_FAMILY_Z1)
+        int receive_packet(makera::Packet& packet, uint32_t timeout_ms = 100);
+#endif
 
         //string receive_buffer;                 // Received chars are stored here until a newline character is received
         //vector<std::string> received_lines;    // Received lines are stored here until they are requested
@@ -55,7 +58,15 @@ class SerialConsole : public Module, public StreamOutput {
         int default_baud_rate;
         int temp_baud_rate;                       // non-zero = temporary baud active
         uint32_t last_activity_ms;                // for 15s timeout revert
+        uint32_t makera_frame_started_ms;
         makera::FrameDecoder makera_frame_decoder;
+#if defined(MACHINE_FAMILY_Z1)
+        bool rx_dispatch_enabled;
+        int rx_lookahead;
+        bool handle_rx_error();
+#endif
+        int read_byte();
+
         bool makera_cmd_queue_push(const char *data, uint16_t len);
         void makera_cmd_queue_clear();
         bool makera_cmd_queue_empty() const;
