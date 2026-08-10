@@ -1,6 +1,6 @@
 [unreleased]
-- Enhancement: Support Makera Z1 and Z1 Pro.
 - Changed: Build as C++17 and use one CRC-16/CCITT implementation for active protocols.
+- Enhancement: Support Makera Z1 and Z1 Pro.
 
 [2.2.0c-RC1]
 - Enhancement: AnalogSpindleControl now supports optional RPM feedback and Alarm pin functionality, same as PWMSpindleControl. Same configuration keys (spindle.feedback_pin, spindle.pulses_per_rev, spindle.acc_ratio, and spindle.control_smoothing, spindle.alarm_pin)
