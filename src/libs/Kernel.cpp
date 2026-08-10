@@ -403,8 +403,9 @@ std::string Kernel::get_query_string()
 #endif
 
         // work space position
-        mpos[A_AXIS] = robot->actuators[A_AXIS]->get_current_position();
-        mpos[B_AXIS] = robot->actuators[B_AXIS]->get_current_position();
+        const int motor_count = robot->get_number_registered_motors();
+        mpos[A_AXIS] = motor_count > A_AXIS ? robot->actuators[A_AXIS]->get_current_position() : 0.0F;
+        mpos[B_AXIS] = motor_count > B_AXIS ? robot->actuators[B_AXIS]->get_current_position() : 0.0F;
         
         Robot::wcs_t pos = robot->mcs2wcs(mpos);
         n = snprintf(buf, sizeof(buf), "%1.4f,%1.4f,%1.4f", robot->from_millimeters(std::get<X_AXIS>(pos)), robot->from_millimeters(std::get<Y_AXIS>(pos)), robot->from_millimeters(std::get<Z_AXIS>(pos)));

@@ -106,6 +106,9 @@
 ATCHandler::ATCHandler()
 {
     atc_status = NONE;
+    debounce = 0;
+    atc_homing = false;
+    detecting = false;
     atc_home_info.clamp_status = UNHOMED;
     atc_home_info.triggered = false;
     detector_info.triggered = false;
