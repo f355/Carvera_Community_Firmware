@@ -74,6 +74,14 @@ delta_fast_homing_rate_mm_s 50
 delta_limit_enable true
 delta_homing_retract_mm 0.5
 
+# Unused B axis
+epsilon_step_pin 1.22
+epsilon_dir_pin 1.0
+epsilon_en_pin 1.10
+epsilon_max_rate 100.0
+epsilon_steps_per_mm 888.88888
+epsilon_acceleration 10.0
+
 # Controller link and switched outputs
 wifi.enable false
 switch.vacuum.enable true
