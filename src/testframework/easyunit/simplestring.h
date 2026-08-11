@@ -23,50 +23,46 @@ This class was originally created by Michael Feathers and was modified
 by Barthelemy Dagenais.
 */
 
-
 #ifndef SIMPLE_STRING
 #define SIMPLE_STRING
-
 
 /**
  * SimpleString is a simple implementation of the std class String and is
  * provided to ease the manipulation of strings without using any other
  * libraries.
  */
-class SimpleString
-{
-	friend bool	operator== (const SimpleString& left, const SimpleString& right);
+class SimpleString {
+  friend bool operator==(const SimpleString& left, const SimpleString& right);
 
-	friend bool	operator!= (const SimpleString& left, const SimpleString& right);
+  friend bool operator!=(const SimpleString& left, const SimpleString& right);
 
-  public:
-    SimpleString ();
-		SimpleString (const char *value);
-		SimpleString (const SimpleString& other);
-		~SimpleString ();
+ public:
+  SimpleString();
+  SimpleString(const char* value);
+  SimpleString(const SimpleString& other);
+  ~SimpleString();
 
-	  SimpleString operator= (const SimpleString& other);
+  SimpleString operator=(const SimpleString& other);
 
-    SimpleString operator+ (const SimpleString& other);
+  SimpleString operator+(const SimpleString& other);
 
-	  char *asCharString () const;
-	  int size() const;
+  char* asCharString() const;
+  int size() const;
 
-  private:
-	  char *buffer;
+ private:
+  char* buffer;
 };
 
 // Those functions are provided to ease the conversion between
 // primary datatypes and SimpleString. Feel free to extend this list
 // to support your own datatype.
-SimpleString StringFrom (bool value);
-SimpleString StringFrom (const char *value);
-SimpleString StringFrom (long value);
-SimpleString StringFrom (int value);
-SimpleString StringFrom (unsigned int value);
-SimpleString StringFrom (float value);
-SimpleString StringFrom (double value);
-SimpleString StringFrom (const SimpleString& other);
+SimpleString StringFrom(bool value);
+SimpleString StringFrom(const char* value);
+SimpleString StringFrom(long value);
+SimpleString StringFrom(int value);
+SimpleString StringFrom(unsigned int value);
+SimpleString StringFrom(float value);
+SimpleString StringFrom(double value);
+SimpleString StringFrom(const SimpleString& other);
 
 #endif
-

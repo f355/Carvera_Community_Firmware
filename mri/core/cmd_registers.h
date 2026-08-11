@@ -24,8 +24,8 @@ uint32_t mriCmd_HandleRegisterReadCommand(void);
 uint32_t mriCmd_HandleRegisterWriteCommand(void);
 
 /* Macroes which allow code to drop the mri namespace prefix. */
-#define Send_T_StopResponse         mriCmd_Send_T_StopResponse
-#define HandleRegisterReadCommand   mriCmd_HandleRegisterReadCommand
-#define HandleRegisterWriteCommand  mriCmd_HandleRegisterWriteCommand
+#define Send_T_StopResponse mriCmd_Send_T_StopResponse
+#define HandleRegisterReadCommand mriCmd_HandleRegisterReadCommand
+#define HandleRegisterWriteCommand mriCmd_HandleRegisterWriteCommand
 
 #endif /* CMD_REGISTERS_H_ */

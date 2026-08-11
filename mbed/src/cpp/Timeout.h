@@ -49,11 +49,10 @@ namespace mbed {
  * @endcode
  */
 class Timeout : public Ticker {
-
-protected:
-    virtual void handler();
+ protected:
+  virtual void handler();
 };
 
-} // namespace mbed
+}  // namespace mbed
 
 #endif

@@ -17,7 +17,7 @@
 extern volatile USB_INT32U HOST_WdhIntr;
 extern volatile USB_INT08U HOST_TDControlStatus;
 extern volatile int gUSBConnected;
-extern volatile HCED *EDCtrl;
+extern volatile HCED* EDCtrl;
 
 namespace {
 constexpr uint32_t CDC_PORT_RESET_TIMEOUT_MS = 500;
@@ -113,8 +113,8 @@ bool USBHostCDC::init(const uint32_t timeout_ms) {
 }
 
 USB_INT32S USBHostCDC::parse_cdc_configuration(const uint16_t fetched_len) {
-  volatile USB_INT08U *desc = TDBuffer;
-  const volatile USB_INT08U *end = TDBuffer + fetched_len;
+  volatile USB_INT08U* desc = TDBuffer;
+  const volatile USB_INT08U* end = TDBuffer + fetched_len;
   bool data_iface_found = false;
   bool bulk_in_found = false, bulk_out_found = false;
 
@@ -144,8 +144,8 @@ USB_INT32S USBHostCDC::parse_cdc_configuration(const uint16_t fetched_len) {
         break;
 
       case USB_DESCRIPTOR_TYPE_ENDPOINT:
-        if (data_iface_found &&
-            (desc[USB_ENDPOINT_ATTRIBUTES_OFFSET] & USB_ENDPOINT_TRANSFER_TYPE_MASK) == USB_ENDPOINT_TRANSFER_TYPE_BULK) {
+        if (data_iface_found && (desc[USB_ENDPOINT_ATTRIBUTES_OFFSET] & USB_ENDPOINT_TRANSFER_TYPE_MASK) ==
+                                    USB_ENDPOINT_TRANSFER_TYPE_BULK) {
           const uint8_t endpoint_address = desc[USB_ENDPOINT_ADDRESS_OFFSET];
           const uint16_t max_pkt = ReadLE16U(&desc[USB_ENDPOINT_MAX_PACKET_SIZE_OFFSET]);
           if (endpoint_address & USB_ENDPOINT_DIRECTION_IN) {
@@ -186,7 +186,7 @@ USB_INT32S USBHostCDC::set_control_line_state(const uint16_t state) const {
   return Host_CtrlSend(CDC_REQUEST_TYPE_HOST_TO_INTERFACE, CDC_SET_CONTROL_LINE_STATE, state, _cdc_iface, 0, nullptr);
 }
 
-void USBHostCDC::submit_bulk_td(volatile HCED *ed, const uint32_t token, const volatile uint8_t *buffer,
+void USBHostCDC::submit_bulk_td(volatile HCED* ed, const uint32_t token, const volatile uint8_t* buffer,
                                 const uint32_t len) {
   if (len == 0) return;
 
@@ -252,7 +252,7 @@ void USBHostCDC::abort_transfer() {
   EDBulkOut->Control &= ~OHCI_ED_SKIP;
 }
 
-bool USBHostCDC::start_send(const uint8_t *data, uint32_t len) {
+bool USBHostCDC::start_send(const uint8_t* data, uint32_t len) {
   if (_state != CDC_XFER_IDLE || !_connected) return false;
   if (len == 0) return false;
   if (len > CDC_BULK_TRANSFER_MAX) len = CDC_BULK_TRANSFER_MAX;

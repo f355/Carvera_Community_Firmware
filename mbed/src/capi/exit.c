@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "semihost_api.h"
 #include "mbed_interface.h"
+#include "semihost_api.h"
 
 void exit(int return_code) {
 #if DEVICE_SEMIHOST
-    if (mbed_interface_connected()) {
-        semihost_exit();
-    }
+  if (mbed_interface_connected()) {
+    semihost_exit();
+  }
 #endif
-    if (return_code) {
-        mbed_die();
-    }
+  if (return_code) {
+    mbed_die();
+  }
 
-    while (1);
+  while (1);
 }

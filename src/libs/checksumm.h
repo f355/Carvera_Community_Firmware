@@ -33,20 +33,19 @@
 */
 #ifdef CHECKSUM_USE_CPP
 
-#include <type_traits>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
+
+#include <type_traits>
 
 /* Cool C++11 approach contributed by bgamari on #smoothieware IRC channel.
  * Unfortunately this will have to wait until after we switch to GCC 4.7.
  */
 constexpr uint16_t checksum(const char* s, size_t n, size_t i, uint16_t sum1, uint16_t sum2) {
-  return (i <= n) ? checksum(s, n, i+1, (sum1 + s[i]) % 255, (sum2 + sum1) % 255) : ((sum2 << 8) | sum1);
+  return (i <= n) ? checksum(s, n, i + 1, (sum1 + s[i]) % 255, (sum2 + sum1) % 255) : ((sum2 << 8) | sum1);
 }
 
-constexpr uint16_t operator "" _checksum(const char* s, size_t n) {
-  return checksum(s, n, 0, 0, 0);
-}
+constexpr uint16_t operator"" _checksum(const char* s, size_t n) { return checksum(s, n, 0, 0, 0); }
 
 #define CHECKSUM(X) std::integral_constant<uint16_t, X##_checksum>::value
 
@@ -122,39 +121,39 @@ constexpr uint16_t operator "" _checksum(const char* s, size_t n) {
 #define SUM2_32(X) ((SUM2_31(X) + SUM1_32(X)) % 255)
 
 /* Define overall checksum as 16-bit combination of SUM1 in lower 8-bits and SUM2 in upper 8-bits. */
-#define CHECKSUM_(SUM1,SUM2) (SUM1) | (SUM2 << 8)
-#define CHECKSUM_1(X) CHECKSUM_(SUM1_1(X),SUM2_1(X))
-#define CHECKSUM_2(X) CHECKSUM_(SUM1_2(X),SUM2_2(X))
-#define CHECKSUM_3(X) CHECKSUM_(SUM1_3(X),SUM2_3(X))
-#define CHECKSUM_4(X) CHECKSUM_(SUM1_4(X),SUM2_4(X))
-#define CHECKSUM_5(X) CHECKSUM_(SUM1_5(X),SUM2_5(X))
-#define CHECKSUM_6(X) CHECKSUM_(SUM1_6(X),SUM2_6(X))
-#define CHECKSUM_7(X) CHECKSUM_(SUM1_7(X),SUM2_7(X))
-#define CHECKSUM_8(X) CHECKSUM_(SUM1_8(X),SUM2_8(X))
-#define CHECKSUM_9(X) CHECKSUM_(SUM1_9(X),SUM2_9(X))
-#define CHECKSUM_10(X) CHECKSUM_(SUM1_10(X),SUM2_10(X))
-#define CHECKSUM_11(X) CHECKSUM_(SUM1_11(X),SUM2_11(X))
-#define CHECKSUM_12(X) CHECKSUM_(SUM1_12(X),SUM2_12(X))
-#define CHECKSUM_13(X) CHECKSUM_(SUM1_13(X),SUM2_13(X))
-#define CHECKSUM_14(X) CHECKSUM_(SUM1_14(X),SUM2_14(X))
-#define CHECKSUM_15(X) CHECKSUM_(SUM1_15(X),SUM2_15(X))
-#define CHECKSUM_16(X) CHECKSUM_(SUM1_16(X),SUM2_16(X))
-#define CHECKSUM_17(X) CHECKSUM_(SUM1_17(X),SUM2_17(X))
-#define CHECKSUM_18(X) CHECKSUM_(SUM1_18(X),SUM2_18(X))
-#define CHECKSUM_19(X) CHECKSUM_(SUM1_19(X),SUM2_19(X))
-#define CHECKSUM_20(X) CHECKSUM_(SUM1_20(X),SUM2_20(X))
-#define CHECKSUM_21(X) CHECKSUM_(SUM1_21(X),SUM2_21(X))
-#define CHECKSUM_22(X) CHECKSUM_(SUM1_22(X),SUM2_22(X))
-#define CHECKSUM_23(X) CHECKSUM_(SUM1_23(X),SUM2_23(X))
-#define CHECKSUM_24(X) CHECKSUM_(SUM1_24(X),SUM2_24(X))
-#define CHECKSUM_25(X) CHECKSUM_(SUM1_25(X),SUM2_25(X))
-#define CHECKSUM_26(X) CHECKSUM_(SUM1_26(X),SUM2_26(X))
-#define CHECKSUM_27(X) CHECKSUM_(SUM1_27(X),SUM2_27(X))
-#define CHECKSUM_28(X) CHECKSUM_(SUM1_28(X),SUM2_28(X))
-#define CHECKSUM_29(X) CHECKSUM_(SUM1_29(X),SUM2_29(X))
-#define CHECKSUM_30(X) CHECKSUM_(SUM1_30(X),SUM2_30(X))
-#define CHECKSUM_31(X) CHECKSUM_(SUM1_31(X),SUM2_31(X))
-#define CHECKSUM_32(X) CHECKSUM_(SUM1_32(X),SUM2_32(X))
+#define CHECKSUM_(SUM1, SUM2) (SUM1) | (SUM2 << 8)
+#define CHECKSUM_1(X) CHECKSUM_(SUM1_1(X), SUM2_1(X))
+#define CHECKSUM_2(X) CHECKSUM_(SUM1_2(X), SUM2_2(X))
+#define CHECKSUM_3(X) CHECKSUM_(SUM1_3(X), SUM2_3(X))
+#define CHECKSUM_4(X) CHECKSUM_(SUM1_4(X), SUM2_4(X))
+#define CHECKSUM_5(X) CHECKSUM_(SUM1_5(X), SUM2_5(X))
+#define CHECKSUM_6(X) CHECKSUM_(SUM1_6(X), SUM2_6(X))
+#define CHECKSUM_7(X) CHECKSUM_(SUM1_7(X), SUM2_7(X))
+#define CHECKSUM_8(X) CHECKSUM_(SUM1_8(X), SUM2_8(X))
+#define CHECKSUM_9(X) CHECKSUM_(SUM1_9(X), SUM2_9(X))
+#define CHECKSUM_10(X) CHECKSUM_(SUM1_10(X), SUM2_10(X))
+#define CHECKSUM_11(X) CHECKSUM_(SUM1_11(X), SUM2_11(X))
+#define CHECKSUM_12(X) CHECKSUM_(SUM1_12(X), SUM2_12(X))
+#define CHECKSUM_13(X) CHECKSUM_(SUM1_13(X), SUM2_13(X))
+#define CHECKSUM_14(X) CHECKSUM_(SUM1_14(X), SUM2_14(X))
+#define CHECKSUM_15(X) CHECKSUM_(SUM1_15(X), SUM2_15(X))
+#define CHECKSUM_16(X) CHECKSUM_(SUM1_16(X), SUM2_16(X))
+#define CHECKSUM_17(X) CHECKSUM_(SUM1_17(X), SUM2_17(X))
+#define CHECKSUM_18(X) CHECKSUM_(SUM1_18(X), SUM2_18(X))
+#define CHECKSUM_19(X) CHECKSUM_(SUM1_19(X), SUM2_19(X))
+#define CHECKSUM_20(X) CHECKSUM_(SUM1_20(X), SUM2_20(X))
+#define CHECKSUM_21(X) CHECKSUM_(SUM1_21(X), SUM2_21(X))
+#define CHECKSUM_22(X) CHECKSUM_(SUM1_22(X), SUM2_22(X))
+#define CHECKSUM_23(X) CHECKSUM_(SUM1_23(X), SUM2_23(X))
+#define CHECKSUM_24(X) CHECKSUM_(SUM1_24(X), SUM2_24(X))
+#define CHECKSUM_25(X) CHECKSUM_(SUM1_25(X), SUM2_25(X))
+#define CHECKSUM_26(X) CHECKSUM_(SUM1_26(X), SUM2_26(X))
+#define CHECKSUM_27(X) CHECKSUM_(SUM1_27(X), SUM2_27(X))
+#define CHECKSUM_28(X) CHECKSUM_(SUM1_28(X), SUM2_28(X))
+#define CHECKSUM_29(X) CHECKSUM_(SUM1_29(X), SUM2_29(X))
+#define CHECKSUM_30(X) CHECKSUM_(SUM1_30(X), SUM2_30(X))
+#define CHECKSUM_31(X) CHECKSUM_(SUM1_31(X), SUM2_31(X))
+#define CHECKSUM_32(X) CHECKSUM_(SUM1_32(X), SUM2_32(X))
 
 #ifdef DEBUG
 
@@ -163,41 +162,42 @@ constexpr uint16_t operator "" _checksum(const char* s, size_t n) {
 
 #else /* !DEBUG */
 
-#define CHECKSUM(X) (sizeof(X) == 0 ? 0 : \
-                     sizeof(X) == 1 ? 0 : \
-                     sizeof(X) == 2 ? CHECKSUM_1(X) : \
-                     sizeof(X) == 3 ? CHECKSUM_2(X) : \
-                     sizeof(X) == 4 ? CHECKSUM_3(X) : \
-                     sizeof(X) == 5 ? CHECKSUM_4(X) : \
-                     sizeof(X) == 6 ? CHECKSUM_5(X) : \
-                     sizeof(X) == 7 ? CHECKSUM_6(X) : \
-                     sizeof(X) == 8 ? CHECKSUM_7(X) : \
-                     sizeof(X) == 9 ? CHECKSUM_8(X) : \
-                     sizeof(X) == 10 ? CHECKSUM_9(X) : \
-                     sizeof(X) == 11 ? CHECKSUM_10(X) : \
-                     sizeof(X) == 12 ? CHECKSUM_11(X) : \
-                     sizeof(X) == 13 ? CHECKSUM_12(X) : \
-                     sizeof(X) == 14 ? CHECKSUM_13(X) : \
-                     sizeof(X) == 15 ? CHECKSUM_14(X) : \
-                     sizeof(X) == 16 ? CHECKSUM_15(X) : \
-                     sizeof(X) == 17 ? CHECKSUM_16(X) : \
-                     sizeof(X) == 18 ? CHECKSUM_17(X) : \
-                     sizeof(X) == 19 ? CHECKSUM_18(X) : \
-                     sizeof(X) == 20 ? CHECKSUM_19(X) : \
-                     sizeof(X) == 21 ? CHECKSUM_20(X) : \
-                     sizeof(X) == 22 ? CHECKSUM_21(X) : \
-                     sizeof(X) == 23 ? CHECKSUM_22(X) : \
-                     sizeof(X) == 24 ? CHECKSUM_23(X) : \
-                     sizeof(X) == 25 ? CHECKSUM_24(X) : \
-                     sizeof(X) == 26 ? CHECKSUM_25(X) : \
-                     sizeof(X) == 27 ? CHECKSUM_26(X) : \
-                     sizeof(X) == 28 ? CHECKSUM_27(X) : \
-                     sizeof(X) == 29 ? CHECKSUM_28(X) : \
-                     sizeof(X) == 30 ? CHECKSUM_29(X) : \
-                     sizeof(X) == 31 ? CHECKSUM_30(X) : \
-                     sizeof(X) == 32 ? CHECKSUM_31(X) : \
-                     sizeof(X) == 33 ? CHECKSUM_32(X) : \
-                     0xFFFF)
+#define CHECKSUM(X)                   \
+  (sizeof(X) == 0    ? 0              \
+   : sizeof(X) == 1  ? 0              \
+   : sizeof(X) == 2  ? CHECKSUM_1(X)  \
+   : sizeof(X) == 3  ? CHECKSUM_2(X)  \
+   : sizeof(X) == 4  ? CHECKSUM_3(X)  \
+   : sizeof(X) == 5  ? CHECKSUM_4(X)  \
+   : sizeof(X) == 6  ? CHECKSUM_5(X)  \
+   : sizeof(X) == 7  ? CHECKSUM_6(X)  \
+   : sizeof(X) == 8  ? CHECKSUM_7(X)  \
+   : sizeof(X) == 9  ? CHECKSUM_8(X)  \
+   : sizeof(X) == 10 ? CHECKSUM_9(X)  \
+   : sizeof(X) == 11 ? CHECKSUM_10(X) \
+   : sizeof(X) == 12 ? CHECKSUM_11(X) \
+   : sizeof(X) == 13 ? CHECKSUM_12(X) \
+   : sizeof(X) == 14 ? CHECKSUM_13(X) \
+   : sizeof(X) == 15 ? CHECKSUM_14(X) \
+   : sizeof(X) == 16 ? CHECKSUM_15(X) \
+   : sizeof(X) == 17 ? CHECKSUM_16(X) \
+   : sizeof(X) == 18 ? CHECKSUM_17(X) \
+   : sizeof(X) == 19 ? CHECKSUM_18(X) \
+   : sizeof(X) == 20 ? CHECKSUM_19(X) \
+   : sizeof(X) == 21 ? CHECKSUM_20(X) \
+   : sizeof(X) == 22 ? CHECKSUM_21(X) \
+   : sizeof(X) == 23 ? CHECKSUM_22(X) \
+   : sizeof(X) == 24 ? CHECKSUM_23(X) \
+   : sizeof(X) == 25 ? CHECKSUM_24(X) \
+   : sizeof(X) == 26 ? CHECKSUM_25(X) \
+   : sizeof(X) == 27 ? CHECKSUM_26(X) \
+   : sizeof(X) == 28 ? CHECKSUM_27(X) \
+   : sizeof(X) == 29 ? CHECKSUM_28(X) \
+   : sizeof(X) == 30 ? CHECKSUM_29(X) \
+   : sizeof(X) == 31 ? CHECKSUM_30(X) \
+   : sizeof(X) == 32 ? CHECKSUM_31(X) \
+   : sizeof(X) == 33 ? CHECKSUM_32(X) \
+                     : 0xFFFF)
 #endif /* DEBUG */
 #endif /* CHECKSUM_USE_CPP */
 

@@ -14,32 +14,25 @@
  * limitations under the License.
  */
 #include "TimerEvent.h"
-#include "cmsis.h"
 
 #include <stddef.h>
 
+#include "cmsis.h"
+
 namespace mbed {
 
-TimerEvent::TimerEvent() {
-    us_ticker_set_handler((&TimerEvent::irq));
-}
+TimerEvent::TimerEvent() { us_ticker_set_handler((&TimerEvent::irq)); }
 
 void TimerEvent::irq(uint32_t id) {
-    TimerEvent *timer_event = (TimerEvent*)id;
-    timer_event->handler();
+  TimerEvent* timer_event = (TimerEvent*)id;
+  timer_event->handler();
 }
 
-TimerEvent::~TimerEvent() {
-    remove();
-}
+TimerEvent::~TimerEvent() { remove(); }
 
 // insert in to linked list
-void TimerEvent::insert(unsigned int timestamp) {
-    us_ticker_insert_event(&event, timestamp, (uint32_t)this);
-}
+void TimerEvent::insert(unsigned int timestamp) { us_ticker_insert_event(&event, timestamp, (uint32_t)this); }
 
-void TimerEvent::remove() {
-    us_ticker_remove_event(&event);
-}
+void TimerEvent::remove() { us_ticker_remove_event(&event); }
 
-} // namespace mbed
+}  // namespace mbed

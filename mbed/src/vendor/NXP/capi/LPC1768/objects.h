@@ -16,57 +16,57 @@
 #ifndef MBED_OBJECTS_H
 #define MBED_OBJECTS_H
 
-#include "cmsis.h"
-#include "PortNames.h"
 #include "PeripheralNames.h"
 #include "PinNames.h"
+#include "PortNames.h"
+#include "cmsis.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct gpio_irq_s {
-    uint32_t port;
-    uint32_t pin;
-    uint32_t ch;
+  uint32_t port;
+  uint32_t pin;
+  uint32_t ch;
 };
 
 struct port_s {
-    __IO uint32_t *reg_dir;
-    __IO uint32_t *reg_out;
-    __I  uint32_t *reg_in;
-    PortName port;
-    uint32_t mask;
+  __IO uint32_t* reg_dir;
+  __IO uint32_t* reg_out;
+  __I uint32_t* reg_in;
+  PortName port;
+  uint32_t mask;
 };
 
 struct pwmout_s {
-    __IO uint32_t *MR;
-    PWMName pwm;
+  __IO uint32_t* MR;
+  PWMName pwm;
 };
 
 struct serial_s {
-    LPC_UART_TypeDef *uart;
-    int index;
+  LPC_UART_TypeDef* uart;
+  int index;
 };
 
 struct analogin_s {
-    ADCName adc;
+  ADCName adc;
 };
 
 struct dac_s {
-    DACName dac;
+  DACName dac;
 };
 
 struct can_s {
-    LPC_CAN_TypeDef *dev;
+  LPC_CAN_TypeDef* dev;
 };
 
 struct i2c_s {
-    LPC_I2C_TypeDef *i2c;
+  LPC_I2C_TypeDef* i2c;
 };
 
 struct spi_s {
-    LPC_SSP_TypeDef *spi;
+  LPC_SSP_TypeDef* spi;
 };
 
 #include "gpio_object.h"

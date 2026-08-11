@@ -42,47 +42,46 @@ namespace mbed {
  * @endcode
  */
 class Timer {
+ public:
+  Timer();
 
-public:
-    Timer();
+  /** Start the timer
+   */
+  void start();
 
-    /** Start the timer
-     */
-    void start();
+  /** Stop the timer
+   */
+  void stop();
 
-    /** Stop the timer
-     */
-    void stop();
+  /** Reset the timer to 0.
+   *
+   * If it was already counting, it will continue
+   */
+  void reset();
 
-    /** Reset the timer to 0.
-     *
-     * If it was already counting, it will continue
-     */
-    void reset();
+  /** Get the time passed in seconds
+   */
+  float read();
 
-    /** Get the time passed in seconds
-     */
-    float read();
+  /** Get the time passed in mili-seconds
+   */
+  int read_ms();
 
-    /** Get the time passed in mili-seconds
-     */
-    int read_ms();
-
-    /** Get the time passed in micro-seconds
-     */
-    int read_us();
+  /** Get the time passed in micro-seconds
+   */
+  int read_us();
 
 #ifdef MBED_OPERATORS
-    operator float();
+  operator float();
 #endif
 
-protected:
-    int slicetime();
-    int _running;          // whether the timer is running
-    unsigned int _start;   // the start time of the latest slice
-    int _time;             // any accumulated time from previous slices
+ protected:
+  int slicetime();
+  int _running;         // whether the timer is running
+  unsigned int _start;  // the start time of the latest slice
+  int _time;            // any accumulated time from previous slices
 };
 
-} // namespace mbed
+}  // namespace mbed
 
 #endif

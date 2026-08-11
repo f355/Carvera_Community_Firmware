@@ -21,133 +21,93 @@ barthelemy@prologique.com
 */
 
 #include "simplestring.h"
-#include <string.h>
+
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <string.h>
 
 static const int DEFAULT_SIZE = 20;
 
-SimpleString::SimpleString ()
-: buffer(new char [1])
-{
-	buffer [0] = '\0';
+SimpleString::SimpleString() : buffer(new char[1]) { buffer[0] = '\0'; }
+
+SimpleString::SimpleString(const char* otherBuffer) : buffer(new char[strlen(otherBuffer) + 1]) {
+  strcpy(buffer, otherBuffer);
 }
 
-
-SimpleString::SimpleString (const char *otherBuffer)
-: buffer (new char [strlen (otherBuffer) + 1])
-{
-	strcpy (buffer, otherBuffer);
+SimpleString::SimpleString(const SimpleString& other) {
+  buffer = new char[other.size() + 1];
+  strcpy(buffer, other.buffer);
 }
 
-SimpleString::SimpleString (const SimpleString& other)
-{
-	buffer = new char [other.size() + 1];
-	strcpy(buffer, other.buffer);
+SimpleString SimpleString::operator=(const SimpleString& other) {
+  delete buffer;
+  buffer = new char[other.size() + 1];
+  strcpy(buffer, other.buffer);
+  return *this;
 }
 
-
-SimpleString SimpleString::operator= (const SimpleString& other)
-{
-	delete buffer;
-	buffer = new char [other.size() + 1];
-	strcpy(buffer, other.buffer);
-	return *this;
+SimpleString SimpleString::operator+(const SimpleString& other) {
+  SimpleString newS;
+  delete[] newS.buffer;
+  newS.buffer = new char[this->size() + other.size() + 1];
+  strcpy(newS.buffer, this->asCharString());
+  newS.buffer = strcat(newS.buffer, other.asCharString());
+  return newS;
 }
 
-SimpleString SimpleString::operator+ (const SimpleString& other)
-{
-	SimpleString newS;
-	delete [] newS.buffer;
-	newS.buffer = new char[this->size()+other.size()+1];
-	strcpy(newS.buffer,this->asCharString());
-	newS.buffer= strcat(newS.buffer,other.asCharString());
-	return newS;
+char* SimpleString::asCharString() const { return buffer; }
+
+int SimpleString::size() const { return strlen(buffer); }
+
+SimpleString::~SimpleString() { delete[] buffer; }
+
+bool operator==(const SimpleString& left, const SimpleString& right) {
+  return !strcmp(left.asCharString(), right.asCharString());
 }
 
-char *SimpleString::asCharString () const
-{
-	return buffer;
+bool operator!=(const SimpleString& left, const SimpleString& right) { return !(left == right); }
+
+SimpleString StringFrom(bool value) {
+  char buffer[sizeof("false") + 1];
+  sprintf(buffer, "%s", value ? "true" : "false");
+  return SimpleString(buffer);
 }
 
-int SimpleString::size() const
-{
-	return strlen (buffer);
+SimpleString StringFrom(const char* value) { return SimpleString(value); }
+
+SimpleString StringFrom(long value) {
+  char buffer[DEFAULT_SIZE];
+  sprintf(buffer, "%ld", value);
+
+  return SimpleString(buffer);
 }
 
-SimpleString::~SimpleString ()
-{
-	delete [] buffer;
+SimpleString StringFrom(int value) {
+  char buffer[DEFAULT_SIZE];
+  sprintf(buffer, "%d", value);
+
+  return SimpleString(buffer);
 }
 
-bool operator== (const SimpleString& left, const SimpleString& right)
-{
-	return !strcmp (left.asCharString (), right.asCharString ());
+SimpleString StringFrom(unsigned int value) {
+  char buffer[DEFAULT_SIZE];
+  sprintf(buffer, "%u", value);
+
+  return SimpleString(buffer);
 }
 
-bool operator!= (const SimpleString& left, const SimpleString& right)
-{
-	return !(left == right);
+SimpleString StringFrom(double value) {
+  char buffer[DEFAULT_SIZE];
+  sprintf(buffer, "%lf", value);
+
+  return SimpleString(buffer);
 }
 
-SimpleString StringFrom (bool value)
-{
-	char buffer [sizeof ("false") + 1];
-	sprintf (buffer, "%s", value ? "true" : "false");
-	return SimpleString(buffer);
+SimpleString StringFrom(float value) {
+  char buffer[DEFAULT_SIZE];
+  sprintf(buffer, "%f", value);
+
+  return SimpleString(buffer);
 }
 
-SimpleString StringFrom (const char *value)
-{
-	return SimpleString(value);
-}
-
-SimpleString StringFrom (long value)
-{
-	char buffer [DEFAULT_SIZE];
-	sprintf (buffer, "%ld", value);
-
-	return SimpleString(buffer);
-}
-
-SimpleString StringFrom (int value)
-{
-	char buffer [DEFAULT_SIZE];
-	sprintf (buffer, "%d", value);
-
-	return SimpleString(buffer);
-}
-
-SimpleString StringFrom (unsigned int value)
-{
-	char buffer [DEFAULT_SIZE];
-	sprintf (buffer, "%u", value);
-
-	return SimpleString(buffer);
-}
-
-SimpleString StringFrom (double value)
-{
-	char buffer [DEFAULT_SIZE];
-	sprintf (buffer, "%lf", value);
-
-	return SimpleString(buffer);
-}
-
-SimpleString StringFrom (float value)
-{
-	char buffer [DEFAULT_SIZE];
-	sprintf (buffer, "%f", value);
-
-	return SimpleString(buffer);
-}
-
-SimpleString StringFrom (const SimpleString& value)
-{
-	return SimpleString(value);
-}
-
-
-
-
+SimpleString StringFrom(const SimpleString& value) { return SimpleString(value); }

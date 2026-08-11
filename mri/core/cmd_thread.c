@@ -13,12 +13,11 @@
    limitations under the License.
 */
 /* Command handler for gdb commands related to threads. */
-#include <core/mri.h>
-#include <core/core.h>
 #include <core/cmd_thread.h>
+#include <core/core.h>
+#include <core/mri.h>
 #include <core/platforms.h>
 #include <core/try_catch.h>
-
 
 /* Handle the 'H' command which is sent to switch thread register context.
 
@@ -28,40 +27,32 @@
     Where xxxxxxxx is the hexadecimal representation of the ID for the thread to use for future register read/write
     commands.
 */
-uint32_t HandleThreadContextCommand(void)
-{
-    Buffer*     pBuffer = GetBuffer();
+uint32_t HandleThreadContextCommand(void) {
+  Buffer* pBuffer = GetBuffer();
 
-    __try
-    {
-        uint32_t    threadId = 0;
-        MriContext* pContext = NULL;
-        char        ch;
+  __try {
+    uint32_t threadId = 0;
+    MriContext* pContext = NULL;
+    char ch;
 
-        __throwing_func( ch = Buffer_ReadChar(pBuffer) );
-        if (ch != 'g')
-        {
-            setExceptionCode(invalidArgumentException);
-            break;
-        }
-        __throwing_func( threadId = Buffer_ReadUIntegerAsHex(pBuffer) );
-        pContext = Platform_RtosGetThreadContext(threadId);
-        if (pContext == NULL)
-        {
-            setExceptionCode(invalidArgumentException);
-            break;
-        }
-        SetContext(pContext);
-        PrepareStringResponse("OK");
+    __throwing_func(ch = Buffer_ReadChar(pBuffer));
+    if (ch != 'g') {
+      setExceptionCode(invalidArgumentException);
+      break;
     }
-    __catch
-    {
-        PrepareStringResponse(MRI_ERROR_INVALID_ARGUMENT);
+    __throwing_func(threadId = Buffer_ReadUIntegerAsHex(pBuffer));
+    pContext = Platform_RtosGetThreadContext(threadId);
+    if (pContext == NULL) {
+      setExceptionCode(invalidArgumentException);
+      break;
     }
+    SetContext(pContext);
+    PrepareStringResponse("OK");
+  }
+  __catch { PrepareStringResponse(MRI_ERROR_INVALID_ARGUMENT); }
 
-    return 0;
+  return 0;
 }
-
 
 /* Handle the 'T' command which is sent to see if a thread ID is still active.
 
@@ -71,28 +62,22 @@ uint32_t HandleThreadContextCommand(void)
 
     Where xxxxxxxx is the hexadecimal representation of the thread ID.
 */
-uint32_t HandleIsThreadActiveCommand(void)
-{
-    Buffer*     pBuffer = GetBuffer();
+uint32_t HandleIsThreadActiveCommand(void) {
+  Buffer* pBuffer = GetBuffer();
 
-    __try
-    {
-        uint32_t    threadId = 0;
-        int         isActive = 0;
+  __try {
+    uint32_t threadId = 0;
+    int isActive = 0;
 
-        __throwing_func( threadId = Buffer_ReadUIntegerAsHex(pBuffer) );
-        isActive = Platform_RtosIsThreadActive(threadId);
-        if (!isActive)
-        {
-            setExceptionCode(invalidArgumentException);
-            break;
-        }
-        PrepareStringResponse("OK");
+    __throwing_func(threadId = Buffer_ReadUIntegerAsHex(pBuffer));
+    isActive = Platform_RtosIsThreadActive(threadId);
+    if (!isActive) {
+      setExceptionCode(invalidArgumentException);
+      break;
     }
-    __catch
-    {
-        PrepareStringResponse(MRI_ERROR_INVALID_ARGUMENT);
-    }
+    PrepareStringResponse("OK");
+  }
+  __catch { PrepareStringResponse(MRI_ERROR_INVALID_ARGUMENT); }
 
-    return 0;
+  return 0;
 }

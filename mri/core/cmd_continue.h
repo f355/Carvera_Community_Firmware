@@ -26,10 +26,10 @@ uint32_t mriCmd_HandleContinueWithSignalCommand(void);
 uint32_t mriCmd_HandleDetachCommand(void);
 
 /* Macroes which allow code to drop the mri namespace prefix. */
-#define ContinueExecution               mriCmd_ContinueExecution
-#define SkipHardcodedBreakpoint         mriCmd_SkipHardcodedBreakpoint
-#define HandleContinueCommand           mriCmd_HandleContinueCommand
+#define ContinueExecution mriCmd_ContinueExecution
+#define SkipHardcodedBreakpoint mriCmd_SkipHardcodedBreakpoint
+#define HandleContinueCommand mriCmd_HandleContinueCommand
 #define HandleContinueWithSignalCommand mriCmd_HandleContinueWithSignalCommand
-#define HandleDetachCommand             mriCmd_HandleDetachCommand
+#define HandleDetachCommand mriCmd_HandleDetachCommand
 
 #endif /* CMD_CONTINUE_H_ */

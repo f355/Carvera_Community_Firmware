@@ -17,21 +17,21 @@
 #ifndef STM32F429XX_H_
 #define STM32F429XX_H_
 
-#include <stdint.h>
 #include <core/token.h>
+#include <stdint.h>
+
 #include "stm32f429xx_usart.h"
 
 /* Flags that can be set in Stm32f429xxState::flags */
-#define STM32F429XX_UART_FLAGS_SHARE        1
-#define STM32F429XX_UART_FLAGS_MANUAL_BAUD  2
+#define STM32F429XX_UART_FLAGS_SHARE 1
+#define STM32F429XX_UART_FLAGS_MANUAL_BAUD 2
 
 /* Flag to indicate whether context will contain FPU registers or not. */
 #define MRI_DEVICE_HAS_FPU 1
 
-typedef struct
-{
-    const UartConfiguration*  pCurrentUart;
-    uint32_t                  flags;
+typedef struct {
+  const UartConfiguration* pCurrentUart;
+  uint32_t flags;
 } Stm32f429xxState;
 
 extern Stm32f429xxState mriStm32f429xxState;

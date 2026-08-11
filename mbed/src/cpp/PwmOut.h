@@ -51,107 +51,85 @@ namespace mbed {
  *  refreshed.
  */
 class PwmOut {
+ public:
+  /** Create a PwmOut connected to the specified pin
+   *
+   *  @param pin PwmOut pin to connect to
+   */
+  PwmOut(PinName pin) { pwmout_init(&_pwm, pin); }
 
-public:
+  /** Set the ouput duty-cycle, specified as a percentage (float)
+   *
+   *  @param value A floating-point value representing the output duty-cycle,
+   *    specified as a percentage. The value should lie between
+   *    0.0f (representing on 0%) and 1.0f (representing on 100%).
+   *    Values outside this range will be saturated to 0.0f or 1.0f.
+   */
+  void write(float value) { pwmout_write(&_pwm, value); }
 
-    /** Create a PwmOut connected to the specified pin
-     *
-     *  @param pin PwmOut pin to connect to
-     */
-    PwmOut(PinName pin) {
-        pwmout_init(&_pwm, pin);
-    }
+  /** Return the current output duty-cycle setting, measured as a percentage (float)
+   *
+   *  @returns
+   *    A floating-point value representing the current duty-cycle being output on the pin,
+   *    measured as a percentage. The returned value will lie between
+   *    0.0f (representing on 0%) and 1.0f (representing on 100%).
+   *
+   *  @note
+   *  This value may not match exactly the value set by a previous <write>.
+   */
+  float read() { return pwmout_read(&_pwm); }
 
-    /** Set the ouput duty-cycle, specified as a percentage (float)
-     *
-     *  @param value A floating-point value representing the output duty-cycle,
-     *    specified as a percentage. The value should lie between
-     *    0.0f (representing on 0%) and 1.0f (representing on 100%).
-     *    Values outside this range will be saturated to 0.0f or 1.0f.
-     */
-    void write(float value) {
-        pwmout_write(&_pwm, value);
-    }
+  /** Set the PWM period, specified in seconds (float), keeping the duty cycle the same.
+   *
+   *  @note
+   *   The resolution is currently in microseconds; periods smaller than this
+   *   will be set to zero.
+   */
+  void period(float seconds) { pwmout_period(&_pwm, seconds); }
 
-    /** Return the current output duty-cycle setting, measured as a percentage (float)
-     *
-     *  @returns
-     *    A floating-point value representing the current duty-cycle being output on the pin,
-     *    measured as a percentage. The returned value will lie between
-     *    0.0f (representing on 0%) and 1.0f (representing on 100%).
-     *
-     *  @note
-     *  This value may not match exactly the value set by a previous <write>.
-     */
-    float read() {
-        return pwmout_read(&_pwm);
-    }
+  /** Set the PWM period, specified in milli-seconds (int), keeping the duty cycle the same.
+   */
+  void period_ms(int ms) { pwmout_period_ms(&_pwm, ms); }
 
-    /** Set the PWM period, specified in seconds (float), keeping the duty cycle the same.
-     *
-     *  @note
-     *   The resolution is currently in microseconds; periods smaller than this
-     *   will be set to zero.
-     */
-    void period(float seconds) {
-        pwmout_period(&_pwm, seconds);
-    }
+  /** Set the PWM period, specified in micro-seconds (int), keeping the duty cycle the same.
+   */
+  void period_us(int us) { pwmout_period_us(&_pwm, us); }
 
-    /** Set the PWM period, specified in milli-seconds (int), keeping the duty cycle the same.
-     */
-    void period_ms(int ms) {
-        pwmout_period_ms(&_pwm, ms);
-    }
+  /** Set the PWM pulsewidth, specified in seconds (float), keeping the period the same.
+   */
+  void pulsewidth(float seconds) { pwmout_pulsewidth(&_pwm, seconds); }
 
-    /** Set the PWM period, specified in micro-seconds (int), keeping the duty cycle the same.
-     */
-    void period_us(int us) {
-        pwmout_period_us(&_pwm, us);
-    }
+  /** Set the PWM pulsewidth, specified in milli-seconds (int), keeping the period the same.
+   */
+  void pulsewidth_ms(int ms) { pwmout_pulsewidth_ms(&_pwm, ms); }
 
-    /** Set the PWM pulsewidth, specified in seconds (float), keeping the period the same.
-     */
-    void pulsewidth(float seconds) {
-        pwmout_pulsewidth(&_pwm, seconds);
-    }
-
-    /** Set the PWM pulsewidth, specified in milli-seconds (int), keeping the period the same.
-     */
-    void pulsewidth_ms(int ms) {
-        pwmout_pulsewidth_ms(&_pwm, ms);
-    }
-
-    /** Set the PWM pulsewidth, specified in micro-seconds (int), keeping the period the same.
-     */
-    void pulsewidth_us(int us) {
-        pwmout_pulsewidth_us(&_pwm, us);
-    }
+  /** Set the PWM pulsewidth, specified in micro-seconds (int), keeping the period the same.
+   */
+  void pulsewidth_us(int us) { pwmout_pulsewidth_us(&_pwm, us); }
 
 #ifdef MBED_OPERATORS
-    /** A operator shorthand for write()
-     */
-    PwmOut& operator= (float value) {
-        write(value);
-        return *this;
-    }
+  /** A operator shorthand for write()
+   */
+  PwmOut& operator=(float value) {
+    write(value);
+    return *this;
+  }
 
-    PwmOut& operator= (PwmOut& rhs) {
-        write(rhs.read());
-        return *this;
-    }
+  PwmOut& operator=(PwmOut& rhs) {
+    write(rhs.read());
+    return *this;
+  }
 
-    /** An operator shorthand for read()
-     */
-    operator float() {
-        return read();
-    }
+  /** An operator shorthand for read()
+   */
+  operator float() { return read(); }
 #endif
 
-protected:
-    pwmout_t _pwm;
+ protected:
+  pwmout_t _pwm;
 };
 
-} // namespace mbed
+}  // namespace mbed
 
 #endif
 

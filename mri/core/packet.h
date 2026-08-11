@@ -16,29 +16,27 @@
 #ifndef PACKET_H_
 #define PACKET_H_
 
-#include <stdio.h>
 #include <core/buffer.h>
+#include <stdio.h>
 
-typedef struct
-{
-    /* This is the complete buffer with room for '$', '#', and 2-byte checksum. */
-    Buffer         packetBuffer;
-    /* This is a subset of pPacketBuffer, after room has been made for '$', '#', and 2-byte checksum. */
-    Buffer         dataBuffer;
-    char           lastChar;
-    unsigned char  calculatedChecksum;
-    unsigned char  expectedChecksum;
+typedef struct {
+  /* This is the complete buffer with room for '$', '#', and 2-byte checksum. */
+  Buffer packetBuffer;
+  /* This is a subset of pPacketBuffer, after room has been made for '$', '#', and 2-byte checksum. */
+  Buffer dataBuffer;
+  char lastChar;
+  unsigned char calculatedChecksum;
+  unsigned char expectedChecksum;
 } Packet;
 
 /* Real name of functions are in mri namespace. */
-void    mriPacket_Init(Packet* pPacket, char* pBufferStart, size_t bufferSize);
-void    mriPacket_GetFromGDB(Packet* pPacket);
-void    mriPacket_SendToGDB(Packet* pPacket);
+void mriPacket_Init(Packet* pPacket, char* pBufferStart, size_t bufferSize);
+void mriPacket_GetFromGDB(Packet* pPacket);
+void mriPacket_SendToGDB(Packet* pPacket);
 
 /* Macroes which allow code to drop the mri namespace prefix. */
-#define Packet_Init         mriPacket_Init
-#define Packet_GetFromGDB   mriPacket_GetFromGDB
-#define Packet_SendToGDB    mriPacket_SendToGDB
-
+#define Packet_Init mriPacket_Init
+#define Packet_GetFromGDB mriPacket_GetFromGDB
+#define Packet_SendToGDB mriPacket_SendToGDB
 
 #endif /* PACKET_H_ */

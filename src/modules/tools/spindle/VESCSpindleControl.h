@@ -14,12 +14,7 @@
 #include "USBHostCDC.h"
 
 // COMM_PACKET_ID values we use (VESC FW 6.x).
-enum VESCCommPacketId {
-  COMM_FW_VERSION = 0,
-  COMM_GET_VALUES = 4,
-  COMM_SET_RPM = 8,
-  COMM_ALIVE = 30
-};
+enum VESCCommPacketId { COMM_FW_VERSION = 0, COMM_GET_VALUES = 4, COMM_SET_RPM = 8, COMM_ALIVE = 30 };
 
 enum VESCCommState {
   VESC_COMM_IDLE = 0,
@@ -36,9 +31,9 @@ class VESCSpindleControl : public SpindleControl {
   VESCSpindleControl() = default;
 
   void on_module_loaded() override;
-  void on_idle(void *argument) override;
-  void on_get_public_data(void *argument) override;
-  void on_set_public_data(void *argument) override;
+  void on_idle(void* argument) override;
+  void on_get_public_data(void* argument) override;
+  void on_set_public_data(void* argument) override;
 
  private:
   void turn_on() override;
@@ -51,16 +46,16 @@ class VESCSpindleControl : public SpindleControl {
   void report_settings() override {}
   void set_factor(float f) override;
 
-  static uint16_t vesc_crc16(const uint8_t *buf, uint16_t len);
-  static uint16_t vesc_build_packet(uint8_t *out, const uint8_t *payload, uint16_t plen);
-  static bool extract_vesc_payload(const uint8_t *frame, uint16_t frame_len, const uint8_t **payload,
-                                   uint16_t *payload_len);
+  static uint16_t vesc_crc16(const uint8_t* buf, uint16_t len);
+  static uint16_t vesc_build_packet(uint8_t* out, const uint8_t* payload, uint16_t plen);
+  static bool extract_vesc_payload(const uint8_t* frame, uint16_t frame_len, const uint8_t** payload,
+                                   uint16_t* payload_len);
   void reset_rx_packet();
-  VESCRxPacketState append_rx_packet_bytes(const volatile uint8_t *buf, uint32_t len);
+  VESCRxPacketState append_rx_packet_bytes(const volatile uint8_t* buf, uint32_t len);
   void queue_set_rpm(int32_t erpm);
   void queue_get_values();
   void queue_alive();
-  bool parse_get_values(const uint8_t *buf, uint16_t len);
+  bool parse_get_values(const uint8_t* buf, uint16_t len);
 
   void comm_poll();
   void handle_usb_disconnected();
@@ -75,13 +70,13 @@ class VESCSpindleControl : public SpindleControl {
   // command is accepted.
   bool verify_vesc_protocol();
   bool wait_for_usb_transfer(CDCXferState active_state);
-  void handle_comm_error(const char *reason);
+  void handle_comm_error(const char* reason);
   void dwell_after_spindle_change();
   int32_t commanded_rpm() const;
   void reset_stall_monitor();
   bool vesc_timeout_status_is_stale() const;
 
-  static void raise_spindle_alarm(const char *reason);
+  static void raise_spindle_alarm(const char* reason);
 
   USBHostCDC usb{};
 

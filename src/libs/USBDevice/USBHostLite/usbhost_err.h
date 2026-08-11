@@ -16,9 +16,8 @@
 **************************************************************************************************************
 */
 
-#ifndef  USBHOST_ERR_H
-#define  USBHOST_ERR_H
-
+#ifndef USBHOST_ERR_H
+#define USBHOST_ERR_H
 
 /*
 **************************************************************************************************************
@@ -26,8 +25,8 @@
 **************************************************************************************************************
 */
 
-#define  OK                        0
-#define  MATCH_FOUND               0
+#define OK 0
+#define MATCH_FOUND 0
 
 /*
 **************************************************************************************************************
@@ -35,7 +34,7 @@
 **************************************************************************************************************
 */
 
-#define  ERR_TD_FAIL              -1
+#define ERR_TD_FAIL -1
 
 /*
 **************************************************************************************************************
@@ -43,9 +42,9 @@
 **************************************************************************************************************
 */
 
-#define  ERR_MS_CMD_FAILED       -10
-#define  ERR_BAD_CONFIGURATION   -11
-#define  ERR_NO_MS_INTERFACE     -12
+#define ERR_MS_CMD_FAILED -10
+#define ERR_BAD_CONFIGURATION -11
+#define ERR_NO_MS_INTERFACE -12
 
 /*
 **************************************************************************************************************
@@ -53,11 +52,11 @@
 **************************************************************************************************************
 */
 
-#define  MATCH_NOT_FOUND         -20
-#define  ERR_FAT_NOT_SUPPORTED   -21
-#define  ERR_OPEN_LIMIT_REACHED  -22
-#define  ERR_INVALID_BOOT_SIG    -23
-#define  ERR_INVALID_BOOT_SEC    -24
-#define  ERR_ROOT_DIR_FULL       -25
+#define MATCH_NOT_FOUND -20
+#define ERR_FAT_NOT_SUPPORTED -21
+#define ERR_OPEN_LIMIT_REACHED -22
+#define ERR_INVALID_BOOT_SIG -23
+#define ERR_INVALID_BOOT_SEC -24
+#define ERR_ROOT_DIR_FULL -25
 
 #endif

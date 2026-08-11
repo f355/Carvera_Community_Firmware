@@ -91,21 +91,21 @@ constexpr uint16_t spindle_checksum = CHECKSUM("spindle");
 namespace {
 // The VESC packet payload is byte-packed and not guaranteed to be aligned, so
 // copy through a local integer before swapping byte order.
-uint16_t be16(const uint8_t *p) {
+uint16_t be16(const uint8_t* p) {
   uint16_t v;
   __builtin_memcpy(&v, p, sizeof v);
   return __builtin_bswap16(v);
 }
-uint32_t be32(const uint8_t *p) {
+uint32_t be32(const uint8_t* p) {
   uint32_t v;
   __builtin_memcpy(&v, p, sizeof v);
   return __builtin_bswap32(v);
 }
-void wbe16(uint8_t *p, const uint16_t v) {
+void wbe16(uint8_t* p, const uint16_t v) {
   const uint16_t s = __builtin_bswap16(v);
   __builtin_memcpy(p, &s, sizeof s);
 }
-void wbe32(uint8_t *p, const uint32_t v) {
+void wbe32(uint8_t* p, const uint32_t v) {
   const uint32_t s = __builtin_bswap32(v);
   __builtin_memcpy(p, &s, sizeof s);
 }
@@ -150,13 +150,13 @@ constexpr uint32_t VESC_IDLE_POLL_INTERVAL_MS = 1000;
 constexpr uint32_t VESC_TIMEOUT_STATUS_GRACE_US = 100000UL;
 }  // namespace
 
-void VESCSpindleControl::raise_spindle_alarm(const char *reason) {
+void VESCSpindleControl::raise_spindle_alarm(const char* reason) {
   THEKERNEL->streams->printf("ERROR: %s\n", reason);
   THEKERNEL->set_halt_reason(SPINDLE_ALARM);
   THEKERNEL->call_event(ON_HALT, nullptr);
 }
 
-void VESCSpindleControl::handle_comm_error(const char *reason) {
+void VESCSpindleControl::handle_comm_error(const char* reason) {
   if (!comm_error_halted || !THEKERNEL->is_halted()) {
     comm_error_halted = true;
     raise_spindle_alarm(reason);
@@ -200,7 +200,8 @@ void VESCSpindleControl::on_module_loaded() {
   max_rpm = THEKERNEL->config->value(spindle_checksum, CHECKSUM("max_rpm"))->as_int(15000);
   min_rpm = THEKERNEL->config->value(spindle_checksum, CHECKSUM("min_rpm"))->as_int(3000);
   delay_s = THEKERNEL->config->value(spindle_checksum, CHECKSUM("delay_s"))->as_int(3);
-  poll_interval_ms = static_cast<uint32_t>(THEKERNEL->config->value(spindle_checksum, CHECKSUM("vesc_poll_ms"))->as_int(200));
+  poll_interval_ms =
+      static_cast<uint32_t>(THEKERNEL->config->value(spindle_checksum, CHECKSUM("vesc_poll_ms"))->as_int(200));
   const float configured_stall_s = THEKERNEL->config->value(spindle_checksum, CHECKSUM("stall_s"))->as_number(1.0f);
   stall_us = configured_stall_s > 0.0f ? static_cast<uint32_t>(configured_stall_s * 1000000.0f) : 0;
   stall_rpm = THEKERNEL->config->value(spindle_checksum, CHECKSUM("stall_alarm_rpm"))->as_int(2000);
@@ -237,7 +238,7 @@ bool VESCSpindleControl::wait_for_usb_transfer(const CDCXferState active_state) 
 
 void VESCSpindleControl::reset_rx_packet() { rx_pkt_len = 0; }
 
-VESCRxPacketState VESCSpindleControl::append_rx_packet_bytes(const volatile uint8_t *buf, const uint32_t len) {
+VESCRxPacketState VESCSpindleControl::append_rx_packet_bytes(const volatile uint8_t* buf, const uint32_t len) {
   // CDC may split one VESC frame across reads, but this driver never expects
   // unrelated bytes in the stream. Malformed framing is a communication
   // failure, not something to resynchronise around silently.
@@ -297,7 +298,7 @@ bool VESCSpindleControl::verify_vesc_protocol() {
     if (rx_state == VESC_RX_INVALID) return false;
   }
 
-  const uint8_t *payload_rx = nullptr;
+  const uint8_t* payload_rx = nullptr;
   uint16_t payload_len = 0;
   if (!extract_vesc_payload(rx_pkt_buf, rx_pkt_len, &payload_rx, &payload_len)) return false;
 
@@ -375,14 +376,14 @@ void VESCSpindleControl::queue_alive() {
   comm_state = VESC_COMM_SEND_PENDING;
 }
 
-bool VESCSpindleControl::parse_get_values(const uint8_t *buf, const uint16_t len) {
-  const uint8_t *payload_rx = nullptr;
+bool VESCSpindleControl::parse_get_values(const uint8_t* buf, const uint16_t len) {
+  const uint8_t* payload_rx = nullptr;
   uint16_t payload_len = 0;
   if (!extract_vesc_payload(buf, len, &payload_rx, &payload_len)) return false;
 
   if (payload_len < sizeof(VescGetValuesPayload)) return false;
 
-  const auto *gv = reinterpret_cast<const VescGetValuesPayload *>(payload_rx);
+  const auto* gv = reinterpret_cast<const VescGetValuesPayload*>(payload_rx);
   if (gv->cmd != COMM_GET_VALUES) return false;
 
   vesc_temp_mos = static_cast<int16_t>(be16(gv->temp_mos));
@@ -534,7 +535,7 @@ void VESCSpindleControl::comm_poll() {
   }
 }
 
-void VESCSpindleControl::on_idle(void *) {
+void VESCSpindleControl::on_idle(void*) {
   // Init can fail before the normal status stream is ready. Raise the alarm
   // from idle so the controller can report the halt normally.
   if (failed_init) {
@@ -624,12 +625,12 @@ void VESCSpindleControl::on_idle(void *) {
   }
 }
 
-void VESCSpindleControl::on_get_public_data(void *argument) {
-  auto *pdr = static_cast<PublicDataRequest *>(argument);
+void VESCSpindleControl::on_get_public_data(void* argument) {
+  auto* pdr = static_cast<PublicDataRequest*>(argument);
   if (!pdr->starts_with(pwm_spindle_control_checksum)) return;
 
   if (pdr->second_element_is(get_spindle_status_checksum)) {
-    const auto t = static_cast<spindle_status *>(pdr->get_data_ptr());
+    const auto t = static_cast<spindle_status*>(pdr->get_data_ptr());
     t->state = this->spindle_on;
     t->current_rpm = static_cast<float>(this->current_rpm);
     t->target_rpm = static_cast<float>(this->target_rpm);
@@ -639,12 +640,12 @@ void VESCSpindleControl::on_get_public_data(void *argument) {
   }
 }
 
-void VESCSpindleControl::on_set_public_data(void *argument) {
-  auto *pdr = static_cast<PublicDataRequest *>(argument);
+void VESCSpindleControl::on_set_public_data(void* argument) {
+  auto* pdr = static_cast<PublicDataRequest*>(argument);
   if (!pdr->starts_with(pwm_spindle_control_checksum)) return;
 
   if (pdr->second_element_is(get_spindle_status_checksum)) {
-    const auto *t = static_cast<spindle_status *>(pdr->get_data_ptr());
+    const auto* t = static_cast<spindle_status*>(pdr->get_data_ptr());
     this->set_factor(t->factor);
     pdr->set_taken();
     return;
@@ -656,7 +657,7 @@ void VESCSpindleControl::on_set_public_data(void *argument) {
 }
 
 // CRC-16/CCITT (poly 0x1021, init 0x0000), VESC packet protocol.
-uint16_t VESCSpindleControl::vesc_crc16(const uint8_t *buf, const uint16_t len) {
+uint16_t VESCSpindleControl::vesc_crc16(const uint8_t* buf, const uint16_t len) {
   uint16_t crc = 0;
   for (uint16_t i = 0; i < len; i++) {
     crc ^= static_cast<uint16_t>(buf[i]) << 8;
@@ -671,7 +672,7 @@ uint16_t VESCSpindleControl::vesc_crc16(const uint8_t *buf, const uint16_t len) 
 }
 
 // VESC short packet (payload <= 256 B):  0x02  len(1)  payload  crc16(2)  0x03
-uint16_t VESCSpindleControl::vesc_build_packet(uint8_t *out, const uint8_t *payload, const uint16_t plen) {
+uint16_t VESCSpindleControl::vesc_build_packet(uint8_t* out, const uint8_t* payload, const uint16_t plen) {
   uint16_t idx = 0;
   out[idx++] = 0x02;
   out[idx++] = static_cast<uint8_t>(plen);
@@ -682,8 +683,8 @@ uint16_t VESCSpindleControl::vesc_build_packet(uint8_t *out, const uint8_t *payl
   return idx;
 }
 
-bool VESCSpindleControl::extract_vesc_payload(const uint8_t *frame, const uint16_t frame_len, const uint8_t **payload,
-                                              uint16_t *payload_len) {
+bool VESCSpindleControl::extract_vesc_payload(const uint8_t* frame, const uint16_t frame_len, const uint8_t** payload,
+                                              uint16_t* payload_len) {
   if (payload) *payload = nullptr;
   if (payload_len) *payload_len = 0;
 
@@ -693,7 +694,7 @@ bool VESCSpindleControl::extract_vesc_payload(const uint8_t *frame, const uint16
   const uint16_t expected_len = static_cast<uint16_t>(plen) + 5;
   if (plen < 1 || frame_len != expected_len || frame[expected_len - 1] != 0x03) return false;
 
-  const uint8_t *payload_start = &frame[2];
+  const uint8_t* payload_start = &frame[2];
 
   const uint8_t crc_bytes[2] = {frame[2 + plen], frame[2 + plen + 1]};
   if (be16(crc_bytes) != vesc_crc16(payload_start, plen)) return false;

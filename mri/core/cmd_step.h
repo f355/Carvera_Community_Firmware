@@ -23,7 +23,7 @@ uint32_t mriCmd_HandleSingleStepCommand(void);
 uint32_t mriCmd_HandleSingleStepWithSignalCommand(void);
 
 /* Macroes which allow code to drop the mri namespace prefix. */
-#define HandleSingleStepCommand           mriCmd_HandleSingleStepCommand
+#define HandleSingleStepCommand mriCmd_HandleSingleStepCommand
 #define HandleSingleStepWithSignalCommand mriCmd_HandleSingleStepWithSignalCommand
 
 #endif /* CMD_STEP_H_ */

@@ -5,10 +5,10 @@
 // Hook is just a glorified FPointer
 
 class Hook : public FPointer {
-    public:
-        Hook();
-        int     interval;
-        int     countdown;
+ public:
+  Hook();
+  int interval;
+  int countdown;
 };
 
 #endif

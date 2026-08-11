@@ -16,35 +16,34 @@
 #ifndef CMD_COMMON_H_
 #define CMD_COMMON_H_
 
-#include <stdint.h>
 #include <core/buffer.h>
-#include <core/try_catch.h>
 #include <core/mri_int.h>
+#include <core/try_catch.h>
+#include <stdint.h>
 
 /* The bits that can be set in the return value from a command handler to indicate if the caller should return
    immediately or send the prepared response back to gdb.  It also indicates whether program execution should be
    resumed for commands like continue and single step. */
-#define HANDLER_RETURN_RESUME_PROGRAM       (1 << 0)
-#define HANDLER_RETURN_RETURN_IMMEDIATELY   (1 << 1)
-#define HANDLER_RETURN_SKIPPED_OVER_BREAK   (1 << 2)
-#define HANDLER_RETURN_HANDLED              (1 << 31)
+#define HANDLER_RETURN_RESUME_PROGRAM (1 << 0)
+#define HANDLER_RETURN_RETURN_IMMEDIATELY (1 << 1)
+#define HANDLER_RETURN_SKIPPED_OVER_BREAK (1 << 2)
+#define HANDLER_RETURN_HANDLED (1 << 31)
 
-typedef struct
-{
-    uintmri_t address;
-    uintmri_t length;
+typedef struct {
+  uintmri_t address;
+  uintmri_t length;
 } AddressLength;
 
 /* Real name of functions are in mri namespace. */
-__throws void      mriCmd_ReadAddressAndLengthArguments(Buffer* pBuffer, AddressLength* pArguments);
-__throws void      mriCmd_ReadAddressAndLengthArgumentsWithColon(Buffer* pBuffer, AddressLength* pArguments);
+__throws void mriCmd_ReadAddressAndLengthArguments(Buffer* pBuffer, AddressLength* pArguments);
+__throws void mriCmd_ReadAddressAndLengthArgumentsWithColon(Buffer* pBuffer, AddressLength* pArguments);
 __throws uintmri_t mriCmd_ReadUIntegerArgument(Buffer* pBuffer);
-__throws void      mriCmd_ThrowIfNextCharIsNotEqualTo(Buffer* pBuffer, char thisChar);
+__throws void mriCmd_ThrowIfNextCharIsNotEqualTo(Buffer* pBuffer, char thisChar);
 
 /* Macroes which allow code to drop the mri namespace prefix. */
-#define ReadAddressAndLengthArguments           mriCmd_ReadAddressAndLengthArguments
-#define ReadAddressAndLengthArgumentsWithColon  mriCmd_ReadAddressAndLengthArgumentsWithColon
-#define ReadUIntegerArgument                    mriCmd_ReadUIntegerArgument
-#define ThrowIfNextCharIsNotEqualTo             mriCmd_ThrowIfNextCharIsNotEqualTo
+#define ReadAddressAndLengthArguments mriCmd_ReadAddressAndLengthArguments
+#define ReadAddressAndLengthArgumentsWithColon mriCmd_ReadAddressAndLengthArgumentsWithColon
+#define ReadUIntegerArgument mriCmd_ReadUIntegerArgument
+#define ThrowIfNextCharIsNotEqualTo mriCmd_ThrowIfNextCharIsNotEqualTo
 
 #endif /* CMD_COMMON_H_ */

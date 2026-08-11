@@ -19,54 +19,46 @@
 #include <core/semihost.h>
 #include <core/signal.h>
 
+int Semihost_IsDebuggeeMakingSemihostCall(void) {
+  PlatformInstructionType instructionType = Platform_TypeOfCurrentInstruction();
 
-int Semihost_IsDebuggeeMakingSemihostCall(void)
-{
-    PlatformInstructionType instructionType = Platform_TypeOfCurrentInstruction();
-
-    return (instructionType == MRI_PLATFORM_INSTRUCTION_ARM_SEMIHOST_CALL ||
-            instructionType == MRI_PLATFORM_INSTRUCTION_NEWLIB_SEMIHOST_CALL);
+  return (instructionType == MRI_PLATFORM_INSTRUCTION_ARM_SEMIHOST_CALL ||
+          instructionType == MRI_PLATFORM_INSTRUCTION_NEWLIB_SEMIHOST_CALL);
 }
 
-int Semihost_HandleSemihostRequest(void)
-{
-    PlatformInstructionType    instructionType = Platform_TypeOfCurrentInstruction();
-    PlatformSemihostParameters parameters = Platform_GetSemihostCallParameters();
+int Semihost_HandleSemihostRequest(void) {
+  PlatformInstructionType instructionType = Platform_TypeOfCurrentInstruction();
+  PlatformSemihostParameters parameters = Platform_GetSemihostCallParameters();
 
-    if (instructionType == MRI_PLATFORM_INSTRUCTION_ARM_SEMIHOST_CALL)
-        return Semihost_HandleArmSemihostRequest(&parameters);
-    else if (instructionType == MRI_PLATFORM_INSTRUCTION_NEWLIB_SEMIHOST_CALL)
-        return Semihost_HandleNewlibSemihostRequest(&parameters);
-    else
-        return 0;
+  if (instructionType == MRI_PLATFORM_INSTRUCTION_ARM_SEMIHOST_CALL)
+    return Semihost_HandleArmSemihostRequest(&parameters);
+  else if (instructionType == MRI_PLATFORM_INSTRUCTION_NEWLIB_SEMIHOST_CALL)
+    return Semihost_HandleNewlibSemihostRequest(&parameters);
+  else
+    return 0;
 }
-
 
 static int writeToGdbConsole(const TransferParameters* pParameters);
-int Semihost_WriteToFileOrConsole(const TransferParameters* pParameters)
-{
-    const uint32_t STDOUT_FILE_NO = 1;
-    if (pParameters->fileDescriptor == STDOUT_FILE_NO)
-    {
-        return writeToGdbConsole(pParameters);
-    }
-    return IssueGdbFileWriteRequest(pParameters);
+int Semihost_WriteToFileOrConsole(const TransferParameters* pParameters) {
+  const uint32_t STDOUT_FILE_NO = 1;
+  if (pParameters->fileDescriptor == STDOUT_FILE_NO) {
+    return writeToGdbConsole(pParameters);
+  }
+  return IssueGdbFileWriteRequest(pParameters);
 }
 
-static int writeToGdbConsole(const TransferParameters* pParameters)
-{
-    const char* pBuffer = (const char*)pParameters->bufferAddress;
-    size_t length = pParameters->bufferSize;
+static int writeToGdbConsole(const TransferParameters* pParameters) {
+  const char* pBuffer = (const char*)pParameters->bufferAddress;
+  size_t length = pParameters->bufferSize;
 
-    size_t charsWritten = WriteSizedStringToGdbConsole(pBuffer, length);
+  size_t charsWritten = WriteSizedStringToGdbConsole(pBuffer, length);
 
-    SetSemihostReturnValues(charsWritten, 0);
-    FlagSemihostCallAsHandled();
+  SetSemihostReturnValues(charsWritten, 0);
+  FlagSemihostCallAsHandled();
 
-    if (WasControlCEncountered())
-    {
-        SetSignalValue(SIGINT);
-        return 0;
-    }
-    return 1;
+  if (WasControlCEncountered()) {
+    SetSignalValue(SIGINT);
+    return 0;
+  }
+  return 1;
 }

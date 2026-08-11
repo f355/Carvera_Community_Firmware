@@ -54,13 +54,14 @@
  */
 
 #include <stdlib.h>
+
 #include "device.h"
 
 #ifdef DEVICE_STDIO_MESSAGES
-    #include <stdio.h>
-    #define error(...) (fprintf(stderr, __VA_ARGS__), exit(1))
+#include <stdio.h>
+#define error(...) (fprintf(stderr, __VA_ARGS__), exit(1))
 #else
-    #define error(...) (exit(1))
+#define error(...) (exit(1))
 #endif
 
 #endif

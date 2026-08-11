@@ -25,7 +25,6 @@ barthelemy@prologique.com
 
 #include "simplestring.h"
 
-
 /**
  * This enumeration contains the three states a TestPartResult can take.
  *
@@ -35,97 +34,89 @@ barthelemy@prologique.com
  *
  * An error means that an exception was thrown during the test.
  */
-enum testType {failure,success,error};
+enum testType { failure, success, error };
 
 class Test;
 
 /**
  * This class contains details about assertion processed during the
- * execution of a Test. It contains the line and the file of the assertion, 
+ * execution of a Test. It contains the line and the file of the assertion,
  * the result (success, failure or error), the condition (or message), and
  * the Test class where the assertion was processed.
- */ 
-class TestPartResult
-{
-	public:
-		/**
-		 * Main constructor used to initialize all details about the result
-		 * of an assertion.
-		 *
-		 * @param test The test where the assertion was processed
-		 * @param fileName The file name where the assertion is located
-		 * @param lineNumber The line number where the assertion is located
-		 * @param message The assertion condition or message
-		 * @param type The result of the assertion (failure, success or error)
-		 */
-		TestPartResult (Test *test,
-		const SimpleString& fileName, 
-		long lineNumber,
-		const SimpleString& message,
-  	testType type);
+ */
+class TestPartResult {
+ public:
+  /**
+   * Main constructor used to initialize all details about the result
+   * of an assertion.
+   *
+   * @param test The test where the assertion was processed
+   * @param fileName The file name where the assertion is located
+   * @param lineNumber The line number where the assertion is located
+   * @param message The assertion condition or message
+   * @param type The result of the assertion (failure, success or error)
+   */
+  TestPartResult(Test* test, const SimpleString& fileName, long lineNumber, const SimpleString& message, testType type);
 
-    /**
-     * Set the next TestPartResult in the list.
-     *
-     * @param next The next TestPartResult in the linked list
-     */
-		void setNext(TestPartResult* next);
-		
-		/**
-		 * Get the next TestPartResult in the list.
-		 *
-		 * @return The next TestPartResult in the linked list
-		 */
-  	TestPartResult* getNext() const;
+  /**
+   * Set the next TestPartResult in the list.
+   *
+   * @param next The next TestPartResult in the linked list
+   */
+  void setNext(TestPartResult* next);
 
-    /**
-     * Get the type of the TestPartResult. This represents the result
-     * of the assertion.
-     *
-     * @return The type of the TestPartResult (failure, success or error)
-     */
-  	testType getType() const;
-  	
-  	/**
-  	 * Get the message (or condition) of the assertion.
-  	 *
-  	 * @return The message (or condition) of the assertion
-  	 */
-  	const SimpleString& getMessage() const;
-  	
-  	/**
-  	 * Get the Test where the assertion is located.
-  	 *
-  	 * @return The Test where the assertion is located
-  	 */
-  	Test* getTest() const;
-  	
-  	/**
-  	 * Get the file name where the assertion is located.
-  	 *
-  	 * @return The file name where the assertion is located
-  	 */
-  	const SimpleString& getFileName() const;
-  	
-  	/**
-  	 * Get the line number where the assertion is located.
-  	 *
-  	 * @return The line number where the assertion is located
-  	 */
-  	long getLineNumber() const;
-  	
-  	
-  protected:
-  	SimpleString message_;
-		Test *test_;
-  	SimpleString fileName_;
-  	long lineNumber_;
+  /**
+   * Get the next TestPartResult in the list.
+   *
+   * @return The next TestPartResult in the linked list
+   */
+  TestPartResult* getNext() const;
 
-	private:
-		TestPartResult *next_;
-  	testType type_;  	
+  /**
+   * Get the type of the TestPartResult. This represents the result
+   * of the assertion.
+   *
+   * @return The type of the TestPartResult (failure, success or error)
+   */
+  testType getType() const;
+
+  /**
+   * Get the message (or condition) of the assertion.
+   *
+   * @return The message (or condition) of the assertion
+   */
+  const SimpleString& getMessage() const;
+
+  /**
+   * Get the Test where the assertion is located.
+   *
+   * @return The Test where the assertion is located
+   */
+  Test* getTest() const;
+
+  /**
+   * Get the file name where the assertion is located.
+   *
+   * @return The file name where the assertion is located
+   */
+  const SimpleString& getFileName() const;
+
+  /**
+   * Get the line number where the assertion is located.
+   *
+   * @return The line number where the assertion is located
+   */
+  long getLineNumber() const;
+
+ protected:
+  SimpleString message_;
+  Test* test_;
+  SimpleString fileName_;
+  long lineNumber_;
+
+ private:
+  TestPartResult* next_;
+  testType type_;
 };
 
-#endif // TESTPARTRESULT_H
-
-
+#endif  // TESTPARTRESULT_H

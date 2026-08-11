@@ -19,52 +19,42 @@
 
 namespace mbed {
 
-Serial::Serial(PinName tx, PinName rx, const char *name) : Stream(name) {
-    serial_init(&_serial, tx, rx);
-    serial_irq_handler(&_serial, Serial::_irq_handler, (uint32_t)this);
+Serial::Serial(PinName tx, PinName rx, const char* name) : Stream(name) {
+  serial_init(&_serial, tx, rx);
+  serial_irq_handler(&_serial, Serial::_irq_handler, (uint32_t)this);
 }
 
-void Serial::baud(int baudrate) {
-    serial_baud(&_serial, baudrate);
-}
+void Serial::baud(int baudrate) { serial_baud(&_serial, baudrate); }
 
 void Serial::format(int bits, Parity parity, int stop_bits) {
-    serial_format(&_serial, bits, (SerialParity)parity, stop_bits);
+  serial_format(&_serial, bits, (SerialParity)parity, stop_bits);
 }
 
-int Serial::readable() {
-    return serial_readable(&_serial);
-}
+int Serial::readable() { return serial_readable(&_serial); }
 
-
-int Serial::writeable() {
-    return serial_writable(&_serial);
-}
+int Serial::writeable() { return serial_writable(&_serial); }
 
 void Serial::attach(void (*fptr)(void), IrqType type) {
-    if (fptr) {
-        _irq[type].attach(fptr);
-        serial_irq_set(&_serial, (SerialIrq)type, 1);
-    } else {
-        serial_irq_set(&_serial, (SerialIrq)type, 0);
-    }
+  if (fptr) {
+    _irq[type].attach(fptr);
+    serial_irq_set(&_serial, (SerialIrq)type, 1);
+  } else {
+    serial_irq_set(&_serial, (SerialIrq)type, 0);
+  }
 }
-
 
 void Serial::_irq_handler(uint32_t id, SerialIrq irq_type) {
-    Serial *handler = (Serial*)id;
-    handler->_irq[irq_type].call();
+  Serial* handler = (Serial*)id;
+  handler->_irq[irq_type].call();
 }
 
-int Serial::_getc() {
-    return serial_getc(&_serial);
-}
+int Serial::_getc() { return serial_getc(&_serial); }
 
 int Serial::_putc(int c) {
-    serial_putc(&_serial, c);
-    return c;
+  serial_putc(&_serial, c);
+  return c;
 }
 
-} // namespace mbed
+}  // namespace mbed
 
 #endif

@@ -1,31 +1,40 @@
-/**************************************************************************//**
- * @file     system_LPC17xx.c
- * @brief    CMSIS Cortex-M3 Device System Source File for
- *           NXP LPC17xx Device Series
- * @version  V1.11
- * @date     21. June 2011
- *
- * @note
- * Copyright (C) 2009-2011 ARM Limited. All rights reserved.
- *
- * @par
- * ARM Limited (ARM) is supplying this software for use with Cortex-M
- * processor based microcontrollers.  This file can be freely distributed
- * within development tools that are supporting such ARM based processors.
- *
- * @par
- * THIS SOFTWARE IS PROVIDED "AS IS".  NO WARRANTIES, WHETHER EXPRESS, IMPLIED
- * OR STATUTORY, INCLUDING, BUT NOT LIMITED TO, IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE APPLY TO THIS SOFTWARE.
- * ARM SHALL NOT, IN ANY CIRCUMSTANCES, BE LIABLE FOR SPECIAL, INCIDENTAL, OR
- * CONSEQUENTIAL DAMAGES, FOR ANY REASON WHATSOEVER.
- *
- ******************************************************************************/
-
+/**************************************************************************/ /**
+                                                                              * @file     system_LPC17xx.c
+                                                                              * @brief    CMSIS Cortex-M3 Device System
+                                                                              * Source File for NXP LPC17xx Device
+                                                                              * Series
+                                                                              * @version  V1.11
+                                                                              * @date     21. June 2011
+                                                                              *
+                                                                              * @note
+                                                                              * Copyright (C) 2009-2011 ARM Limited. All
+                                                                              * rights reserved.
+                                                                              *
+                                                                              * @par
+                                                                              * ARM Limited (ARM) is supplying this
+                                                                              * software for use with Cortex-M processor
+                                                                              * based microcontrollers.  This file can
+                                                                              * be freely distributed within development
+                                                                              * tools that are supporting such ARM based
+                                                                              * processors.
+                                                                              *
+                                                                              * @par
+                                                                              * THIS SOFTWARE IS PROVIDED "AS IS".  NO
+                                                                              * WARRANTIES, WHETHER EXPRESS, IMPLIED OR
+                                                                              * STATUTORY, INCLUDING, BUT NOT LIMITED
+                                                                              * TO, IMPLIED WARRANTIES OF
+                                                                              * MERCHANTABILITY AND FITNESS FOR A
+                                                                              * PARTICULAR PURPOSE APPLY TO THIS
+                                                                              * SOFTWARE. ARM SHALL NOT, IN ANY
+                                                                              * CIRCUMSTANCES, BE LIABLE FOR SPECIAL,
+                                                                              * INCIDENTAL, OR CONSEQUENTIAL DAMAGES,
+                                                                              * FOR ANY REASON WHATSOEVER.
+                                                                              *
+                                                                              ******************************************************************************/
 
 #include <stdint.h>
-#include "LPC17xx.h"
 
+#include "LPC17xx.h"
 
 /** @addtogroup LPC17xx_System
  * @{
@@ -286,28 +295,25 @@
 // </e>
 */
 
-
-
 /** @addtogroup LPC17xx_System_Defines  LPC17xx System Defines
   @{
  */
 
-#define CLOCK_SETUP           1
-#define SCS_Val               0x00000020
-#define CLKSRCSEL_Val         0x00000001
-#define PLL0_SETUP            1              // WARNING: NOT USED, see SystemInit() below
+#define CLOCK_SETUP 1
+#define SCS_Val 0x00000020
+#define CLKSRCSEL_Val 0x00000001
+#define PLL0_SETUP 1  // WARNING: NOT USED, see SystemInit() below
 
-#    define PLL0CFG_Val           0x0000000B // WARNING: NOT USED, see SystemInit() below
-#    define PLL1_SETUP            0          // WARNING: NOT USED, see SystemInit() below
-#    define PLL1CFG_Val           0x00000000 // WARNING: NOT USED, see SystemInit() below
-#    define CCLKCFG_Val           0x00000002 // WARNING: NOT USED, see SystemInit() below
-#    define USBCLKCFG_Val         0x00000005 // WARNING: NOT USED, see SystemInit() below
+#define PLL0CFG_Val 0x0000000B    // WARNING: NOT USED, see SystemInit() below
+#define PLL1_SETUP 0              // WARNING: NOT USED, see SystemInit() below
+#define PLL1CFG_Val 0x00000000    // WARNING: NOT USED, see SystemInit() below
+#define CCLKCFG_Val 0x00000002    // WARNING: NOT USED, see SystemInit() below
+#define USBCLKCFG_Val 0x00000005  // WARNING: NOT USED, see SystemInit() below
 
-#define PCLKSEL0_Val          0x00000000
-#define PCLKSEL1_Val          0x00000000
-#define PCONP_Val             0x042887DE
-#define CLKOUTCFG_Val         0x00000000
-
+#define PCLKSEL0_Val 0x00000000
+#define PCLKSEL1_Val 0x00000000
+#define PCONP_Val 0x042887DE
+#define CLKOUTCFG_Val 0x00000000
 
 /*--------------------- Flash Accelerator Configuration ----------------------
 //
@@ -321,8 +327,8 @@
 //               <5=> 6 CPU clocks (for any CPU clock)
 // </e>
 */
-#define FLASH_SETUP           1
-#define FLASHCFG_Val          0x0000303A
+#define FLASH_SETUP 1
+#define FLASHCFG_Val 0x0000303A
 
 /*
 //-------- <<< end of configuration section >>> ------------------------------
@@ -331,61 +337,60 @@
 /*----------------------------------------------------------------------------
   Check the register settings
  *----------------------------------------------------------------------------*/
-#define CHECK_RANGE(val, min, max)                ((val < min) || (val > max))
-#define CHECK_RSVD(val, mask)                     (val & mask)
+#define CHECK_RANGE(val, min, max) ((val < min) || (val > max))
+#define CHECK_RSVD(val, mask) (val & mask)
 
 /* Clock Configuration -------------------------------------------------------*/
-#if (CHECK_RSVD((SCS_Val),       ~0x00000030))
-   #error "SCS: Invalid values of reserved bits!"
+#if (CHECK_RSVD((SCS_Val), ~0x00000030))
+#error "SCS: Invalid values of reserved bits!"
 #endif
 
 #if (CHECK_RANGE((CLKSRCSEL_Val), 0, 2))
-   #error "CLKSRCSEL: Value out of range!"
+#error "CLKSRCSEL: Value out of range!"
 #endif
 
-#if (CHECK_RSVD((PLL0CFG_Val),   ~0x00FF7FFF))
-   #error "PLL0CFG: Invalid values of reserved bits!"
+#if (CHECK_RSVD((PLL0CFG_Val), ~0x00FF7FFF))
+#error "PLL0CFG: Invalid values of reserved bits!"
 #endif
 
-#if (CHECK_RSVD((PLL1CFG_Val),   ~0x0000007F))
-   #error "PLL1CFG: Invalid values of reserved bits!"
+#if (CHECK_RSVD((PLL1CFG_Val), ~0x0000007F))
+#error "PLL1CFG: Invalid values of reserved bits!"
 #endif
 
-#if (PLL0_SETUP)            /* if PLL0 is used */
-  #if (CCLKCFG_Val < 2)     /* CCLKSEL must be greater then 1 */
-    #error "CCLKCFG: CCLKSEL must be greater then 1 if PLL0 is used!"
-  #endif
+#if (PLL0_SETUP)      /* if PLL0 is used */
+#if (CCLKCFG_Val < 2) /* CCLKSEL must be greater then 1 */
+#error "CCLKCFG: CCLKSEL must be greater then 1 if PLL0 is used!"
+#endif
 #endif
 
 #if (CHECK_RANGE((CCLKCFG_Val), 2, 255))
-   #error "CCLKCFG: Value out of range!"
+#error "CCLKCFG: Value out of range!"
 #endif
 
 #if (CHECK_RSVD((USBCLKCFG_Val), ~0x0000000F))
-   #error "USBCLKCFG: Invalid values of reserved bits!"
+#error "USBCLKCFG: Invalid values of reserved bits!"
 #endif
 
-#if (CHECK_RSVD((PCLKSEL0_Val),   0x000C0C00))
-   #error "PCLKSEL0: Invalid values of reserved bits!"
+#if (CHECK_RSVD((PCLKSEL0_Val), 0x000C0C00))
+#error "PCLKSEL0: Invalid values of reserved bits!"
 #endif
 
-#if (CHECK_RSVD((PCLKSEL1_Val),   0x03000300))
-   #error "PCLKSEL1: Invalid values of reserved bits!"
+#if (CHECK_RSVD((PCLKSEL1_Val), 0x03000300))
+#error "PCLKSEL1: Invalid values of reserved bits!"
 #endif
 
-#if (CHECK_RSVD((PCONP_Val),      0x10100821))
-   #error "PCONP: Invalid values of reserved bits!"
+#if (CHECK_RSVD((PCONP_Val), 0x10100821))
+#error "PCONP: Invalid values of reserved bits!"
 #endif
 
 #if (CHECK_RSVD((CLKOUTCFG_Val), ~0x000001FF))
-   #error "CLKOUTCFG: Invalid values of reserved bits!"
+#error "CLKOUTCFG: Invalid values of reserved bits!"
 #endif
 
 /* Flash Accelerator Configuration -------------------------------------------*/
 #if (CHECK_RSVD((FLASHCFG_Val), ~0x0000F07F))
-   #error "FLASHCFG: Invalid values of reserved bits!"
+#error "FLASHCFG: Invalid values of reserved bits!"
 #endif
-
 
 /*----------------------------------------------------------------------------
   DEFINES
@@ -394,41 +399,39 @@
 /*----------------------------------------------------------------------------
   Define clocks
  *----------------------------------------------------------------------------*/
-#define XTAL        (12000000UL)        /* Oscillator frequency               */
-#define OSC_CLK     (      XTAL)        /* Main oscillator frequency          */
-#define RTC_CLK     (   32000UL)        /* RTC oscillator frequency           */
-#define IRC_OSC     ( 4000000UL)        /* Internal RC oscillator frequency   */
-
+#define XTAL (12000000UL)   /* Oscillator frequency               */
+#define OSC_CLK (XTAL)      /* Main oscillator frequency          */
+#define RTC_CLK (32000UL)   /* RTC oscillator frequency           */
+#define IRC_OSC (4000000UL) /* Internal RC oscillator frequency   */
 
 /* F_cco0 = (2 * M * F_in) / N  */
-#define __M               (((PLL0CFG_Val      ) & 0x7FFF) + 1)
-#define __N               (((PLL0CFG_Val >> 16) & 0x00FF) + 1)
-#define __FCCO(__F_IN)    ((2ULL * __M * __F_IN) / __N)
-#define __CCLK_DIV        (((CCLKCFG_Val      ) & 0x00FF) + 1)
+#define __M (((PLL0CFG_Val) & 0x7FFF) + 1)
+#define __N (((PLL0CFG_Val >> 16) & 0x00FF) + 1)
+#define __FCCO(__F_IN) ((2ULL * __M * __F_IN) / __N)
+#define __CCLK_DIV (((CCLKCFG_Val) & 0x00FF) + 1)
 
 /* Determine core clock frequency according to settings */
- #if (PLL0_SETUP)
-    #if   ((CLKSRCSEL_Val & 0x03) == 1)
-        #define __CORE_CLK (__FCCO(OSC_CLK) / __CCLK_DIV)
-    #elif ((CLKSRCSEL_Val & 0x03) == 2)
-        #define __CORE_CLK (__FCCO(RTC_CLK) / __CCLK_DIV)
-    #else
-        #define __CORE_CLK (__FCCO(IRC_OSC) / __CCLK_DIV)
-    #endif
- #else
-    #if   ((CLKSRCSEL_Val & 0x03) == 1)
-        #define __CORE_CLK (OSC_CLK         / __CCLK_DIV)
-    #elif ((CLKSRCSEL_Val & 0x03) == 2)
-        #define __CORE_CLK (RTC_CLK         / __CCLK_DIV)
-    #else
-        #define __CORE_CLK (IRC_OSC         / __CCLK_DIV)
-    #endif
- #endif
+#if (PLL0_SETUP)
+#if ((CLKSRCSEL_Val & 0x03) == 1)
+#define __CORE_CLK (__FCCO(OSC_CLK) / __CCLK_DIV)
+#elif ((CLKSRCSEL_Val & 0x03) == 2)
+#define __CORE_CLK (__FCCO(RTC_CLK) / __CCLK_DIV)
+#else
+#define __CORE_CLK (__FCCO(IRC_OSC) / __CCLK_DIV)
+#endif
+#else
+#if ((CLKSRCSEL_Val & 0x03) == 1)
+#define __CORE_CLK (OSC_CLK / __CCLK_DIV)
+#elif ((CLKSRCSEL_Val & 0x03) == 2)
+#define __CORE_CLK (RTC_CLK / __CCLK_DIV)
+#else
+#define __CORE_CLK (IRC_OSC / __CCLK_DIV)
+#endif
+#endif
 
 /**
  * @}
  */
-
 
 /** @addtogroup LPC17xx_System_Public_Variables  LPC17xx System Public Variables
   @{
@@ -436,12 +439,11 @@
 /*----------------------------------------------------------------------------
   Clock Variable definitions
  *----------------------------------------------------------------------------*/
-uint32_t SystemCoreClock = __CORE_CLK;/*!< System Clock Frequency (Core Clock)*/
+uint32_t SystemCoreClock = __CORE_CLK; /*!< System Clock Frequency (Core Clock)*/
 
 /**
  * @}
  */
-
 
 /** @addtogroup LPC17xx_System_Public_Functions  LPC17xx System Public Functions
   @{
@@ -457,62 +459,54 @@ uint32_t SystemCoreClock = __CORE_CLK;/*!< System Clock Frequency (Core Clock)*/
  *         retrieved from cpu registers.
  */
 
-void SystemCoreClockUpdate (void)            /* Get Core Clock Frequency      */
+void SystemCoreClockUpdate(void) /* Get Core Clock Frequency      */
 {
   /* Determine clock frequency according to clock register values             */
   if (((LPC_SC->PLL0STAT >> 24) & 3) == 3) { /* If PLL0 enabled and connected */
     switch (LPC_SC->CLKSRCSEL & 0x03) {
-      case 0:                                /* Int. RC oscillator => PLL0    */
-      case 3:                                /* Reserved, default to Int. RC  */
-        SystemCoreClock = (IRC_OSC *
-                          ((2ULL * ((LPC_SC->PLL0STAT & 0x7FFF) + 1)))  /
-                          (((LPC_SC->PLL0STAT >> 16) & 0xFF) + 1)       /
-                          ((LPC_SC->CCLKCFG & 0xFF)+ 1));
+      case 0: /* Int. RC oscillator => PLL0    */
+      case 3: /* Reserved, default to Int. RC  */
+        SystemCoreClock = (IRC_OSC * ((2ULL * ((LPC_SC->PLL0STAT & 0x7FFF) + 1))) /
+                           (((LPC_SC->PLL0STAT >> 16) & 0xFF) + 1) / ((LPC_SC->CCLKCFG & 0xFF) + 1));
         break;
-      case 1:                                /* Main oscillator => PLL0       */
-        SystemCoreClock = (OSC_CLK *
-                          ((2ULL * ((LPC_SC->PLL0STAT & 0x7FFF) + 1)))  /
-                          (((LPC_SC->PLL0STAT >> 16) & 0xFF) + 1)       /
-                          ((LPC_SC->CCLKCFG & 0xFF)+ 1));
+      case 1: /* Main oscillator => PLL0       */
+        SystemCoreClock = (OSC_CLK * ((2ULL * ((LPC_SC->PLL0STAT & 0x7FFF) + 1))) /
+                           (((LPC_SC->PLL0STAT >> 16) & 0xFF) + 1) / ((LPC_SC->CCLKCFG & 0xFF) + 1));
         break;
-      case 2:                                /* RTC oscillator => PLL0        */
-        SystemCoreClock = (RTC_CLK *
-                          ((2ULL * ((LPC_SC->PLL0STAT & 0x7FFF) + 1)))  /
-                          (((LPC_SC->PLL0STAT >> 16) & 0xFF) + 1)       /
-                          ((LPC_SC->CCLKCFG & 0xFF)+ 1));
+      case 2: /* RTC oscillator => PLL0        */
+        SystemCoreClock = (RTC_CLK * ((2ULL * ((LPC_SC->PLL0STAT & 0x7FFF) + 1))) /
+                           (((LPC_SC->PLL0STAT >> 16) & 0xFF) + 1) / ((LPC_SC->CCLKCFG & 0xFF) + 1));
         break;
     }
   } else {
     switch (LPC_SC->CLKSRCSEL & 0x03) {
-      case 0:                                /* Int. RC oscillator => PLL0    */
-      case 3:                                /* Reserved, default to Int. RC  */
-        SystemCoreClock = IRC_OSC / ((LPC_SC->CCLKCFG & 0xFF)+ 1);
+      case 0: /* Int. RC oscillator => PLL0    */
+      case 3: /* Reserved, default to Int. RC  */
+        SystemCoreClock = IRC_OSC / ((LPC_SC->CCLKCFG & 0xFF) + 1);
         break;
-      case 1:                                /* Main oscillator => PLL0       */
-        SystemCoreClock = OSC_CLK / ((LPC_SC->CCLKCFG & 0xFF)+ 1);
+      case 1: /* Main oscillator => PLL0       */
+        SystemCoreClock = OSC_CLK / ((LPC_SC->CCLKCFG & 0xFF) + 1);
         break;
-      case 2:                                /* RTC oscillator => PLL0        */
-        SystemCoreClock = RTC_CLK / ((LPC_SC->CCLKCFG & 0xFF)+ 1);
+      case 2: /* RTC oscillator => PLL0        */
+        SystemCoreClock = RTC_CLK / ((LPC_SC->CCLKCFG & 0xFF) + 1);
         break;
     }
   }
-
 }
 
 // detect 17x[4-8] (100MHz) or 17x9 (120MHz)
 static int can_120MHz() {
-    #define IAP_LOCATION 0x1FFF1FF1
-    uint32_t command[1];
-    uint32_t result[5];
-    typedef void (*IAP)(uint32_t*, uint32_t*);
-    IAP iap = (IAP) IAP_LOCATION;
+#define IAP_LOCATION 0x1FFF1FF1
+  uint32_t command[1];
+  uint32_t result[5];
+  typedef void (*IAP)(uint32_t*, uint32_t*);
+  IAP iap = (IAP)IAP_LOCATION;
 
-    command[0] = 54;
-    iap(command, result);
+  command[0] = 54;
+  iap(command, result);
 
-    return result[1] & 0x00100000;
+  return result[1] & 0x00100000;
 }
-
 
 // Make sure we are pulling in the retargeting module at link time
 extern int stdio_retargeting_module;
@@ -526,19 +520,18 @@ extern int stdio_retargeting_module;
  * @brief  Setup the microcontroller system.
  *         Initialize the System.
  */
-void SystemInit (void)
-{
-#if (CLOCK_SETUP)                       /* Clock Setup                        */
-  LPC_SC->SCS       = SCS_Val;
-  if (LPC_SC->SCS & (1 << 5)) {         /* If Main Oscillator is enabled      */
-    while ((LPC_SC->SCS & (1<<6)) == 0);/* Wait for Oscillator to be ready    */
+void SystemInit(void) {
+#if (CLOCK_SETUP) /* Clock Setup                        */
+  LPC_SC->SCS = SCS_Val;
+  if (LPC_SC->SCS & (1 << 5)) {            /* If Main Oscillator is enabled      */
+    while ((LPC_SC->SCS & (1 << 6)) == 0); /* Wait for Oscillator to be ready    */
   }
 
   /* Periphral clock must be selected before PLL0 enabling and connecting
    * - according errata.lpc1768-16.March.2010 -
    */
-  LPC_SC->PCLKSEL0  = PCLKSEL0_Val;     /* Peripheral Clock Selection         */
-  LPC_SC->PCLKSEL1  = PCLKSEL1_Val;
+  LPC_SC->PCLKSEL0 = PCLKSEL0_Val; /* Peripheral Clock Selection         */
+  LPC_SC->PCLKSEL1 = PCLKSEL1_Val;
 
   /*
    * PLL0 MUST be 275 - 550MHz
@@ -559,30 +552,30 @@ void SystemInit (void)
    *
    */
 
-  LPC_SC->CLKSRCSEL = CLKSRCSEL_Val;    /* Select Clock Source for PLL0       */
+  LPC_SC->CLKSRCSEL = CLKSRCSEL_Val; /* Select Clock Source for PLL0       */
 
-  LPC_SC->CCLKCFG   = 0x00000002;       /* Setup CPU Clock Divider            */
+  LPC_SC->CCLKCFG = 0x00000002; /* Setup CPU Clock Divider            */
 
-  if(can_120MHz()) {
-    LPC_SC->PLL0CFG   = 0x0000000E;     /* configure PLL0                     */
-    LPC_SC->PLL0FEED  = 0xAA;
-    LPC_SC->PLL0FEED  = 0x55;
+  if (can_120MHz()) {
+    LPC_SC->PLL0CFG = 0x0000000E; /* configure PLL0                     */
+    LPC_SC->PLL0FEED = 0xAA;
+    LPC_SC->PLL0FEED = 0x55;
   } else {
-//     LPC_SC->PLL0CFG   = 0x0000000B;  // 96MHz
-    LPC_SC->PLL0CFG   = 0x00010018;     // 100MHz
-    LPC_SC->PLL0FEED  = 0xAA;
-    LPC_SC->PLL0FEED  = 0x55;
+    //     LPC_SC->PLL0CFG   = 0x0000000B;  // 96MHz
+    LPC_SC->PLL0CFG = 0x00010018;  // 100MHz
+    LPC_SC->PLL0FEED = 0xAA;
+    LPC_SC->PLL0FEED = 0x55;
   }
 
-  LPC_SC->PLL0CON   = 0x01;             /* PLL0 Enable                        */
-  LPC_SC->PLL0FEED  = 0xAA;
-  LPC_SC->PLL0FEED  = 0x55;
-  while (!(LPC_SC->PLL0STAT & (1<<26)));/* Wait for PLOCK0                    */
+  LPC_SC->PLL0CON = 0x01; /* PLL0 Enable                        */
+  LPC_SC->PLL0FEED = 0xAA;
+  LPC_SC->PLL0FEED = 0x55;
+  while (!(LPC_SC->PLL0STAT & (1 << 26))); /* Wait for PLOCK0                    */
 
-  LPC_SC->PLL0CON   = 0x03;             /* PLL0 Enable & Connect              */
-  LPC_SC->PLL0FEED  = 0xAA;
-  LPC_SC->PLL0FEED  = 0x55;
-  while (!(LPC_SC->PLL0STAT & ((1<<25) | (1<<24))));/* Wait for PLLC0_STAT & PLLE0_STAT */
+  LPC_SC->PLL0CON = 0x03; /* PLL0 Enable & Connect              */
+  LPC_SC->PLL0FEED = 0xAA;
+  LPC_SC->PLL0FEED = 0x55;
+  while (!(LPC_SC->PLL0STAT & ((1 << 25) | (1 << 24)))); /* Wait for PLLC0_STAT & PLLE0_STAT */
 
   /*
    * USBCLK = Fin * M, where M is (1..32)
@@ -598,30 +591,30 @@ void SystemInit (void)
    *         = (1 << 5) + 3
    *         = 0x23 for a 12MHz crystal
    */
-  LPC_SC->PLL1CFG   = 0x00000023;
-  LPC_SC->PLL1FEED  = 0xAA;
-  LPC_SC->PLL1FEED  = 0x55;
+  LPC_SC->PLL1CFG = 0x00000023;
+  LPC_SC->PLL1FEED = 0xAA;
+  LPC_SC->PLL1FEED = 0x55;
 
-  LPC_SC->PLL1CON   = 0x01;             /* PLL1 Enable                        */
-  LPC_SC->PLL1FEED  = 0xAA;
-  LPC_SC->PLL1FEED  = 0x55;
-  while (!(LPC_SC->PLL1STAT & (1<<10)));/* Wait for PLOCK1                    */
+  LPC_SC->PLL1CON = 0x01; /* PLL1 Enable                        */
+  LPC_SC->PLL1FEED = 0xAA;
+  LPC_SC->PLL1FEED = 0x55;
+  while (!(LPC_SC->PLL1STAT & (1 << 10))); /* Wait for PLOCK1                    */
 
-  LPC_SC->PLL1CON   = 0x03;             /* PLL1 Enable & Connect              */
-  LPC_SC->PLL1FEED  = 0xAA;
-  LPC_SC->PLL1FEED  = 0x55;
-  while (!(LPC_SC->PLL1STAT & ((1<< 9) | (1<< 8))));/* Wait for PLLC1_STAT & PLLE1_STAT */
+  LPC_SC->PLL1CON = 0x03; /* PLL1 Enable & Connect              */
+  LPC_SC->PLL1FEED = 0xAA;
+  LPC_SC->PLL1FEED = 0x55;
+  while (!(LPC_SC->PLL1STAT & ((1 << 9) | (1 << 8)))); /* Wait for PLLC1_STAT & PLLE1_STAT */
 
   // this sets up {global uint32 SystemCoreClock} with the new speed
   SystemCoreClockUpdate();
 
-  LPC_SC->PCONP     = PCONP_Val;        /* Power Control for Peripherals      */
+  LPC_SC->PCONP = PCONP_Val; /* Power Control for Peripherals      */
 
-  LPC_SC->CLKOUTCFG = CLKOUTCFG_Val;    /* Clock Output Configuration         */
+  LPC_SC->CLKOUTCFG = CLKOUTCFG_Val; /* Clock Output Configuration         */
 #endif
 
-#if (FLASH_SETUP == 1)                  /* Flash Accelerator Setup            */
-  LPC_SC->FLASHCFG  = (LPC_SC->FLASHCFG & ~0x0000F000) | FLASHCFG_Val;
+#if (FLASH_SETUP == 1) /* Flash Accelerator Setup            */
+  LPC_SC->FLASHCFG = (LPC_SC->FLASHCFG & ~0x0000F000) | FLASHCFG_Val;
 #endif
 
   stdio_retargeting_module = 1;

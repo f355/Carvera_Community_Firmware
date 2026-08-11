@@ -13,12 +13,11 @@
    limitations under the License.
 */
 /* Handler for single step gdb command. */
-#include <core/platforms.h>
 #include <core/cmd_common.h>
 #include <core/cmd_continue.h>
 #include <core/cmd_registers.h>
 #include <core/cmd_step.h>
-
+#include <core/platforms.h>
 
 static uint32_t justAdvancedPastBreakpoint(uint32_t continueReturn);
 /* Handle the 's' command which is sent from gdb to tell the debugger to single step over the next instruction in the
@@ -29,40 +28,33 @@ static uint32_t justAdvancedPastBreakpoint(uint32_t continueReturn);
 
     Where AAAAAAAA is an optional value to be used for the Program Counter when restarting the program.
 */
-uint32_t HandleSingleStepCommand(void)
-{
-    /* Single step is pretty much like continue except processor is told to only execute 1 instruction. */
-    uint32_t returnValue = HandleContinueCommand();
-    if (justAdvancedPastBreakpoint(returnValue))
-    {
-        /* Treat the advance as the single step and don't resume execution. */
-        return Send_T_StopResponse();
-    }
+uint32_t HandleSingleStepCommand(void) {
+  /* Single step is pretty much like continue except processor is told to only execute 1 instruction. */
+  uint32_t returnValue = HandleContinueCommand();
+  if (justAdvancedPastBreakpoint(returnValue)) {
+    /* Treat the advance as the single step and don't resume execution. */
+    return Send_T_StopResponse();
+  }
 
-    if (returnValue)
-    {
-        uint32_t pcBefore = Platform_GetProgramCounter();
-        Platform_EnableSingleStep();
-        if (Platform_GetProgramCounter() != pcBefore)
-        {
-            /* Platform code ended up advancing the program counter instead of enabling single step so just return
-               stop response to GDB. */
-            return Send_T_StopResponse();
-        }
-        if (Platform_RtosIsSetThreadStateSupported())
-        {
-            Platform_RtosSetThreadState(Platform_RtosGetHaltedThreadId(), MRI_PLATFORM_THREAD_SINGLE_STEPPING);
-        }
+  if (returnValue) {
+    uint32_t pcBefore = Platform_GetProgramCounter();
+    Platform_EnableSingleStep();
+    if (Platform_GetProgramCounter() != pcBefore) {
+      /* Platform code ended up advancing the program counter instead of enabling single step so just return
+         stop response to GDB. */
+      return Send_T_StopResponse();
     }
+    if (Platform_RtosIsSetThreadStateSupported()) {
+      Platform_RtosSetThreadState(Platform_RtosGetHaltedThreadId(), MRI_PLATFORM_THREAD_SINGLE_STEPPING);
+    }
+  }
 
-    return returnValue;
+  return returnValue;
 }
 
-static uint32_t justAdvancedPastBreakpoint(uint32_t continueReturn)
-{
-    return continueReturn & HANDLER_RETURN_SKIPPED_OVER_BREAK;
+static uint32_t justAdvancedPastBreakpoint(uint32_t continueReturn) {
+  return continueReturn & HANDLER_RETURN_SKIPPED_OVER_BREAK;
 }
-
 
 /* Handle the 'S' command which is sent from gdb to tell the debugger to single step over the next instruction in the
    currently halted program. It is similar to the 's' command but it also provides a signal, which MRI ignores.
@@ -73,22 +65,19 @@ static uint32_t justAdvancedPastBreakpoint(uint32_t continueReturn)
     Where AA is the signal to be set
           BBBBBBBB is an optional value to be used for the Program Counter when restarting the program.
 */
-uint32_t HandleSingleStepWithSignalCommand(void)
-{
-    /* Single step is pretty much like continue except processor is told to only execute 1 instruction. */
-    uint32_t returnValue = HandleContinueWithSignalCommand();
-    if (justAdvancedPastBreakpoint(returnValue))
-    {
-        /* Treat the advance as the single step and don't resume execution. */
-        return Send_T_StopResponse();
-    }
+uint32_t HandleSingleStepWithSignalCommand(void) {
+  /* Single step is pretty much like continue except processor is told to only execute 1 instruction. */
+  uint32_t returnValue = HandleContinueWithSignalCommand();
+  if (justAdvancedPastBreakpoint(returnValue)) {
+    /* Treat the advance as the single step and don't resume execution. */
+    return Send_T_StopResponse();
+  }
 
-    if (returnValue)
-    {
-        if (Platform_RtosIsSetThreadStateSupported())
-            Platform_RtosSetThreadState(Platform_RtosGetHaltedThreadId(), MRI_PLATFORM_THREAD_SINGLE_STEPPING);
-        Platform_EnableSingleStep();
-    }
+  if (returnValue) {
+    if (Platform_RtosIsSetThreadStateSupported())
+      Platform_RtosSetThreadState(Platform_RtosGetHaltedThreadId(), MRI_PLATFORM_THREAD_SINGLE_STEPPING);
+    Platform_EnableSingleStep();
+  }
 
-    return returnValue;
+  return returnValue;
 }

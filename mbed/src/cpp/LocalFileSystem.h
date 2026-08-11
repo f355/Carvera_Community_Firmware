@@ -27,27 +27,26 @@ namespace mbed {
 FILEHANDLE local_file_open(const char* name, int flags);
 
 class LocalFileHandle : public FileHandle {
+ public:
+  LocalFileHandle(FILEHANDLE fh);
 
-public:
-    LocalFileHandle(FILEHANDLE fh);
+  virtual int close();
 
-    virtual int close();
+  virtual ssize_t write(const void* buffer, size_t length);
 
-    virtual ssize_t write(const void *buffer, size_t length);
+  virtual ssize_t read(void* buffer, size_t length);
 
-    virtual ssize_t read(void *buffer, size_t length);
+  virtual int isatty();
 
-    virtual int isatty();
+  virtual off_t lseek(off_t position, int whence);
 
-    virtual off_t lseek(off_t position, int whence);
+  virtual int fsync();
 
-    virtual int fsync();
+  virtual off_t flen();
 
-    virtual off_t flen();
-
-protected:
-    FILEHANDLE _fh;
-    int pos;
+ protected:
+  FILEHANDLE _fh;
+  int pos;
 };
 
 /** A filesystem for accessing the local mbed Microcontroller USB disk drive
@@ -85,18 +84,15 @@ protected:
  *  not exit, you will need to hold down reset on the mbed Microcontroller to be able to see the drive again!
  */
 class LocalFileSystem : public FileSystemLike {
+ public:
+  LocalFileSystem(const char* n) : FileSystemLike(n) {}
 
-public:
-    LocalFileSystem(const char* n) : FileSystemLike(n) {
-
-    }
-
-    virtual FileHandle *open(const char* name, int flags);
-    virtual int remove(const char *filename);
-    virtual DirHandle *opendir(const char *name);
+  virtual FileHandle* open(const char* name, int flags);
+  virtual int remove(const char* filename);
+  virtual DirHandle* opendir(const char* name);
 };
 
-} // namespace mbed
+}  // namespace mbed
 
 #endif
 

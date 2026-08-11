@@ -20,10 +20,7 @@
 extern "C" {
 #endif
 
-typedef enum {
-    Port0 = 0,
-    Port1 = 1
-} PortName;
+typedef enum { Port0 = 0, Port1 = 1 } PortName;
 
 #ifdef __cplusplus
 }

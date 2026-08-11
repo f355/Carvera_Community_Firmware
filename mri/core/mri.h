@@ -21,21 +21,21 @@
 
 /* Used to insert hardcoded breakpoint into user's code. */
 #ifndef __debugbreak
-    #define __debugbreak()  { __asm volatile ("bkpt #0"); }
+#define __debugbreak()         \
+  {                            \
+    __asm volatile("bkpt #0"); \
+  }
 #endif
 
 /* Error strings that can be returned to GDB. */
-#define     MRI_ERROR_INVALID_ARGUMENT      "E01"   /* Encountered error when parsing command arguments. */
-#define     MRI_ERROR_MEMORY_ACCESS_FAILURE "E03"   /* Couldn't access requested memory. */
-#define     MRI_ERROR_BUFFER_OVERRUN        "E04"   /* Overflowed internal input/output buffer. */
-#define     MRI_ERROR_NO_FREE_BREAKPOINT    "E05"   /* No free FPB breakpoint comparator slots. */
-
+#define MRI_ERROR_INVALID_ARGUMENT "E01"      /* Encountered error when parsing command arguments. */
+#define MRI_ERROR_MEMORY_ACCESS_FAILURE "E03" /* Couldn't access requested memory. */
+#define MRI_ERROR_BUFFER_OVERRUN "E04"        /* Overflowed internal input/output buffer. */
+#define MRI_ERROR_NO_FREE_BREAKPOINT "E05"    /* No free FPB breakpoint comparator slots. */
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
-
 
 /* pDebuggerParameters string passed into mriInit contains a space separated list of configuration parameters to be
    used to initialize the debug monitor.  The supported options include:
@@ -115,18 +115,17 @@ void mriSetDebuggerHooks(MriDebuggerHookPtr pEnteringHook, MriDebuggerHookPtr pL
 
 /* Simple assembly language stubs that can be called from user's newlib stubs routines which will cause the operations
    to be redirected to the GDB host via MRI. The filenameLength parameters must include the terminating '\0'. */
-int mriNewLib_SemihostOpen(const char *pFilename, size_t filenameLength, int flags, int mode);
-int mriNewLib_SemihostRename(const char *pOldFilename, size_t oldFilenameLength, const char *pNewFilename, size_t newFilenameLength);
-int mriNewLib_SemihostUnlink(const char *pFilename, size_t filenameLength);
-int mriNewLib_SemihostStat(const char *pFilename, size_t filenameLength, void *pStat);
-int mriNewlib_SemihostWrite(int file, const char *ptr, int len);
-int mriNewlib_SemihostRead(int file, char *ptr, int len);
+int mriNewLib_SemihostOpen(const char* pFilename, size_t filenameLength, int flags, int mode);
+int mriNewLib_SemihostRename(const char* pOldFilename, size_t oldFilenameLength, const char* pNewFilename,
+                             size_t newFilenameLength);
+int mriNewLib_SemihostUnlink(const char* pFilename, size_t filenameLength);
+int mriNewLib_SemihostStat(const char* pFilename, size_t filenameLength, void* pStat);
+int mriNewlib_SemihostWrite(int file, const char* ptr, int len);
+int mriNewlib_SemihostRead(int file, char* ptr, int len);
 int mriNewlib_SemihostLSeek(int file, int offset, int whence);
 int mriNewlib_SemihostClose(int file);
-int mriNewlib_SemihostFStat(int file, void *pStat);
+int mriNewlib_SemihostFStat(int file, void* pStat);
 int mriNewlib_SemihostGetErrNo(void);
-
-
 
 #ifdef __cplusplus
 }

@@ -16,52 +16,50 @@
 #ifndef MBED_BUSIN_H
 #define MBED_BUSIN_H
 
-#include "platform.h"
 #include "DigitalIn.h"
+#include "platform.h"
 
 namespace mbed {
 
 /** A digital input bus, used for reading the state of a collection of pins
  */
 class BusIn {
+ public:
+  /* Group: Configuration Methods */
 
-public:
-    /* Group: Configuration Methods */
+  /** Create an BusIn, connected to the specified pins
+   *
+   * @param <n> DigitalIn pin to connect to bus bit <n> (p5-p30, NC)
+   *
+   * @note
+   *  It is only required to specify as many pin variables as is required
+   *  for the bus; the rest will default to NC (not connected)
+   */
+  BusIn(PinName p0, PinName p1 = NC, PinName p2 = NC, PinName p3 = NC, PinName p4 = NC, PinName p5 = NC,
+        PinName p6 = NC, PinName p7 = NC, PinName p8 = NC, PinName p9 = NC, PinName p10 = NC, PinName p11 = NC,
+        PinName p12 = NC, PinName p13 = NC, PinName p14 = NC, PinName p15 = NC);
 
-    /** Create an BusIn, connected to the specified pins
-     *
-     * @param <n> DigitalIn pin to connect to bus bit <n> (p5-p30, NC)
-     *
-     * @note
-     *  It is only required to specify as many pin variables as is required
-     *  for the bus; the rest will default to NC (not connected)
-     */
-    BusIn(PinName p0, PinName p1 = NC, PinName p2 = NC, PinName p3 = NC,
-          PinName p4 = NC, PinName p5 = NC, PinName p6 = NC, PinName p7 = NC,
-          PinName p8 = NC, PinName p9 = NC, PinName p10 = NC, PinName p11 = NC,
-          PinName p12 = NC, PinName p13 = NC, PinName p14 = NC, PinName p15 = NC);
+  BusIn(PinName pins[16]);
 
-    BusIn(PinName pins[16]);
+  virtual ~BusIn();
 
-    virtual ~BusIn();
-
-    /** Read the value of the input bus
-     *
-     *  @returns
-     *   An integer with each bit corresponding to the value read from the associated DigitalIn pin
-     */
-    int read();
+  /** Read the value of the input bus
+   *
+   *  @returns
+   *   An integer with each bit corresponding to the value read from the associated DigitalIn pin
+   */
+  int read();
 
 #ifdef MBED_OPERATORS
-    /** A shorthand for read()
-     */
-    operator int();
+  /** A shorthand for read()
+   */
+  operator int();
 #endif
 
-protected:
-    DigitalIn* _pin[16];
+ protected:
+  DigitalIn* _pin[16];
 };
 
-} // namespace mbed
+}  // namespace mbed
 
 #endif

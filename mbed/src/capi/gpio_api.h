@@ -29,9 +29,9 @@ extern "C" {
 uint32_t gpio_set(PinName pin);
 
 /* GPIO object */
-void gpio_init(gpio_t *obj, PinName pin, PinDirection direction);
-void gpio_mode(gpio_t *obj, PinMode mode);
-void gpio_dir (gpio_t *obj, PinDirection direction);
+void gpio_init(gpio_t* obj, PinName pin, PinDirection direction);
+void gpio_mode(gpio_t* obj, PinMode mode);
+void gpio_dir(gpio_t* obj, PinDirection direction);
 
 #ifdef __cplusplus
 }

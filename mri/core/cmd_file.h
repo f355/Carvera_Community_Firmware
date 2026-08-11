@@ -16,74 +16,68 @@
 #ifndef CMD_FILE_H_
 #define CMD_FILE_H_
 
-#include <stdint.h>
 #include <core/buffer.h>
+#include <stdint.h>
 
-typedef struct
-{
-    uint32_t        filenameAddress;
-    uint32_t        filenameLength;
-    uint32_t        flags;
-    uint32_t        mode;
+typedef struct {
+  uint32_t filenameAddress;
+  uint32_t filenameLength;
+  uint32_t flags;
+  uint32_t mode;
 } OpenParameters;
 
-typedef struct
-{
-    uint32_t        fileDescriptor;
-    uint32_t        bufferAddress;
-    int32_t         bufferSize;
+typedef struct {
+  uint32_t fileDescriptor;
+  uint32_t bufferAddress;
+  int32_t bufferSize;
 } TransferParameters;
 
-typedef struct
-{
-    uint32_t        fileDescriptor;
-    int32_t         offset;
-    int32_t         whence;
+typedef struct {
+  uint32_t fileDescriptor;
+  int32_t offset;
+  int32_t whence;
 } SeekParameters;
 
-typedef struct
-{
-    uint32_t        filenameAddress;
-    uint32_t        filenameLength;
+typedef struct {
+  uint32_t filenameAddress;
+  uint32_t filenameLength;
 } RemoveParameters;
 
-typedef struct
-{
-    uint32_t        filenameAddress;
-    uint32_t        filenameLength;
-    uint32_t        fileStatBuffer;
+typedef struct {
+  uint32_t filenameAddress;
+  uint32_t filenameLength;
+  uint32_t fileStatBuffer;
 } StatParameters;
 
-typedef struct
-{
-    uint32_t        origFilenameAddress;
-    uint32_t        origFilenameLength;
-    uint32_t        newFilenameAddress;
-    uint32_t        newFilenameLength;
+typedef struct {
+  uint32_t origFilenameAddress;
+  uint32_t origFilenameLength;
+  uint32_t newFilenameAddress;
+  uint32_t newFilenameLength;
 } RenameParameters;
 
 /* Real name of functions are in mri namespace. */
-int      mriIssueGdbFileOpenRequest(const OpenParameters* pParameters);
-int      mriIssueGdbFileWriteRequest(const TransferParameters* pParameters);
-int      mriIssueGdbFileReadRequest(const TransferParameters* pParameters);
-int      mriIssueGdbFileCloseRequest(uint32_t fileDescriptor);
-int      mriIssueGdbFileSeekRequest(const SeekParameters* pParameters);
-int      mriIssueGdbFileFStatRequest(uint32_t fileDescriptor, uint32_t fileStatBuffer);
-int      mriIssueGdbFileUnlinkRequest(const RemoveParameters* pParameters);
-int      mriIssueGdbFileStatRequest(const StatParameters* pParameters);
-int      mriIssueGdbFileRenameRequest(const RenameParameters* pParameters);
+int mriIssueGdbFileOpenRequest(const OpenParameters* pParameters);
+int mriIssueGdbFileWriteRequest(const TransferParameters* pParameters);
+int mriIssueGdbFileReadRequest(const TransferParameters* pParameters);
+int mriIssueGdbFileCloseRequest(uint32_t fileDescriptor);
+int mriIssueGdbFileSeekRequest(const SeekParameters* pParameters);
+int mriIssueGdbFileFStatRequest(uint32_t fileDescriptor, uint32_t fileStatBuffer);
+int mriIssueGdbFileUnlinkRequest(const RemoveParameters* pParameters);
+int mriIssueGdbFileStatRequest(const StatParameters* pParameters);
+int mriIssueGdbFileRenameRequest(const RenameParameters* pParameters);
 uint32_t mriHandleFileIOCommand(void);
 
 /* Macroes which allow code to drop the mri namespace prefix. */
-#define IssueGdbFileOpenRequest     mriIssueGdbFileOpenRequest
-#define IssueGdbFileWriteRequest    mriIssueGdbFileWriteRequest
-#define IssueGdbFileReadRequest     mriIssueGdbFileReadRequest
-#define IssueGdbFileCloseRequest    mriIssueGdbFileCloseRequest
-#define IssueGdbFileSeekRequest     mriIssueGdbFileSeekRequest
-#define IssueGdbFileFStatRequest    mriIssueGdbFileFStatRequest
-#define IssueGdbFileUnlinkRequest   mriIssueGdbFileUnlinkRequest
-#define IssueGdbFileStatRequest     mriIssueGdbFileStatRequest
-#define IssueGdbFileRenameRequest   mriIssueGdbFileRenameRequest
-#define HandleFileIOCommand         mriHandleFileIOCommand
+#define IssueGdbFileOpenRequest mriIssueGdbFileOpenRequest
+#define IssueGdbFileWriteRequest mriIssueGdbFileWriteRequest
+#define IssueGdbFileReadRequest mriIssueGdbFileReadRequest
+#define IssueGdbFileCloseRequest mriIssueGdbFileCloseRequest
+#define IssueGdbFileSeekRequest mriIssueGdbFileSeekRequest
+#define IssueGdbFileFStatRequest mriIssueGdbFileFStatRequest
+#define IssueGdbFileUnlinkRequest mriIssueGdbFileUnlinkRequest
+#define IssueGdbFileStatRequest mriIssueGdbFileStatRequest
+#define IssueGdbFileRenameRequest mriIssueGdbFileRenameRequest
+#define HandleFileIOCommand mriHandleFileIOCommand
 
 #endif /* CMD_FILE_H_ */

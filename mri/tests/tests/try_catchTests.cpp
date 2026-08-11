@@ -13,194 +13,139 @@
    limitations under the License.
 */
 
-extern "C"
-{
+extern "C" {
 #include <core/try_catch.h>
 }
 
 // Include C++ headers for test harness.
 #include "CppUTest/TestHarness.h"
 
-TEST_GROUP(TryCatch)
-{
-    int m_exceptionThrown;
+TEST_GROUP(TryCatch) {
+  int m_exceptionThrown;
 
-    void setup()
-    {
-        m_exceptionThrown = 0;
-    }
+  void setup() { m_exceptionThrown = 0; }
 
-    void teardown()
-    {
-    }
+  void teardown() {}
 
-    void flagExceptionHit()
-    {
-        m_exceptionThrown = 1;
-    }
+  void flagExceptionHit() { m_exceptionThrown = 1; }
 
-    void throwNoException()
-    {
-    }
+  void throwNoException() {}
 
-    void throwBufferAndArgumentExceptions()
-    {
-        throwBufferOverrunException();
-        throwInvalidArgumentException();
-    }
+  void throwBufferAndArgumentExceptions() {
+    throwBufferOverrunException();
+    throwInvalidArgumentException();
+  }
 
-    void throwArgumentAndBufferExceptions()
-    {
-        throwInvalidArgumentException();
-        throwBufferOverrunException();
-    }
+  void throwArgumentAndBufferExceptions() {
+    throwInvalidArgumentException();
+    throwBufferOverrunException();
+  }
 
-    void throwBufferOverrunException()
-    {
-        __throw(bufferOverrunException);
-    }
+  void throwBufferOverrunException() { __throw(bufferOverrunException); }
 
-    void throwInvalidArgumentException()
-    {
-        __throw(invalidArgumentException);
-    }
+  void throwInvalidArgumentException() { __throw(invalidArgumentException); }
 
-    int throwBufferOverrunExceptionAndReturnNegative1()
-    {
-        __throw_and_return(bufferOverrunException, -1);
-    }
+  int throwBufferOverrunExceptionAndReturnNegative1() { __throw_and_return(bufferOverrunException, -1); }
 
-    void rethrowBufferOverrunException()
-    {
-        __try
-            throwBufferOverrunException();
-        __catch
-            __rethrow;
-        __throw(invalidArgumentException);
-    }
+  void rethrowBufferOverrunException() {
+    __try
+      throwBufferOverrunException();
+    __catch __rethrow;
+    __throw(invalidArgumentException);
+  }
 
-    int rethrowBufferOverrunExceptionAndReturnNegative1()
-    {
-        __try
-            throwBufferOverrunException();
-        __catch
-            __rethrow_and_return(-1);
-        __throw_and_return(invalidArgumentException, 0);
-    }
+  int rethrowBufferOverrunExceptionAndReturnNegative1() {
+    __try
+      throwBufferOverrunException();
+    __catch __rethrow_and_return(-1);
+    __throw_and_return(invalidArgumentException, 0);
+  }
 
-    void validateException(int expectedExceptionCode)
-    {
-        if (expectedExceptionCode == noException)
-        {
-            CHECK_FALSE(m_exceptionThrown);
-        }
-        else
-        {
-            CHECK_TRUE(m_exceptionThrown);
-        }
-        LONGS_EQUAL(expectedExceptionCode, getExceptionCode());
+  void validateException(int expectedExceptionCode) {
+    if (expectedExceptionCode == noException) {
+      CHECK_FALSE(m_exceptionThrown);
+    } else {
+      CHECK_TRUE(m_exceptionThrown);
     }
+    LONGS_EQUAL(expectedExceptionCode, getExceptionCode());
+  }
 };
 
-TEST(TryCatch, NoException)
-{
-    __try
-        throwNoException();
-    __catch
-        flagExceptionHit();
-    validateException(noException);
+TEST(TryCatch, NoException) {
+  __try
+    throwNoException();
+  __catch flagExceptionHit();
+  validateException(noException);
 }
 
-TEST(TryCatch, bufferOverrunException)
-{
-    __try
-        throwBufferOverrunException();
-    __catch
-        flagExceptionHit();
-    validateException(bufferOverrunException);
+TEST(TryCatch, bufferOverrunException) {
+  __try
+    throwBufferOverrunException();
+  __catch flagExceptionHit();
+  validateException(bufferOverrunException);
 }
 
-TEST(TryCatch, EscalatingExceptions)
-{
-    __try
-        throwBufferAndArgumentExceptions();
-    __catch
-        flagExceptionHit();
+TEST(TryCatch, EscalatingExceptions) {
+  __try
+    throwBufferAndArgumentExceptions();
+  __catch flagExceptionHit();
 
-    validateException(invalidArgumentException);
+  validateException(invalidArgumentException);
 }
 
-TEST(TryCatch, NonEscalatingExceptions)
-{
-    __try
-        throwArgumentAndBufferExceptions();
-    __catch
-        flagExceptionHit();
+TEST(TryCatch, NonEscalatingExceptions) {
+  __try
+    throwArgumentAndBufferExceptions();
+  __catch flagExceptionHit();
 
-    validateException(invalidArgumentException);
+  validateException(invalidArgumentException);
 }
 
-TEST(TryCatch, CatchFirstThrow)
-{
-    __try
-    {
-        __throwing_func( throwBufferOverrunException() );
-        __throwing_func( throwInvalidArgumentException() );
-    }
-    __catch
-    {
-        flagExceptionHit();
-    }
+TEST(TryCatch, CatchFirstThrow) {
+  __try {
+    __throwing_func(throwBufferOverrunException());
+    __throwing_func(throwInvalidArgumentException());
+  }
+  __catch { flagExceptionHit(); }
 
-    validateException(bufferOverrunException);
+  validateException(bufferOverrunException);
 }
 
-TEST(TryCatch, CatchSecondThrow)
-{
-    __try
-    {
-        __throwing_func( throwNoException() );
-        __throwing_func( throwInvalidArgumentException() );
-    }
-    __catch
-    {
-        flagExceptionHit();
-    }
+TEST(TryCatch, CatchSecondThrow) {
+  __try {
+    __throwing_func(throwNoException());
+    __throwing_func(throwInvalidArgumentException());
+  }
+  __catch { flagExceptionHit(); }
 
-    validateException(invalidArgumentException);
+  validateException(invalidArgumentException);
 }
 
-TEST(TryCatch, ThrowAndReturn)
-{
-    int value;
+TEST(TryCatch, ThrowAndReturn) {
+  int value;
 
-    __try
-        value = throwBufferOverrunExceptionAndReturnNegative1();
-    __catch
-        flagExceptionHit();
+  __try
+    value = throwBufferOverrunExceptionAndReturnNegative1();
+  __catch flagExceptionHit();
 
-    LONGS_EQUAL( -1, value );
-    validateException(bufferOverrunException);
+  LONGS_EQUAL(-1, value);
+  validateException(bufferOverrunException);
 }
 
-TEST(TryCatch, RethrowBufferOverrunException)
-{
-    __try
-        rethrowBufferOverrunException();
-    __catch
-        flagExceptionHit();
-    validateException(bufferOverrunException);
+TEST(TryCatch, RethrowBufferOverrunException) {
+  __try
+    rethrowBufferOverrunException();
+  __catch flagExceptionHit();
+  validateException(bufferOverrunException);
 }
 
-TEST(TryCatch, RethrowBufferOverrunExceptionAndReturnNegative1)
-{
-    int value;
+TEST(TryCatch, RethrowBufferOverrunExceptionAndReturnNegative1) {
+  int value;
 
-    __try
-        value = rethrowBufferOverrunExceptionAndReturnNegative1();
-    __catch
-        flagExceptionHit();
+  __try
+    value = rethrowBufferOverrunExceptionAndReturnNegative1();
+  __catch flagExceptionHit();
 
-    LONGS_EQUAL( -1, value );
-    validateException(bufferOverrunException);
+  LONGS_EQUAL(-1, value);
+  validateException(bufferOverrunException);
 }

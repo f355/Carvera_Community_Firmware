@@ -16,8 +16,8 @@
 #ifndef NRF52_UART_H_
 #define NRF52_UART_H_
 
-#include <stdint.h>
 #include <core/token.h>
+#include <stdint.h>
 
 void mriNRF52Uart_Init(Token* pParameterTokens, uint32_t debugMonPriorityLevel);
 

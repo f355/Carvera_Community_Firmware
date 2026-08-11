@@ -22,20 +22,20 @@
 extern "C" {
 #endif
 
-PinName parse_pins(const char *str);
+PinName parse_pins(const char* str);
 
 typedef struct {
-    PinName pin;
-    int peripheral;
-    int function;
+  PinName pin;
+  int peripheral;
+  int function;
 } PinMap;
 
 void pin_function(PinName pin, int function);
-void pin_mode    (PinName pin, PinMode mode);
+void pin_mode(PinName pin, PinMode mode);
 
 uint32_t pinmap_peripheral(PinName pin, const PinMap* map);
-uint32_t pinmap_merge     (uint32_t a, uint32_t b);
-void     pinmap_pinout    (PinName pin, const PinMap *map);
+uint32_t pinmap_merge(uint32_t a, uint32_t b);
+void pinmap_pinout(PinName pin, const PinMap* map);
 
 #ifdef __cplusplus
 }

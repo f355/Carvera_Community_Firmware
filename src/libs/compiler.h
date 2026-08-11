@@ -13,6 +13,6 @@
 
 extern unsigned int __StackLimit;
 #define CONFIG_CACHE_STORAGE(Type, Capacity) \
-    reinterpret_cast<Type *>((uintptr_t)&__StackLimit - (Capacity) * sizeof(Type))
+  reinterpret_cast<Type*>((uintptr_t)&__StackLimit - (Capacity) * sizeof(Type))
 
 #endif

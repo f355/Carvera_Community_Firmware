@@ -13,47 +13,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "pinmap.h"
 #include "error.h"
+#include "pinmap.h"
 
-void pinmap_pinout(PinName pin, const PinMap *map) {
-    if (pin == NC) return;
+void pinmap_pinout(PinName pin, const PinMap* map) {
+  if (pin == NC) return;
 
-    while (map->pin != NC) {
-        if (map->pin == pin) {
-            pin_function(pin, map->function);
-            pin_mode(pin, PullNone);
-            return;
-        }
-        map++;
+  while (map->pin != NC) {
+    if (map->pin == pin) {
+      pin_function(pin, map->function);
+      pin_mode(pin, PullNone);
+      return;
     }
-    error("could not pinout");
+    map++;
+  }
+  error("could not pinout");
 }
 
 uint32_t pinmap_merge(uint32_t a, uint32_t b) {
-    // both are the same (inc both NC)
-    if (a == b) return a;
+  // both are the same (inc both NC)
+  if (a == b) return a;
 
-    // one (or both) is not connected
-    if (a == (uint32_t)NC) return b;
-    if (b == (uint32_t)NC) return a;
+  // one (or both) is not connected
+  if (a == (uint32_t)NC) return b;
+  if (b == (uint32_t)NC) return a;
 
-    // mis-match error case
-    error("pinmap mis-match");
-    return (uint32_t)NC;
+  // mis-match error case
+  error("pinmap mis-match");
+  return (uint32_t)NC;
 }
 
 uint32_t pinmap_peripheral(PinName pin, const PinMap* map) {
-    if (pin == NC)
-        return (uint32_t)NC;
+  if (pin == NC) return (uint32_t)NC;
 
-    while (map->pin != NC) {
-        if (map->pin == pin)
-            return map->peripheral;
-        map++;
-    }
+  while (map->pin != NC) {
+    if (map->pin == pin) return map->peripheral;
+    map++;
+  }
 
-    // no mapping available
-    error("pinmap not found for peripheral");
-    return (uint32_t)NC;
+  // no mapping available
+  error("pinmap not found for peripheral");
+  return (uint32_t)NC;
 }

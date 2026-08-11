@@ -16,8 +16,8 @@
 #ifndef MBED_DIGITALOUT_H
 #define MBED_DIGITALOUT_H
 
-#include "platform.h"
 #include "gpio_api.h"
+#include "platform.h"
 
 namespace mbed {
 
@@ -39,59 +39,50 @@ namespace mbed {
  * @endcode
  */
 class DigitalOut {
+ public:
+  /** Create a DigitalOut connected to the specified pin
+   *
+   *  @param pin DigitalOut pin to connect to
+   */
+  DigitalOut(PinName pin) { gpio_init(&gpio, pin, PIN_OUTPUT); }
 
-public:
-    /** Create a DigitalOut connected to the specified pin
-     *
-     *  @param pin DigitalOut pin to connect to
-     */
-    DigitalOut(PinName pin) {
-        gpio_init(&gpio, pin, PIN_OUTPUT);
-    }
+  /** Set the output, specified as 0 or 1 (int)
+   *
+   *  @param value An integer specifying the pin output value,
+   *      0 for logical 0, 1 (or any other non-zero value) for logical 1
+   */
+  void write(int value) { gpio_write(&gpio, value); }
 
-    /** Set the output, specified as 0 or 1 (int)
-     *
-     *  @param value An integer specifying the pin output value,
-     *      0 for logical 0, 1 (or any other non-zero value) for logical 1
-     */
-    void write(int value) {
-        gpio_write(&gpio, value);
-    }
-
-    /** Return the output setting, represented as 0 or 1 (int)
-     *
-     *  @returns
-     *    an integer representing the output setting of the pin,
-     *    0 for logical 0, 1 for logical 1
-     */
-    int read() {
-        return gpio_read(&gpio);
-    }
+  /** Return the output setting, represented as 0 or 1 (int)
+   *
+   *  @returns
+   *    an integer representing the output setting of the pin,
+   *    0 for logical 0, 1 for logical 1
+   */
+  int read() { return gpio_read(&gpio); }
 
 #ifdef MBED_OPERATORS
-    /** A shorthand for write()
-     */
-    DigitalOut& operator= (int value) {
-        write(value);
-        return *this;
-    }
+  /** A shorthand for write()
+   */
+  DigitalOut& operator=(int value) {
+    write(value);
+    return *this;
+  }
 
-    DigitalOut& operator= (DigitalOut& rhs) {
-        write(rhs.read());
-        return *this;
-    }
+  DigitalOut& operator=(DigitalOut& rhs) {
+    write(rhs.read());
+    return *this;
+  }
 
-    /** A shorthand for read()
-     */
-    operator int() {
-        return read();
-    }
+  /** A shorthand for read()
+   */
+  operator int() { return read(); }
 #endif
 
-protected:
-    gpio_t gpio;
+ protected:
+  gpio_t gpio;
 };
 
-} // namespace mbed
+}  // namespace mbed
 
 #endif

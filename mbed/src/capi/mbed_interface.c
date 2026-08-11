@@ -13,95 +13,90 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <stdio.h>
 #include "mbed_interface.h"
 
-#include "gpio_api.h"
-#include "wait_api.h"
-#include "semihost_api.h"
+#include <stdio.h>
+
 #include "error.h"
+#include "gpio_api.h"
+#include "semihost_api.h"
 #include "toolchain.h"
+#include "wait_api.h"
 
 #if DEVICE_SEMIHOST
 
 // return true if a debugger is attached, indicating mbed interface is connected
-int mbed_interface_connected(void) {
-    return semihost_connected();
-}
+int mbed_interface_connected(void) { return semihost_connected(); }
 
 int mbed_interface_reset(void) {
-    if (mbed_interface_connected()) {
-        semihost_reset();
-        return 0;
-    } else {
-        return -1;
-    }
+  if (mbed_interface_connected()) {
+    semihost_reset();
+    return 0;
+  } else {
+    return -1;
+  }
 }
 
-WEAK int mbed_interface_uid(char *uid);
-WEAK int mbed_interface_uid(char *uid) {
-    if (mbed_interface_connected()) {
-        return semihost_uid(uid); // Returns 0 if successful, -1 on failure
-    } else {
-        uid[0] = 0;
-        return -1;
-    }
+WEAK int mbed_interface_uid(char* uid);
+WEAK int mbed_interface_uid(char* uid) {
+  if (mbed_interface_connected()) {
+    return semihost_uid(uid);  // Returns 0 if successful, -1 on failure
+  } else {
+    uid[0] = 0;
+    return -1;
+  }
 }
 
 int mbed_interface_disconnect(void) {
-    if (mbed_interface_connected()) {
-        return semihost_disabledebug();
-    } else {
-        return -1;
-    }
+  if (mbed_interface_connected()) {
+    return semihost_disabledebug();
+  } else {
+    return -1;
+  }
 }
 
 int mbed_interface_powerdown(void) {
-    if (mbed_interface_connected()) {
-        return semihost_powerdown();
-    } else {
-        return -1;
-    }
+  if (mbed_interface_connected()) {
+    return semihost_powerdown();
+  } else {
+    return -1;
+  }
 }
 
 // for backward compatibility
-void mbed_reset(void) {
-    mbed_interface_reset();
-}
+void mbed_reset(void) { mbed_interface_reset(); }
 
-WEAK int mbed_uid(char *uid);
-WEAK int mbed_uid(char *uid) {
-    return mbed_interface_uid(uid);
-}
+WEAK int mbed_uid(char* uid);
+WEAK int mbed_uid(char* uid) { return mbed_interface_uid(uid); }
 #endif
 
-WEAK void mbed_mac_address(char *mac);
-WEAK void mbed_mac_address(char *mac) {
+WEAK void mbed_mac_address(char* mac);
+WEAK void mbed_mac_address(char* mac) {
 #if DEVICE_SEMIHOST
-    char uid[DEVICE_ID_LENGTH + 1];
-    int i;
-    
-    // if we have a UID, extract the MAC
-    if (mbed_interface_uid(uid) == 0) {
-        char *p = uid;
+  char uid[DEVICE_ID_LENGTH + 1];
+  int i;
+
+  // if we have a UID, extract the MAC
+  if (mbed_interface_uid(uid) == 0) {
+    char* p = uid;
 #if defined(DEVICE_MAC_OFFSET)
-        p += DEVICE_MAC_OFFSET;
+    p += DEVICE_MAC_OFFSET;
 #endif
-        for (i=0; i<6; i++) {
-            int byte;
-            sscanf(p, "%2x", &byte);
-            mac[i] = byte;
-            p += 2;
-        }
-    } else {  // else return a default MAC
-#endif
-        mac[0] = 0x00;
-        mac[1] = 0x02;
-        mac[2] = 0xF7;
-        mac[3] = 0xF0;
-        mac[4] = 0x00;
-        mac[5] = 0x00;
-#if DEVICE_SEMIHOST
+    for (i = 0; i < 6; i++) {
+      int byte;
+      sscanf(p, "%2x", &byte);
+      mac[i] = byte;
+      p += 2;
     }
+  } else {  // else return a default MAC
+#endif
+    mac[0] = 0x00;
+    mac[1] = 0x02;
+    mac[2] = 0xF7;
+    mac[3] = 0xF0;
+    mac[4] = 0x00;
+    mac[5] = 0x00;
+#if DEVICE_SEMIHOST
+  }
 #endif
 }

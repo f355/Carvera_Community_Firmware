@@ -7,24 +7,23 @@
 
 class StreamOutput;
 
-class DeltaCalibrationStrategy : public LevelingStrategy
-{
-public:
-    DeltaCalibrationStrategy(ZProbe *zprobe) : LevelingStrategy(zprobe){};
-    ~DeltaCalibrationStrategy(){};
-    bool handleGcode(Gcode* gcode);
-    bool handleConfig();
+class DeltaCalibrationStrategy : public LevelingStrategy {
+ public:
+  DeltaCalibrationStrategy(ZProbe* zprobe) : LevelingStrategy(zprobe) {};
+  ~DeltaCalibrationStrategy() {};
+  bool handleGcode(Gcode* gcode);
+  bool handleConfig();
 
-private:
-    bool set_trim(float x, float y, float z, StreamOutput *stream);
-    bool get_trim(float& x, float& y, float& z);
-    bool calibrate_delta_endstops(Gcode *gcode);
-    bool calibrate_delta_radius(Gcode *gcode);
-    bool probe_delta_points(Gcode *gcode);
-    float findBed();
+ private:
+  bool set_trim(float x, float y, float z, StreamOutput* stream);
+  bool get_trim(float& x, float& y, float& z);
+  bool calibrate_delta_endstops(Gcode* gcode);
+  bool calibrate_delta_radius(Gcode* gcode);
+  bool probe_delta_points(Gcode* gcode);
+  float findBed();
 
-    float probe_radius;
-    float initial_height;
+  float probe_radius;
+  float initial_height;
 };
 
 #endif

@@ -16,9 +16,8 @@
 #ifndef MBED_DIGITALIN_H
 #define MBED_DIGITALIN_H
 
-#include "platform.h"
-
 #include "gpio_api.h"
+#include "platform.h"
 
 namespace mbed {
 
@@ -44,47 +43,38 @@ namespace mbed {
  * @endcode
  */
 class DigitalIn {
+ public:
+  /** Create a DigitalIn connected to the specified pin
+   *
+   *  @param pin DigitalIn pin to connect to
+   *  @param name (optional) A string to identify the object
+   */
+  DigitalIn(PinName pin) { gpio_init(&gpio, pin, PIN_INPUT); }
 
-public:
-    /** Create a DigitalIn connected to the specified pin
-     *
-     *  @param pin DigitalIn pin to connect to
-     *  @param name (optional) A string to identify the object
-     */
-    DigitalIn(PinName pin) {
-        gpio_init(&gpio, pin, PIN_INPUT);
-    }
+  /** Read the input, represented as 0 or 1 (int)
+   *
+   *  @returns
+   *    An integer representing the state of the input pin,
+   *    0 for logical 0, 1 for logical 1
+   */
+  int read() { return gpio_read(&gpio); }
 
-    /** Read the input, represented as 0 or 1 (int)
-     *
-     *  @returns
-     *    An integer representing the state of the input pin,
-     *    0 for logical 0, 1 for logical 1
-     */
-    int read() {
-        return gpio_read(&gpio);
-    }
-
-    /** Set the input pin mode
-     *
-     *  @param mode PullUp, PullDown, PullNone, OpenDrain
-     */
-    void mode(PinMode pull) {
-        gpio_mode(&gpio, pull);
-    }
+  /** Set the input pin mode
+   *
+   *  @param mode PullUp, PullDown, PullNone, OpenDrain
+   */
+  void mode(PinMode pull) { gpio_mode(&gpio, pull); }
 
 #ifdef MBED_OPERATORS
-    /** An operator shorthand for read()
-     */
-    operator int() {
-        return read();
-    }
+  /** An operator shorthand for read()
+   */
+  operator int() { return read(); }
 #endif
 
-protected:
-    gpio_t gpio;
+ protected:
+  gpio_t gpio;
 };
 
-} // namespace mbed
+}  // namespace mbed
 
 #endif

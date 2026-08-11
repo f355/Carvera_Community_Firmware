@@ -18,35 +18,33 @@
 #ifndef CONTEXT_H_
 #define CONTEXT_H_
 
-#include <stdint.h>
 #include <core/buffer.h>
+#include <stdint.h>
 
-typedef struct
-{
-    uintmri_t* pValues;
-    size_t     count;
+typedef struct {
+  uintmri_t* pValues;
+  size_t count;
 } ContextSection;
 
-typedef struct
-{
-    ContextSection* pSections;
-    size_t          sectionCount;
+typedef struct {
+  ContextSection* pSections;
+  size_t sectionCount;
 } MriContext;
 
 /* Real name of functions are in mri namespace. */
-void      mriContext_Init(MriContext* pThis, ContextSection* pSections, size_t sectionCount);
-size_t    mriContext_Count(MriContext* pThis);
+void mriContext_Init(MriContext* pThis, ContextSection* pSections, size_t sectionCount);
+size_t mriContext_Count(MriContext* pThis);
 uintmri_t mriContext_Get(const MriContext* pThis, size_t index);
-void      mriContext_Set(MriContext* pThis, size_t index, uintmri_t newValue);
-void      mriContext_CopyToBuffer(MriContext* pThis, Buffer* pBuffer);
-void      mriContext_CopyFromBuffer(MriContext* pThis, Buffer* pBuffer);
+void mriContext_Set(MriContext* pThis, size_t index, uintmri_t newValue);
+void mriContext_CopyToBuffer(MriContext* pThis, Buffer* pBuffer);
+void mriContext_CopyFromBuffer(MriContext* pThis, Buffer* pBuffer);
 
 /* Macroes which allow code to drop the mri namespace prefix. */
-#define Context_Init            mriContext_Init
-#define Context_Count           mriContext_Count
-#define Context_Get             mriContext_Get
-#define Context_Set             mriContext_Set
-#define Context_CopyToBuffer    mriContext_CopyToBuffer
-#define Context_CopyFromBuffer  mriContext_CopyFromBuffer
+#define Context_Init mriContext_Init
+#define Context_Count mriContext_Count
+#define Context_Get mriContext_Get
+#define Context_Set mriContext_Set
+#define Context_CopyToBuffer mriContext_CopyToBuffer
+#define Context_CopyFromBuffer mriContext_CopyFromBuffer
 
 #endif /* CONTEXT_H_ */

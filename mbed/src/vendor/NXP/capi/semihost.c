@@ -17,8 +17,6 @@
 
 #if DEVICE_DEBUG_AWARENESS
 
-int semihost_connected(void) {
-    return (CoreDebug->DHCSR & CoreDebug_DHCSR_C_DEBUGEN_Msk) ? 1 : 0;
-}
+int semihost_connected(void) { return (CoreDebug->DHCSR & CoreDebug_DHCSR_C_DEBUGEN_Msk) ? 1 : 0; }
 
 #endif

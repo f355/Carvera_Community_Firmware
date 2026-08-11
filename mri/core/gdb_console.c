@@ -13,18 +13,16 @@
    limitations under the License.
 */
 /* Routines to output text to stdout on the gdb console. */
-#include <string.h>
-#include <core/libc.h>
 #include <core/buffer.h>
-#include <core/platforms.h>
 #include <core/core.h>
-#include <core/memory.h>
 #include <core/gdb_console.h>
+#include <core/libc.h>
+#include <core/memory.h>
+#include <core/platforms.h>
+#include <string.h>
 
-
-size_t WriteStringToGdbConsole(const char* pString)
-{
-    return WriteSizedStringToGdbConsole(pString, mri_strlen(pString));
+size_t WriteStringToGdbConsole(const char* pString) {
+  return WriteSizedStringToGdbConsole(pString, mri_strlen(pString));
 }
 
 /* Send the 'O' command to gdb to output text to its console.
@@ -32,28 +30,25 @@ size_t WriteStringToGdbConsole(const char* pString)
     Command Format: OXX...
     Where XX is the hexadecimal representation of each character in the string to be sent to the gdb console.
 */
-size_t WriteSizedStringToGdbConsole(const char* pString, size_t length)
-{
-    Buffer* pBuffer = GetInitializedBuffer();
-    size_t  charsWritten = 0;
+size_t WriteSizedStringToGdbConsole(const char* pString, size_t length) {
+  Buffer* pBuffer = GetInitializedBuffer();
+  size_t charsWritten = 0;
 
-    Buffer_WriteChar(pBuffer, 'O');
-    charsWritten = Buffer_WriteSizedStringAsHex(pBuffer, pString, length);
-    SendPacketToGdb();
+  Buffer_WriteChar(pBuffer, 'O');
+  charsWritten = Buffer_WriteSizedStringAsHex(pBuffer, pString, length);
+  SendPacketToGdb();
 
-    return charsWritten;
+  return charsWritten;
 }
 
+void WriteHexValueToGdbConsole(uint32_t Value) {
+  Buffer BufferObject;
+  char StringBuffer[11];
 
-void WriteHexValueToGdbConsole(uint32_t Value)
-{
-    Buffer BufferObject;
-    char   StringBuffer[11];
+  Buffer_Init(&BufferObject, StringBuffer, sizeof(StringBuffer));
+  Buffer_WriteString(&BufferObject, "0x");
+  Buffer_WriteUIntegerAsHex(&BufferObject, Value);
+  Buffer_SetEndOfBuffer(&BufferObject);
 
-    Buffer_Init(&BufferObject, StringBuffer, sizeof(StringBuffer));
-    Buffer_WriteString(&BufferObject, "0x");
-    Buffer_WriteUIntegerAsHex(&BufferObject, Value);
-    Buffer_SetEndOfBuffer(&BufferObject);
-
-    WriteSizedStringToGdbConsole(Buffer_GetArray(&BufferObject), Buffer_GetLength(&BufferObject));
+  WriteSizedStringToGdbConsole(Buffer_GetArray(&BufferObject), Buffer_GetLength(&BufferObject));
 }

@@ -23,7 +23,7 @@ uint32_t mriCmd_HandleBreakpointWatchpointSetCommand(void);
 uint32_t mriCmd_HandleBreakpointWatchpointRemoveCommand(void);
 
 /* Macroes which allow code to drop the mri namespace prefix. */
-#define HandleBreakpointWatchpointSetCommand    mriCmd_HandleBreakpointWatchpointSetCommand
+#define HandleBreakpointWatchpointSetCommand mriCmd_HandleBreakpointWatchpointSetCommand
 #define HandleBreakpointWatchpointRemoveCommand mriCmd_HandleBreakpointWatchpointRemoveCommand
 
 #endif /* CMD_BREAK_WATCH_H_ */

@@ -20,55 +20,52 @@
 namespace mbed {
 
 InterruptIn::InterruptIn(PinName pin) {
-    gpio_irq_init(&gpio_irq, pin, (&InterruptIn::_irq_handler), (uint32_t)this);
-    gpio_init(&gpio, pin, PIN_INPUT);
+  gpio_irq_init(&gpio_irq, pin, (&InterruptIn::_irq_handler), (uint32_t)this);
+  gpio_init(&gpio, pin, PIN_INPUT);
 }
 
-InterruptIn::~InterruptIn() {
-    gpio_irq_free(&gpio_irq);
-}
+InterruptIn::~InterruptIn() { gpio_irq_free(&gpio_irq); }
 
-int InterruptIn::read() {
-    return gpio_read(&gpio);
-}
+int InterruptIn::read() { return gpio_read(&gpio); }
 
-void InterruptIn::mode(PinMode pull) {
-    gpio_mode(&gpio, pull);
-}
+void InterruptIn::mode(PinMode pull) { gpio_mode(&gpio, pull); }
 
 void InterruptIn::rise(void (*fptr)(void)) {
-    if (fptr) {
-        _rise.attach(fptr);
-        gpio_irq_set(&gpio_irq, IRQ_RISE, 1);
-    } else {
-        gpio_irq_set(&gpio_irq, IRQ_RISE, 0);
-    }
+  if (fptr) {
+    _rise.attach(fptr);
+    gpio_irq_set(&gpio_irq, IRQ_RISE, 1);
+  } else {
+    gpio_irq_set(&gpio_irq, IRQ_RISE, 0);
+  }
 }
 
 void InterruptIn::fall(void (*fptr)(void)) {
-    if (fptr) {
-        _fall.attach(fptr);
-        gpio_irq_set(&gpio_irq, IRQ_FALL, 1);
-    } else {
-        gpio_irq_set(&gpio_irq, IRQ_FALL, 0);
-    }
+  if (fptr) {
+    _fall.attach(fptr);
+    gpio_irq_set(&gpio_irq, IRQ_FALL, 1);
+  } else {
+    gpio_irq_set(&gpio_irq, IRQ_FALL, 0);
+  }
 }
 
 void InterruptIn::_irq_handler(uint32_t id, gpio_irq_event event) {
-    InterruptIn *handler = (InterruptIn*)id;
-    switch (event) {
-        case IRQ_RISE: handler->_rise.call(); break;
-        case IRQ_FALL: handler->_fall.call(); break;
-        case IRQ_NONE: break;
-    }
+  InterruptIn* handler = (InterruptIn*)id;
+  switch (event) {
+    case IRQ_RISE:
+      handler->_rise.call();
+      break;
+    case IRQ_FALL:
+      handler->_fall.call();
+      break;
+    case IRQ_NONE:
+      break;
+  }
 }
 
 #ifdef MBED_OPERATORS
-InterruptIn::operator int() {
-    return read();
-}
+InterruptIn::operator int() { return read(); }
 #endif
 
-} // namespace mbed
+}  // namespace mbed
 
 #endif

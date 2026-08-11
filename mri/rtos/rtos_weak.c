@@ -14,46 +14,20 @@
 */
 #include <core/platforms.h>
 
+__attribute__((weak)) uint32_t Platform_RtosGetHaltedThreadId(void) { return 0; }
 
-__attribute__((weak)) uint32_t Platform_RtosGetHaltedThreadId(void)
-{
-    return 0;
-}
+__attribute__((weak)) uint32_t Platform_RtosGetFirstThreadId(void) { return 0; }
 
-__attribute__((weak)) uint32_t Platform_RtosGetFirstThreadId(void)
-{
-    return 0;
-}
+__attribute__((weak)) uint32_t Platform_RtosGetNextThreadId(void) { return 0; }
 
-__attribute__((weak)) uint32_t Platform_RtosGetNextThreadId(void)
-{
-    return 0;
-}
+__attribute__((weak)) const char* Platform_RtosGetExtraThreadInfo(uint32_t threadId) { return NULL; }
 
-__attribute__((weak)) const char* Platform_RtosGetExtraThreadInfo(uint32_t threadId)
-{
-    return NULL;
-}
+__attribute__((weak)) MriContext* Platform_RtosGetThreadContext(uint32_t threadId) { return NULL; }
 
-__attribute__((weak)) MriContext* Platform_RtosGetThreadContext(uint32_t threadId)
-{
-    return NULL;
-}
+__attribute__((weak)) int Platform_RtosIsThreadActive(uint32_t threadId) { return 0; }
 
-__attribute__((weak)) int Platform_RtosIsThreadActive(uint32_t threadId)
-{
-    return 0;
-}
+__attribute__((weak)) int Platform_RtosIsSetThreadStateSupported(void) { return 0; }
 
-__attribute__((weak)) int Platform_RtosIsSetThreadStateSupported(void)
-{
-    return 0;
-}
+__attribute__((weak)) void Platform_RtosSetThreadState(uint32_t threadId, PlatformThreadState state) {}
 
-__attribute__((weak)) void Platform_RtosSetThreadState(uint32_t threadId, PlatformThreadState state)
-{
-}
-
-__attribute__((weak)) void Platform_RtosRestorePrevThreadState(void)
-{
-}
+__attribute__((weak)) void Platform_RtosRestorePrevThreadState(void) {}

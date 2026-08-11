@@ -1,6 +1,6 @@
 /**********************************************************************
-* $Id$		lpc17xx_nvic.h				2010-05-21
-*//**
+ * $Id$		lpc17xx_nvic.h				2010-05-21
+ *//**
 * @file		lpc17xx_nvic.h
 * @brief	Contains all macro definitions and function prototypes
 * 			support for Nesting Vectored Interrupt firmware library
@@ -39,10 +39,8 @@
 #include "lpc_types.h"
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
-
 
 /* Public Functions ----------------------------------------------------------- */
 /** @defgroup NVIC_Public_Functions NVIC Public Functions

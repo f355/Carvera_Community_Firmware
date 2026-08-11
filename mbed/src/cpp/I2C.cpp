@@ -19,77 +19,69 @@
 
 namespace mbed {
 
-I2C *I2C::_owner = NULL;
+I2C* I2C::_owner = NULL;
 
 I2C::I2C(PinName sda, PinName scl) {
-    // The init function also set the frequency to 100000
-    i2c_init(&_i2c, sda, scl);
-    _hz = 100000;
+  // The init function also set the frequency to 100000
+  i2c_init(&_i2c, sda, scl);
+  _hz = 100000;
 
-    // Used to avoid unnecessary frequency updates
-    _owner = this;
+  // Used to avoid unnecessary frequency updates
+  _owner = this;
 }
 
 void I2C::frequency(int hz) {
-    _hz = hz;
+  _hz = hz;
 
-    // We want to update the frequency even if we are already the bus owners
-    i2c_frequency(&_i2c, _hz);
+  // We want to update the frequency even if we are already the bus owners
+  i2c_frequency(&_i2c, _hz);
 
-    // Updating the frequency of the bus we become the owners of it
-    _owner = this;
+  // Updating the frequency of the bus we become the owners of it
+  _owner = this;
 }
 
 void I2C::aquire() {
-    if (_owner != this) {
-        i2c_frequency(&_i2c, _hz);
-        _owner = this;
-    }
+  if (_owner != this) {
+    i2c_frequency(&_i2c, _hz);
+    _owner = this;
+  }
 }
 
 // write - Master Transmitter Mode
 int I2C::write(int address, const char* data, int length, bool repeated) {
-    aquire();
+  aquire();
 
-    int stop = (repeated) ? 0 : 1;
-    int retval = i2c_write(&_i2c, address, data, length, stop);
+  int stop = (repeated) ? 0 : 1;
+  int retval = i2c_write(&_i2c, address, data, length, stop);
 
-    return retval;
+  return retval;
 }
 
-int I2C::write(int data) {
-    return i2c_byte_write(&_i2c, data);
-}
+int I2C::write(int data) { return i2c_byte_write(&_i2c, data); }
 
 // read - Master Reciever Mode
 int I2C::read(int address, char* data, int length, bool repeated) {
-    aquire();
+  aquire();
 
-    int stop = (repeated) ? 0 : 1;
-    int retval = i2c_read(&_i2c, address, data, length, stop);
+  int stop = (repeated) ? 0 : 1;
+  int retval = i2c_read(&_i2c, address, data, length, stop);
 
-    return retval;
+  return retval;
 }
 
 int I2C::read(int ack) {
-    if (ack) {
-        return i2c_byte_read(&_i2c, 0);
-    } else {
-        return i2c_byte_read(&_i2c, 1);
-    }
+  if (ack) {
+    return i2c_byte_read(&_i2c, 0);
+  } else {
+    return i2c_byte_read(&_i2c, 1);
+  }
 }
 
-void I2C::start(void) {
-    i2c_start(&_i2c);
-}
+void I2C::start(void) { i2c_start(&_i2c); }
 
-void I2C::stop(void) {
-    i2c_stop(&_i2c);
-}
+void I2C::stop(void) { i2c_stop(&_i2c); }
 
-bool I2C::is_timed_out() {
-    return i2c_is_timed_out() > 0;
-}
-} // namespace mbed
+bool I2C::is_timed_out() { return i2c_is_timed_out() > 0; }
+}  // namespace mbed
 
 #endif

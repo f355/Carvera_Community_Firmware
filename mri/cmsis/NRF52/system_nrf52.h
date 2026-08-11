@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
- 
+
 #ifndef SYSTEM_NRF52_H
 #define SYSTEM_NRF52_H
 
@@ -37,8 +37,7 @@ extern "C" {
 
 #include <stdint.h>
 
-
-extern uint32_t SystemCoreClock;    /*!< System Clock Frequency (Core Clock)  */
+extern uint32_t SystemCoreClock; /*!< System Clock Frequency (Core Clock)  */
 
 /**
  * Initialize the system
@@ -49,7 +48,7 @@ extern uint32_t SystemCoreClock;    /*!< System Clock Frequency (Core Clock)  */
  * @brief  Setup the microcontroller system.
  *         Initialize the System and update the SystemCoreClock variable.
  */
-extern void SystemInit (void);
+extern void SystemInit(void);
 
 /**
  * Update SystemCoreClock variable
@@ -57,10 +56,10 @@ extern void SystemInit (void);
  * @param  none
  * @return none
  *
- * @brief  Updates the SystemCoreClock with current core Clock 
+ * @brief  Updates the SystemCoreClock with current core Clock
  *         retrieved from cpu registers.
  */
-extern void SystemCoreClockUpdate (void);
+extern void SystemCoreClockUpdate(void);
 
 #ifdef __cplusplus
 }
