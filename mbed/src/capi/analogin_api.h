@@ -26,9 +26,9 @@ extern "C" {
 
 typedef struct analogin_s analogin_t;
 
-void     analogin_init    (analogin_t *obj, PinName pin);
-float    analogin_read    (analogin_t *obj);
-uint16_t analogin_read_u16(analogin_t *obj);
+void analogin_init(analogin_t* obj, PinName pin);
+float analogin_read(analogin_t* obj);
+uint16_t analogin_read_u16(analogin_t* obj);
 
 #ifdef __cplusplus
 }

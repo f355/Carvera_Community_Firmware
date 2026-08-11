@@ -20,10 +20,10 @@
 
 /* Real name of functions are in mri namespace. */
 uint32_t mriCmd_HandleVContCommands(void);
-void     mriCmd_RestoreThreadStates(void);
+void mriCmd_RestoreThreadStates(void);
 
 /* Macroes which allow code to drop the mri namespace prefix. */
-#define HandleVContCommands         mriCmd_HandleVContCommands
-#define RestoreThreadStates   mriCmd_RestoreThreadStates
+#define HandleVContCommands mriCmd_HandleVContCommands
+#define RestoreThreadStates mriCmd_RestoreThreadStates
 
 #endif /* CMD_VCONT_H_ */

@@ -25,7 +25,6 @@ barthelemy@prologique.com
 
 #include "testresult.h"
 
-
 /**
  * A TestPrinter is a class used by the TestRegistry to print results
  * of executed TestCases. This is an abstract class, so no default behavior
@@ -33,20 +32,17 @@ barthelemy@prologique.com
  *
  * @see DefaultTestPrinter
  */
-class TestPrinter
-{
-	public:
-        virtual ~TestPrinter(){};
-	/**
-	 * Print the details of a given TestResult instance. This
-	 * method must be overridden by subclasses since it is
-	 * abstract.
-	 *
-	 * @param testResult TestResult instance that the user wish to print
-	 */
-		virtual void print(const TestResult *testResult) = 0;
+class TestPrinter {
+ public:
+  virtual ~TestPrinter() {};
+  /**
+   * Print the details of a given TestResult instance. This
+   * method must be overridden by subclasses since it is
+   * abstract.
+   *
+   * @param testResult TestResult instance that the user wish to print
+   */
+  virtual void print(const TestResult* testResult) = 0;
 };
 
-#endif // TESTPRINTER_H
-
-
+#endif  // TESTPRINTER_H

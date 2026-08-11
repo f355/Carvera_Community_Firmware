@@ -16,16 +16,16 @@
 #ifndef LPC43XX_H_
 #define LPC43XX_H_
 
-#include <stdint.h>
 #include <core/token.h>
+#include <stdint.h>
+
 #include "lpc43xx_uart.h"
 
 /* Flag to indicate whether context will contain FPU registers or not. */
 #define MRI_DEVICE_HAS_FPU 1
 
-typedef struct
-{
-    const UartConfiguration*  pCurrentUart;
+typedef struct {
+  const UartConfiguration* pCurrentUart;
 } Lpc43xxState;
 
 extern Lpc43xxState mriLpc43xxState;

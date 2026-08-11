@@ -14,53 +14,44 @@
  * limitations under the License.
  */
 #include "Timer.h"
+
 #include "us_ticker_api.h"
 
 namespace mbed {
 
-Timer::Timer() {
-    reset();
-}
+Timer::Timer() { reset(); }
 
 void Timer::start() {
-    _start = us_ticker_read();
-    _running = 1;
+  _start = us_ticker_read();
+  _running = 1;
 }
 
 void Timer::stop() {
-    _time += slicetime();
-    _running = 0;
+  _time += slicetime();
+  _running = 0;
 }
 
-int Timer::read_us() {
-    return _time + slicetime();
-}
+int Timer::read_us() { return _time + slicetime(); }
 
-float Timer::read() {
-    return (float)read_us() / 1000000.0;
-}
+float Timer::read() { return (float)read_us() / 1000000.0; }
 
-int Timer::read_ms() {
-    return read_us() / 1000;
-}
+int Timer::read_ms() { return read_us() / 1000; }
 
 int Timer::slicetime() {
-    if (_running) {
-        return us_ticker_read() - _start;
-    } else {
-        return 0;
-    }
+  if (_running) {
+    return us_ticker_read() - _start;
+  } else {
+    return 0;
+  }
 }
 
 void Timer::reset() {
-    _start = us_ticker_read();
-    _time = 0;
+  _start = us_ticker_read();
+  _time = 0;
 }
 
 #ifdef MBED_OPERATORS
-Timer::operator float() {
-    return read();
-}
+Timer::operator float() { return read(); }
 #endif
 
-} // namespace mbed
+}  // namespace mbed

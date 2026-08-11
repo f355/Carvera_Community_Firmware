@@ -41,7 +41,7 @@ class USBHostCDC {
   /** Submit an asynchronous bulk-OUT transfer. Fails if a transfer is
    *  already in flight or the device is not connected.
    *  @return true if the transfer was submitted */
-  bool start_send(const uint8_t *data, uint32_t len);
+  bool start_send(const uint8_t* data, uint32_t len);
 
   /** Submit an asynchronous bulk-IN transfer.
    *  @param max_len  maximum bytes to receive (capped to 128)
@@ -54,7 +54,7 @@ class USBHostCDC {
 
   /** Pointer to the receive buffer. After poll() returns CDC_XFER_COMPLETE
    *  for a recv, copy the data out before starting the next transfer. */
-  volatile uint8_t *rx_buf() { return TDBuffer; }
+  volatile uint8_t* rx_buf() { return TDBuffer; }
 
   /** Bytes received in the last completed IN transfer. */
   uint32_t rx_len() const { return _rx_actual; }
@@ -77,7 +77,7 @@ class USBHostCDC {
   USB_INT32S set_line_coding() const;
   USB_INT32S set_control_line_state(uint16_t state) const;
 
-  static void submit_bulk_td(volatile HCED *ed, uint32_t token, const volatile uint8_t *buffer, uint32_t len);
+  static void submit_bulk_td(volatile HCED* ed, uint32_t token, const volatile uint8_t* buffer, uint32_t len);
   static void abort_transfer();
 
   bool _connected;

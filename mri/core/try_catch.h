@@ -16,21 +16,20 @@
 #ifndef MRI_TRY_CATCH_H_
 #define MRI_TRY_CATCH_H_
 
-#define noException                         0
-#define bufferOverrunException              1
-#define invalidHexDigitException            2
-#define invalidValueException               3
-#define invalidArgumentException            4
-#define timeoutException                    5
-#define invalidIndexException               6
-#define notFoundException                   7
-#define exceededHardwareResourcesException  8
-#define invalidDecDigitException            9
-#define memFaultException                   10
-#define mriMaxException                     15
+#define noException 0
+#define bufferOverrunException 1
+#define invalidHexDigitException 2
+#define invalidValueException 3
+#define invalidArgumentException 4
+#define timeoutException 5
+#define invalidIndexException 6
+#define notFoundException 7
+#define exceededHardwareResourcesException 8
+#define invalidDecDigitException 9
+#define memFaultException 10
+#define mriMaxException 15
 
 extern int mriExceptionCode;
-
 
 /* Allow an application including MRI to extend with their own exception codes and replace the below declarations. */
 #ifndef MRI_SKIP_TRY_CATCH_MACRO_DEFINES
@@ -42,18 +41,17 @@ extern int mriExceptionCode;
 #define __throws
 
 #define __try \
-        do \
-        { \
-            clearExceptionCode();
+  do {        \
+    clearExceptionCode();
 
 #define __throwing_func(X) \
-            X; \
-            if (mriExceptionCode) \
-                break;
+  X;                       \
+  if (mriExceptionCode) break;
 
 #define __catch \
-        } while (0); \
-        if (mriExceptionCode)
+  }             \
+  while (0);    \
+  if (mriExceptionCode)
 
 #define __throw(EXCEPTION) return ((void)setExceptionCode(EXCEPTION))
 
@@ -63,20 +61,13 @@ extern int mriExceptionCode;
 
 #define __rethrow_and_return(RETURN) return RETURN
 
-static inline int getExceptionCode(void)
-{
-    return mriExceptionCode;
+static inline int getExceptionCode(void) { return mriExceptionCode; }
+
+static inline void setExceptionCode(int exceptionCode) {
+  mriExceptionCode = exceptionCode > mriExceptionCode ? exceptionCode : mriExceptionCode;
 }
 
-static inline void setExceptionCode(int exceptionCode)
-{
-    mriExceptionCode = exceptionCode > mriExceptionCode ? exceptionCode : mriExceptionCode;
-}
-
-static inline void clearExceptionCode(void)
-{
-    mriExceptionCode = noException;
-}
+static inline void clearExceptionCode(void) { mriExceptionCode = noException; }
 
 #endif /* MRI_SKIP_TRY_CATCH_MACRO_DEFINES */
 #endif /* MRI_TRY_CATCH_H_ */

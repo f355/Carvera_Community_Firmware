@@ -32,8 +32,8 @@
 #ifndef MBED_CMSIS_NVIC_H
 #define MBED_CMSIS_NVIC_H
 
-#define NVIC_NUM_VECTORS      (16 + 53)   // CORE + MCU Peripherals
-#define NVIC_USER_IRQ_OFFSET  16
+#define NVIC_NUM_VECTORS (16 + 53)  // CORE + MCU Peripherals
+#define NVIC_USER_IRQ_OFFSET 16
 
 #include "cmsis.h"
 

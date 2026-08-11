@@ -47,57 +47,48 @@ namespace mbed {
  * @endcode
  */
 class PortOut {
-public:
+ public:
+  /** Create an PortOut, connected to the specified port
+   *
+   *  @param port Port to connect to (Port0-Port5)
+   *  @param mask A bitmask to identify which bits in the port should be included (0 - ignore)
+   */
+  PortOut(PortName port, int mask = 0xFFFFFFFF) { port_init(&_port, port, mask, PIN_OUTPUT); }
 
-    /** Create an PortOut, connected to the specified port
-     *
-     *  @param port Port to connect to (Port0-Port5)
-     *  @param mask A bitmask to identify which bits in the port should be included (0 - ignore)
-     */
-    PortOut(PortName port, int mask = 0xFFFFFFFF) {
-        port_init(&_port, port, mask, PIN_OUTPUT);
-    }
+  /** Write the value to the output port
+   *
+   *  @param value An integer specifying a bit to write for every corresponding PortOut pin
+   */
+  void write(int value) { port_write(&_port, value); }
 
-    /** Write the value to the output port
-     *
-     *  @param value An integer specifying a bit to write for every corresponding PortOut pin
-     */
-    void write(int value) {
-        port_write(&_port, value);
-    }
+  /** Read the value currently output on the port
+   *
+   *  @returns
+   *    An integer with each bit corresponding to associated PortOut pin setting
+   */
+  int read() { return port_read(&_port); }
 
-    /** Read the value currently output on the port
-     *
-     *  @returns
-     *    An integer with each bit corresponding to associated PortOut pin setting
-     */
-    int read() {
-        return port_read(&_port);
-    }
+  /** A shorthand for write()
+   */
+  PortOut& operator=(int value) {
+    write(value);
+    return *this;
+  }
 
-    /** A shorthand for write()
-     */
-    PortOut& operator= (int value) {
-        write(value);
-        return *this;
-    }
+  PortOut& operator=(PortOut& rhs) {
+    write(rhs.read());
+    return *this;
+  }
 
-    PortOut& operator= (PortOut& rhs) {
-        write(rhs.read());
-        return *this;
-    }
+  /** A shorthand for read()
+   */
+  operator int() { return read(); }
 
-    /** A shorthand for read()
-     */
-    operator int() {
-        return read();
-    }
-
-private:
-    port_t _port;
+ private:
+  port_t _port;
 };
 
-} // namespace mbed
+}  // namespace mbed
 
 #endif
 

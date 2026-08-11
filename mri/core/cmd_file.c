@@ -13,13 +13,12 @@
    limitations under the License.
 */
 /* Handling and issuing routines for gdb file commands. */
-#include <string.h>
-#include <core/signal.h>
-#include <core/fileio.h>
-#include <core/core.h>
 #include <core/cmd_common.h>
 #include <core/cmd_file.h>
-
+#include <core/core.h>
+#include <core/fileio.h>
+#include <core/signal.h>
+#include <string.h>
 
 static int processGdbFileResponseCommands(void);
 /* Send file open request to gdb on behalf of the target's semi-hosting request.
@@ -31,24 +30,22 @@ static int processGdbFileResponseCommands(void);
           gg is the hex value of the flags to be used for the file open.
           mm is the hex value of the mode to be used for the file open.
 */
-int IssueGdbFileOpenRequest(const OpenParameters* pParameters)
-{
-    static const char  gdbOpenCommand[] = "Fopen,";
-    Buffer*            pBuffer = GetInitializedBuffer();
+int IssueGdbFileOpenRequest(const OpenParameters* pParameters) {
+  static const char gdbOpenCommand[] = "Fopen,";
+  Buffer* pBuffer = GetInitializedBuffer();
 
-    Buffer_WriteString(pBuffer, gdbOpenCommand);
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->filenameAddress);
-    Buffer_WriteChar(pBuffer, '/');
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->filenameLength);
-    Buffer_WriteChar(pBuffer, ',');
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->flags);
-    Buffer_WriteChar(pBuffer, ',');
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->mode);
+  Buffer_WriteString(pBuffer, gdbOpenCommand);
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->filenameAddress);
+  Buffer_WriteChar(pBuffer, '/');
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->filenameLength);
+  Buffer_WriteChar(pBuffer, ',');
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->flags);
+  Buffer_WriteChar(pBuffer, ',');
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->mode);
 
-    SendPacketToGdb();
-    return processGdbFileResponseCommands();
+  SendPacketToGdb();
+  return processGdbFileResponseCommands();
 }
-
 
 /* Send file write request to gdb on behalf of the target's semi-hosting request.
 
@@ -58,22 +55,20 @@ int IssueGdbFileOpenRequest(const OpenParameters* pParameters)
           pp is the hex representation of the buffer to be written to the specified file.
           cc is the hex value of the count of bytes in the buffer to be written to the specified file.
 */
-int IssueGdbFileWriteRequest(const TransferParameters* pParameters)
-{
-    static const char  gdbWriteCommand[] = "Fwrite,";
-    Buffer*            pBuffer = GetInitializedBuffer();
+int IssueGdbFileWriteRequest(const TransferParameters* pParameters) {
+  static const char gdbWriteCommand[] = "Fwrite,";
+  Buffer* pBuffer = GetInitializedBuffer();
 
-    Buffer_WriteString(pBuffer, gdbWriteCommand);
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->fileDescriptor);
-    Buffer_WriteChar(pBuffer, ',');
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->bufferAddress);
-    Buffer_WriteChar(pBuffer, ',');
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->bufferSize);
+  Buffer_WriteString(pBuffer, gdbWriteCommand);
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->fileDescriptor);
+  Buffer_WriteChar(pBuffer, ',');
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->bufferAddress);
+  Buffer_WriteChar(pBuffer, ',');
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->bufferSize);
 
-    SendPacketToGdb();
-    return processGdbFileResponseCommands();
+  SendPacketToGdb();
+  return processGdbFileResponseCommands();
 }
-
 
 /* Send file read request to gdb on behalf of the target's semi-hosting request.
 
@@ -83,22 +78,20 @@ int IssueGdbFileWriteRequest(const TransferParameters* pParameters)
           pp is the hex representation of the buffer to be read into.
           cc is the hex value of the count of bytes in the buffer to be read from the specified file.
 */
-int IssueGdbFileReadRequest(const TransferParameters* pParameters)
-{
-    static const char  gdbReadCommand[] = "Fread,";
-    Buffer*            pBuffer = GetInitializedBuffer();
+int IssueGdbFileReadRequest(const TransferParameters* pParameters) {
+  static const char gdbReadCommand[] = "Fread,";
+  Buffer* pBuffer = GetInitializedBuffer();
 
-    Buffer_WriteString(pBuffer, gdbReadCommand);
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->fileDescriptor);
-    Buffer_WriteChar(pBuffer, ',');
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->bufferAddress);
-    Buffer_WriteChar(pBuffer, ',');
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->bufferSize);
+  Buffer_WriteString(pBuffer, gdbReadCommand);
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->fileDescriptor);
+  Buffer_WriteChar(pBuffer, ',');
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->bufferAddress);
+  Buffer_WriteChar(pBuffer, ',');
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->bufferSize);
 
-    SendPacketToGdb();
-    return processGdbFileResponseCommands();
+  SendPacketToGdb();
+  return processGdbFileResponseCommands();
 }
-
 
 /* Send file close request to gdb on behalf of the target's semi-hosting request.
 
@@ -106,18 +99,16 @@ int IssueGdbFileReadRequest(const TransferParameters* pParameters)
 
     Where ff is the hex value of the file descriptor to be closed.
 */
-int IssueGdbFileCloseRequest(uint32_t fileDescriptor)
-{
-    static const char  gdbCloseCommand[] = "Fclose,";
-    Buffer*            pBuffer = GetInitializedBuffer();
+int IssueGdbFileCloseRequest(uint32_t fileDescriptor) {
+  static const char gdbCloseCommand[] = "Fclose,";
+  Buffer* pBuffer = GetInitializedBuffer();
 
-    Buffer_WriteString(pBuffer, gdbCloseCommand);
-    Buffer_WriteUIntegerAsHex(pBuffer, fileDescriptor);
+  Buffer_WriteString(pBuffer, gdbCloseCommand);
+  Buffer_WriteUIntegerAsHex(pBuffer, fileDescriptor);
 
-    SendPacketToGdb();
-    return processGdbFileResponseCommands();
+  SendPacketToGdb();
+  return processGdbFileResponseCommands();
 }
-
 
 /* Send file seek request to gdb on behalf of the target's semi-hosting request.
 
@@ -127,22 +118,20 @@ int IssueGdbFileCloseRequest(uint32_t fileDescriptor)
           oo is the hex value of the signed offset for the seek.
           ww is the hex value of the flag indicating from where the seek should be conducted (whence.)
 */
-int IssueGdbFileSeekRequest(const SeekParameters* pParameters)
-{
-    static const char  gdbSeekCommand[] = "Flseek,";
-    Buffer*            pBuffer = GetInitializedBuffer();
+int IssueGdbFileSeekRequest(const SeekParameters* pParameters) {
+  static const char gdbSeekCommand[] = "Flseek,";
+  Buffer* pBuffer = GetInitializedBuffer();
 
-    Buffer_WriteString(pBuffer, gdbSeekCommand);
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->fileDescriptor);
-    Buffer_WriteChar(pBuffer, ',');
-    Buffer_WriteIntegerAsHex(pBuffer, pParameters->offset);
-    Buffer_WriteChar(pBuffer, ',');
-    Buffer_WriteIntegerAsHex(pBuffer, pParameters->whence);
+  Buffer_WriteString(pBuffer, gdbSeekCommand);
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->fileDescriptor);
+  Buffer_WriteChar(pBuffer, ',');
+  Buffer_WriteIntegerAsHex(pBuffer, pParameters->offset);
+  Buffer_WriteChar(pBuffer, ',');
+  Buffer_WriteIntegerAsHex(pBuffer, pParameters->whence);
 
-    SendPacketToGdb();
-    return processGdbFileResponseCommands();
+  SendPacketToGdb();
+  return processGdbFileResponseCommands();
 }
-
 
 /* Send file stat request to gdb on behalf of the target's semi-hosting request.
 
@@ -151,20 +140,18 @@ int IssueGdbFileSeekRequest(const SeekParameters* pParameters)
     Where ff is the hex value of the file descriptor to be closed.
           bb is the hex representation of the address of the stat structure to be filled in.
 */
-int IssueGdbFileFStatRequest(uint32_t fileDescriptor, uint32_t fileStatBuffer)
-{
-    static const char  gdbStatCommand[] = "Ffstat,";
-    Buffer*            pBuffer = GetInitializedBuffer();
+int IssueGdbFileFStatRequest(uint32_t fileDescriptor, uint32_t fileStatBuffer) {
+  static const char gdbStatCommand[] = "Ffstat,";
+  Buffer* pBuffer = GetInitializedBuffer();
 
-    Buffer_WriteString(pBuffer, gdbStatCommand);
-    Buffer_WriteUIntegerAsHex(pBuffer, fileDescriptor);
-    Buffer_WriteChar(pBuffer, ',');
-    Buffer_WriteUIntegerAsHex(pBuffer, fileStatBuffer);
+  Buffer_WriteString(pBuffer, gdbStatCommand);
+  Buffer_WriteUIntegerAsHex(pBuffer, fileDescriptor);
+  Buffer_WriteChar(pBuffer, ',');
+  Buffer_WriteUIntegerAsHex(pBuffer, fileStatBuffer);
 
-    SendPacketToGdb();
-    return processGdbFileResponseCommands();
+  SendPacketToGdb();
+  return processGdbFileResponseCommands();
 }
-
 
 /* Send file unlink request to gdb on behalf of the target's semi-hosting request.
 
@@ -173,20 +160,18 @@ int IssueGdbFileFStatRequest(uint32_t fileDescriptor, uint32_t fileStatBuffer)
     Where ff is the hex representation of the address of the filename to be deleted.
           nn is the hex value of the count of characters in the filename pointed to by ff.
 */
-int IssueGdbFileUnlinkRequest(const RemoveParameters* pParameters)
-{
-    static const char  gdbUnlinkCommand[] = "Funlink,";
-    Buffer*            pBuffer = GetInitializedBuffer();
+int IssueGdbFileUnlinkRequest(const RemoveParameters* pParameters) {
+  static const char gdbUnlinkCommand[] = "Funlink,";
+  Buffer* pBuffer = GetInitializedBuffer();
 
-    Buffer_WriteString(pBuffer, gdbUnlinkCommand);
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->filenameAddress);
-    Buffer_WriteChar(pBuffer, '/');
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->filenameLength);
+  Buffer_WriteString(pBuffer, gdbUnlinkCommand);
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->filenameAddress);
+  Buffer_WriteChar(pBuffer, '/');
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->filenameLength);
 
-    SendPacketToGdb();
-    return processGdbFileResponseCommands();
+  SendPacketToGdb();
+  return processGdbFileResponseCommands();
 }
-
 
 /* Send file system level stat request to gdb.
 
@@ -196,22 +181,20 @@ int IssueGdbFileUnlinkRequest(const RemoveParameters* pParameters)
           nn is the hex value of the count of characters in the filename pointed to by ff.
           bb is the hex representation of the address of the stat structure to be filled in.
 */
-int IssueGdbFileStatRequest(const StatParameters* pParameters)
-{
-    static const char  gdbStatCommand[] = "Fstat,";
-    Buffer*            pBuffer = GetInitializedBuffer();
+int IssueGdbFileStatRequest(const StatParameters* pParameters) {
+  static const char gdbStatCommand[] = "Fstat,";
+  Buffer* pBuffer = GetInitializedBuffer();
 
-    Buffer_WriteString(pBuffer, gdbStatCommand);
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->filenameAddress);
-    Buffer_WriteChar(pBuffer, '/');
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->filenameLength);
-    Buffer_WriteChar(pBuffer, ',');
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->fileStatBuffer);
+  Buffer_WriteString(pBuffer, gdbStatCommand);
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->filenameAddress);
+  Buffer_WriteChar(pBuffer, '/');
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->filenameLength);
+  Buffer_WriteChar(pBuffer, ',');
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->fileStatBuffer);
 
-    SendPacketToGdb();
-    return processGdbFileResponseCommands();
+  SendPacketToGdb();
+  return processGdbFileResponseCommands();
 }
-
 
 /* Send file rename request to gdb.
 
@@ -222,24 +205,22 @@ int IssueGdbFileStatRequest(const StatParameters* pParameters)
           nn is the hex representation of the address of the new filename.
           bb is the hex value of the count of characters in the new filename pointed to by nn.
 */
-int IssueGdbFileRenameRequest(const RenameParameters* pParameters)
-{
-    static const char  gdbCommand[] = "Frename,";
-    Buffer*            pBuffer = GetInitializedBuffer();
+int IssueGdbFileRenameRequest(const RenameParameters* pParameters) {
+  static const char gdbCommand[] = "Frename,";
+  Buffer* pBuffer = GetInitializedBuffer();
 
-    Buffer_WriteString(pBuffer, gdbCommand);
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->origFilenameAddress);
-    Buffer_WriteChar(pBuffer, '/');
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->origFilenameLength);
-    Buffer_WriteChar(pBuffer, ',');
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->newFilenameAddress);
-    Buffer_WriteChar(pBuffer, '/');
-    Buffer_WriteUIntegerAsHex(pBuffer, pParameters->newFilenameLength);
+  Buffer_WriteString(pBuffer, gdbCommand);
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->origFilenameAddress);
+  Buffer_WriteChar(pBuffer, '/');
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->origFilenameLength);
+  Buffer_WriteChar(pBuffer, ',');
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->newFilenameAddress);
+  Buffer_WriteChar(pBuffer, '/');
+  Buffer_WriteUIntegerAsHex(pBuffer, pParameters->newFilenameLength);
 
-    SendPacketToGdb();
-    return processGdbFileResponseCommands();
+  SendPacketToGdb();
+  return processGdbFileResponseCommands();
 }
-
 
 /* Handle the 'F' command which is sent from gdb in response to a previously sent File I/O command from mri.
 
@@ -250,43 +231,36 @@ int IssueGdbFileRenameRequest(const RenameParameters* pParameters)
           C is the optional 'C' character sent by gdb to indicate that CTRL+C was pressed by user while gdb
             was processing the current file I/O request.
 */
-uint32_t HandleFileIOCommand(void)
-{
-    static const char controlCFlag[] = ",C";
-    Buffer*           pBuffer = GetBuffer();
-    int               returnCode = -1;
-    int               errNo = 0;
-    int               controlC = 0;
+uint32_t HandleFileIOCommand(void) {
+  static const char controlCFlag[] = ",C";
+  Buffer* pBuffer = GetBuffer();
+  int returnCode = -1;
+  int errNo = 0;
+  int controlC = 0;
 
-    returnCode = Buffer_ReadIntegerAsHex(pBuffer);
-    if (Buffer_IsNextCharEqualTo(pBuffer, ','))
-    {
-        errNo = Buffer_ReadIntegerAsHex(pBuffer);
-        controlC = Buffer_MatchesString(pBuffer, controlCFlag, sizeof(controlCFlag)-1);
-    }
+  returnCode = Buffer_ReadIntegerAsHex(pBuffer);
+  if (Buffer_IsNextCharEqualTo(pBuffer, ',')) {
+    errNo = Buffer_ReadIntegerAsHex(pBuffer);
+    controlC = Buffer_MatchesString(pBuffer, controlCFlag, sizeof(controlCFlag) - 1);
+  }
 
-    SetSemihostReturnValues(returnCode, errNo);
-    RecordControlCFlagSentFromGdb(controlC);
-    clearExceptionCode();
+  SetSemihostReturnValues(returnCode, errNo);
+  RecordControlCFlagSentFromGdb(controlC);
+  clearExceptionCode();
 
-    return (HANDLER_RETURN_RESUME_PROGRAM | HANDLER_RETURN_RETURN_IMMEDIATELY);
+  return (HANDLER_RETURN_RESUME_PROGRAM | HANDLER_RETURN_RETURN_IMMEDIATELY);
 }
 
-static int processGdbFileResponseCommands(void)
-{
-    GdbCommandHandlingLoop();
+static int processGdbFileResponseCommands(void) {
+  GdbCommandHandlingLoop();
 
-    if (WasControlCFlagSentFromGdb())
-    {
-        if (!WasSemihostCallCancelledByGdb())
-            FlagSemihostCallAsHandled();
+  if (WasControlCFlagSentFromGdb()) {
+    if (!WasSemihostCallCancelledByGdb()) FlagSemihostCallAsHandled();
 
-        SetSignalValue(SIGINT);
-        return 0;
-    }
-    else
-    {
-        FlagSemihostCallAsHandled();
-        return 1;
-    }
+    SetSignalValue(SIGINT);
+    return 0;
+  } else {
+    FlagSemihostCallAsHandled();
+    return 1;
+  }
 }

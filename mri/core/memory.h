@@ -16,17 +16,17 @@
 #ifndef MEMORY_H_
 #define MEMORY_H_
 
-#include <stdint.h>
 #include <core/buffer.h>
+#include <stdint.h>
 
 /* Real name of functions are in mri namespace. */
 uintmri_t mriMem_ReadMemoryIntoHexBuffer(Buffer* pBuffer, uintmri_t address, uintmri_t readByteCount);
-int       mriMem_WriteHexBufferToMemory(Buffer* pBuffer, uintmri_t address, uintmri_t writeByteCount);
-int       mriMem_WriteBinaryBufferToMemory(Buffer* pBuffer, uintmri_t address, uintmri_t writeByteCount);
+int mriMem_WriteHexBufferToMemory(Buffer* pBuffer, uintmri_t address, uintmri_t writeByteCount);
+int mriMem_WriteBinaryBufferToMemory(Buffer* pBuffer, uintmri_t address, uintmri_t writeByteCount);
 
 /* Macroes which allow code to drop the mri namespace prefix. */
-#define ReadMemoryIntoHexBuffer     mriMem_ReadMemoryIntoHexBuffer
-#define WriteHexBufferToMemory      mriMem_WriteHexBufferToMemory
-#define WriteBinaryBufferToMemory   mriMem_WriteBinaryBufferToMemory
+#define ReadMemoryIntoHexBuffer mriMem_ReadMemoryIntoHexBuffer
+#define WriteHexBufferToMemory mriMem_WriteHexBufferToMemory
+#define WriteBinaryBufferToMemory mriMem_WriteBinaryBufferToMemory
 
 #endif /* MEMORY_H_ */

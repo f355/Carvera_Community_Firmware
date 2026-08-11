@@ -48,45 +48,36 @@ namespace mbed {
  * @endcode
  */
 class PortIn {
-public:
+ public:
+  /** Create an PortIn, connected to the specified port
+   *
+   *  @param port Port to connect to (Port0-Port5)
+   *  @param mask A bitmask to identify which bits in the port should be included (0 - ignore)
+   */
+  PortIn(PortName port, int mask = 0xFFFFFFFF) { port_init(&_port, port, mask, PIN_INPUT); }
 
-    /** Create an PortIn, connected to the specified port
-     *
-     *  @param port Port to connect to (Port0-Port5)
-     *  @param mask A bitmask to identify which bits in the port should be included (0 - ignore)
-        */
-    PortIn(PortName port, int mask = 0xFFFFFFFF) {
-        port_init(&_port, port, mask, PIN_INPUT);
-    }
+  /** Read the value currently output on the port
+   *
+   *  @returns
+   *    An integer with each bit corresponding to associated port pin setting
+   */
+  int read() { return port_read(&_port); }
 
-    /** Read the value currently output on the port
-     *
-     *  @returns
-     *    An integer with each bit corresponding to associated port pin setting
-     */
-    int read() {
-        return port_read(&_port);
-    }
+  /** Set the input pin mode
+   *
+   *  @param mode PullUp, PullDown, PullNone, OpenDrain
+   */
+  void mode(PinMode mode) { port_mode(&_port, mode); }
 
-    /** Set the input pin mode
-     *
-     *  @param mode PullUp, PullDown, PullNone, OpenDrain
-     */
-    void mode(PinMode mode) {
-        port_mode(&_port, mode);
-    }
+  /** A shorthand for read()
+   */
+  operator int() { return read(); }
 
-    /** A shorthand for read()
-     */
-    operator int() {
-        return read();
-    }
-
-private:
-    port_t _port;
+ private:
+  port_t _port;
 };
 
-} // namespace mbed
+}  // namespace mbed
 
 #endif
 

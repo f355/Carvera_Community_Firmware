@@ -13,14 +13,13 @@
    limitations under the License.
 */
 /* Handlers for memory related gdb commands. */
-#include <core/platforms.h>
 #include <core/buffer.h>
-#include <core/core.h>
-#include <core/mri.h>
-#include <core/memory.h>
 #include <core/cmd_common.h>
 #include <core/cmd_memory.h>
-
+#include <core/core.h>
+#include <core/memory.h>
+#include <core/mri.h>
+#include <core/platforms.h>
 
 /* Handle the 'm' command which is to read the specified address range from memory.
 
@@ -32,30 +31,25 @@
           xx is the hexadecimal representation of the first byte read from the specified location.
           ... continue returning the rest of LLLLLLLL-1 bytes in hexadecimal format.
 */
-uint32_t HandleMemoryReadCommand(void)
-{
-    Buffer*       pBuffer = GetBuffer();
-    AddressLength addressLength;
-    uint32_t      result;
+uint32_t HandleMemoryReadCommand(void) {
+  Buffer* pBuffer = GetBuffer();
+  AddressLength addressLength;
+  uint32_t result;
 
-    __try
-    {
-        ReadAddressAndLengthArguments(pBuffer, &addressLength);
-    }
-    __catch
-    {
-        PrepareStringResponse(MRI_ERROR_INVALID_ARGUMENT);
-        return 0;
-    }
-
-    InitPacketBuffers();
-    result = ReadMemoryIntoHexBuffer(pBuffer, addressLength.address, addressLength.length);
-    if (result == 0)
-        PrepareStringResponse(MRI_ERROR_MEMORY_ACCESS_FAILURE);
-
+  __try {
+    ReadAddressAndLengthArguments(pBuffer, &addressLength);
+  }
+  __catch {
+    PrepareStringResponse(MRI_ERROR_INVALID_ARGUMENT);
     return 0;
-}
+  }
 
+  InitPacketBuffers();
+  result = ReadMemoryIntoHexBuffer(pBuffer, addressLength.address, addressLength.length);
+  if (result == 0) PrepareStringResponse(MRI_ERROR_MEMORY_ACCESS_FAILURE);
+
+  return 0;
+}
 
 /* Handle the 'M' command which is to write to the specified address range in memory.
 
@@ -67,36 +61,29 @@ uint32_t HandleMemoryReadCommand(void)
           xx is the hexadecimal representation of the first byte to be written to the specified location.
           ... continue returning the rest of LLLLLLLL-1 bytes in hexadecimal format.
 */
-uint32_t HandleMemoryWriteCommand(void)
-{
-    Buffer*         pBuffer = GetBuffer();
-    AddressLength   addressLength;
+uint32_t HandleMemoryWriteCommand(void) {
+  Buffer* pBuffer = GetBuffer();
+  AddressLength addressLength;
 
-    __try
-    {
-        ReadAddressAndLengthArgumentsWithColon(pBuffer, &addressLength);
-    }
-    __catch
-    {
-        PrepareStringResponse(MRI_ERROR_INVALID_ARGUMENT);
-        return 0;
-    }
-
-    if (WriteHexBufferToMemory(pBuffer, addressLength.address, addressLength.length))
-    {
-        PrepareStringResponse("OK");
-    }
-    else
-    {
-        if (Buffer_OverrunDetected(pBuffer))
-            PrepareStringResponse( MRI_ERROR_BUFFER_OVERRUN);
-        else
-            PrepareStringResponse(MRI_ERROR_MEMORY_ACCESS_FAILURE);
-    }
-
+  __try {
+    ReadAddressAndLengthArgumentsWithColon(pBuffer, &addressLength);
+  }
+  __catch {
+    PrepareStringResponse(MRI_ERROR_INVALID_ARGUMENT);
     return 0;
-}
+  }
 
+  if (WriteHexBufferToMemory(pBuffer, addressLength.address, addressLength.length)) {
+    PrepareStringResponse("OK");
+  } else {
+    if (Buffer_OverrunDetected(pBuffer))
+      PrepareStringResponse(MRI_ERROR_BUFFER_OVERRUN);
+    else
+      PrepareStringResponse(MRI_ERROR_MEMORY_ACCESS_FAILURE);
+  }
+
+  return 0;
+}
 
 /* Handle the 'X' command which is to write to the specified address range in memory.
 
@@ -108,37 +95,31 @@ uint32_t HandleMemoryWriteCommand(void)
           xx is the hexadecimal representation of the first byte to be written to the specified location.
           ... continue returning the rest of LLLLLLLL-1 bytes in hexadecimal format.
 */
-uint32_t HandleBinaryMemoryWriteCommand(void)
-{
-    Buffer*        pBuffer = GetBuffer();
-    AddressLength  addressLength;
-    uintmri_t      address;
-    uintmri_t      length;
+uint32_t HandleBinaryMemoryWriteCommand(void) {
+  Buffer* pBuffer = GetBuffer();
+  AddressLength addressLength;
+  uintmri_t address;
+  uintmri_t length;
 
-    __try
-    {
-        ReadAddressAndLengthArgumentsWithColon(pBuffer, &addressLength);
-    }
-    __catch
-    {
-        PrepareStringResponse(MRI_ERROR_INVALID_ARGUMENT);
-        return 0;
-    }
-
-    address = addressLength.address;
-    length = addressLength.length;
-    if (WriteBinaryBufferToMemory(pBuffer, address, length))
-    {
-        Platform_SyncICacheToDCache(address, length);
-        PrepareStringResponse("OK");
-    }
-    else
-    {
-        if (Buffer_OverrunDetected(pBuffer))
-            PrepareStringResponse(MRI_ERROR_BUFFER_OVERRUN);
-        else
-            PrepareStringResponse(MRI_ERROR_MEMORY_ACCESS_FAILURE);
-    }
-
+  __try {
+    ReadAddressAndLengthArgumentsWithColon(pBuffer, &addressLength);
+  }
+  __catch {
+    PrepareStringResponse(MRI_ERROR_INVALID_ARGUMENT);
     return 0;
+  }
+
+  address = addressLength.address;
+  length = addressLength.length;
+  if (WriteBinaryBufferToMemory(pBuffer, address, length)) {
+    Platform_SyncICacheToDCache(address, length);
+    PrepareStringResponse("OK");
+  } else {
+    if (Buffer_OverrunDetected(pBuffer))
+      PrepareStringResponse(MRI_ERROR_BUFFER_OVERRUN);
+    else
+      PrepareStringResponse(MRI_ERROR_MEMORY_ACCESS_FAILURE);
+  }
+
+  return 0;
 }

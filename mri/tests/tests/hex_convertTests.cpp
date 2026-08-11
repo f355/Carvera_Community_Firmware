@@ -13,151 +13,105 @@
    limitations under the License.
 */
 
-extern "C"
-{
+extern "C" {
 #include <core/hex_convert.h>
 }
 
 // Include C++ headers for test harness.
 #include "CppUTest/TestHarness.h"
 
-TEST_GROUP(HexConvert)
-{
-    void setup()
-    {
-    }
+TEST_GROUP(HexConvert){void setup(){}
 
-    void teardown()
-    {
-    }
-};
+                       void teardown(){}};
 
-TEST(HexConvert, ExtractLowNibble)
-{
-    uint8_t value = 0xaf;
+TEST(HexConvert, ExtractLowNibble) {
+  uint8_t value = 0xaf;
 
-    LONGS_EQUAL( 0xf, EXTRACT_LO_NIBBLE(value) );
+  LONGS_EQUAL(0xf, EXTRACT_LO_NIBBLE(value));
 }
 
-TEST(HexConvert, ExtractHighNibble)
-{
-    uint8_t value = 0xfa;
+TEST(HexConvert, ExtractHighNibble) {
+  uint8_t value = 0xfa;
 
-    LONGS_EQUAL( 0xf, EXTRACT_HI_NIBBLE(value) );
+  LONGS_EQUAL(0xf, EXTRACT_HI_NIBBLE(value));
 }
 
-TEST(HexConvert, NibbleToHexChar0)
-{
-    uint8_t nibble = 0x0;
+TEST(HexConvert, NibbleToHexChar0) {
+  uint8_t nibble = 0x0;
 
-    BYTES_EQUAL( '0', NibbleToHexChar[nibble] );
+  BYTES_EQUAL('0', NibbleToHexChar[nibble]);
 }
 
-TEST(HexConvert, NibbleToHexCharF)
-{
-    uint8_t nibble = 0xF;
+TEST(HexConvert, NibbleToHexCharF) {
+  uint8_t nibble = 0xF;
 
-    BYTES_EQUAL( 'f', NibbleToHexChar[nibble] );
+  BYTES_EQUAL('f', NibbleToHexChar[nibble]);
 }
 
-TEST(HexConvert, HexCharToNibble_0)
-{
-    __try
-    {
-        BYTES_EQUAL( 0, HexCharToNibble('0') );
-    }
-    __catch
-    {
-        FAIL( "HexCharToNibble threw unexpected exception." );
-    }
+TEST(HexConvert, HexCharToNibble_0) {
+  __try {
+    BYTES_EQUAL(0, HexCharToNibble('0'));
+  }
+  __catch { FAIL("HexCharToNibble threw unexpected exception."); }
 }
 
-TEST(HexConvert, HexCharToNibble_9)
-{
-    __try
-    {
-        BYTES_EQUAL( 9, HexCharToNibble('9') );
-    }
-    __catch
-    {
-        FAIL( "HexCharToNibble threw unexpected exception." );
-    }
+TEST(HexConvert, HexCharToNibble_9) {
+  __try {
+    BYTES_EQUAL(9, HexCharToNibble('9'));
+  }
+  __catch { FAIL("HexCharToNibble threw unexpected exception."); }
 }
 
-TEST(HexConvert, HexCharToNibble_a)
-{
-    __try
-    {
-        BYTES_EQUAL( 0xa, HexCharToNibble('a') );
-    }
-    __catch
-    {
-        FAIL( "HexCharToNibble threw unexpected exception." );
-    }
+TEST(HexConvert, HexCharToNibble_a) {
+  __try {
+    BYTES_EQUAL(0xa, HexCharToNibble('a'));
+  }
+  __catch { FAIL("HexCharToNibble threw unexpected exception."); }
 }
 
-TEST(HexConvert, HexCharToNibble_f)
-{
-    __try
-    {
-        BYTES_EQUAL( 0xf, HexCharToNibble('f') );
-    }
-    __catch
-    {
-        FAIL( "HexCharToNibble threw unexpected exception." );
-    }
+TEST(HexConvert, HexCharToNibble_f) {
+  __try {
+    BYTES_EQUAL(0xf, HexCharToNibble('f'));
+  }
+  __catch { FAIL("HexCharToNibble threw unexpected exception."); }
 }
 
-TEST(HexConvert, HexCharToNibble_A)
-{
-    __try
-    {
-        BYTES_EQUAL( 0xa, HexCharToNibble('A') );
-    }
-    __catch
-    {
-        FAIL( "HexCharToNibble threw unexpected exception." );
-    }
+TEST(HexConvert, HexCharToNibble_A) {
+  __try {
+    BYTES_EQUAL(0xa, HexCharToNibble('A'));
+  }
+  __catch { FAIL("HexCharToNibble threw unexpected exception."); }
 }
 
-TEST(HexConvert, HexCharToNibble_F)
-{
-    __try
-    {
-        BYTES_EQUAL( 0xf, HexCharToNibble('F') );
-    }
-    __catch
-    {
-        FAIL( "HexCharToNibble threw unexpected exception." );
-    }
+TEST(HexConvert, HexCharToNibble_F) {
+  __try {
+    BYTES_EQUAL(0xf, HexCharToNibble('F'));
+  }
+  __catch { FAIL("HexCharToNibble threw unexpected exception."); }
 }
 
-TEST(HexConvert, HexCharToNibble_InvalidG)
-{
-    int value;
-    int exceptionThrown = 0;
+TEST(HexConvert, HexCharToNibble_InvalidG) {
+  int value;
+  int exceptionThrown = 0;
 
-    __try
-        value = HexCharToNibble('G');
-    __catch
-        exceptionThrown = 1;
+  __try
+    value = HexCharToNibble('G');
+  __catch exceptionThrown = 1;
 
-    LONGS_EQUAL( -1, value );
-    CHECK_TRUE( exceptionThrown );
-    LONGS_EQUAL( invalidHexDigitException, getExceptionCode() );
+  LONGS_EQUAL(-1, value);
+  CHECK_TRUE(exceptionThrown);
+  LONGS_EQUAL(invalidHexDigitException, getExceptionCode());
 }
 
-TEST(HexConvert, HexCharToNibble_Invalidg)
-{
-    int value;
-    int exceptionThrown = 0;
+TEST(HexConvert, HexCharToNibble_Invalidg) {
+  int value;
+  int exceptionThrown = 0;
 
-    __try
-        value = HexCharToNibble('g');
-    __catch
-        exceptionThrown = 1;
+  __try
+    value = HexCharToNibble('g');
+  __catch exceptionThrown = 1;
 
-    LONGS_EQUAL( -1, value );
-    CHECK_TRUE( exceptionThrown );
-    LONGS_EQUAL( invalidHexDigitException, getExceptionCode() );
+  LONGS_EQUAL(-1, value);
+  CHECK_TRUE(exceptionThrown);
+  LONGS_EQUAL(invalidHexDigitException, getExceptionCode());
 }

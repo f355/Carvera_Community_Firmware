@@ -18,62 +18,48 @@
 namespace mbed {
 
 class BaseDirHandle : public DirHandle {
-public:
-    /*
-      We keep track of our current location as the n'th object in the
-      FileSystemLike list. Using a Base* instead would cause problems if that
-      object were to be destroyed between readdirs.
-      Using this method does mean though that destroying/creating objects can
-      give unusual results from readdir.
-    */
-    off_t n;
-    struct dirent cur_entry;
+ public:
+  /*
+    We keep track of our current location as the n'th object in the
+    FileSystemLike list. Using a Base* instead would cause problems if that
+    object were to be destroyed between readdirs.
+    Using this method does mean though that destroying/creating objects can
+    give unusual results from readdir.
+  */
+  off_t n;
+  struct dirent cur_entry;
 
-    BaseDirHandle() {
-        n = 0;
-    }
+  BaseDirHandle() { n = 0; }
 
-    virtual int closedir() {
-        delete this;
-        return 0;
-    }
+  virtual int closedir() {
+    delete this;
+    return 0;
+  }
 
-    virtual struct dirent *readdir() {
-        FileBase *ptr = FileBase::get(n);
-        if (ptr == NULL) return NULL;
+  virtual struct dirent* readdir() {
+    FileBase* ptr = FileBase::get(n);
+    if (ptr == NULL) return NULL;
 
-        /* Increment n, so next readdir gets the next item */
-        n++;
+    /* Increment n, so next readdir gets the next item */
+    n++;
 
-        /* Setup cur entry and return a pointer to it */
-        std::strncpy(cur_entry.d_name, ptr->getName(), NAME_MAX);
-        cur_entry.d_isdir= true; // always a directory at root level
-        return &cur_entry;
-    }
+    /* Setup cur entry and return a pointer to it */
+    std::strncpy(cur_entry.d_name, ptr->getName(), NAME_MAX);
+    cur_entry.d_isdir = true;  // always a directory at root level
+    return &cur_entry;
+  }
 
-    virtual off_t telldir() {
-        return n;
-    }
+  virtual off_t telldir() { return n; }
 
-    virtual void seekdir(off_t offset) {
-        n = offset;
-    }
+  virtual void seekdir(off_t offset) { n = offset; }
 
-    virtual void rewinddir() {
-        n = 0;
-    }
+  virtual void rewinddir() { n = 0; }
 };
 
-FileSystemLike::FileSystemLike(const char *name) : FileBase(name, FileSystemPathType) {
+FileSystemLike::FileSystemLike(const char* name) : FileBase(name, FileSystemPathType) {}
 
-}
+FileSystemLike::~FileSystemLike() {}
 
-FileSystemLike::~FileSystemLike() {
+DirHandle* FileSystemLike::opendir() { return new BaseDirHandle(); }
 
-}
-
-DirHandle *FileSystemLike::opendir() {
-    return new BaseDirHandle();
-}
-
-} // namespace mbed
+}  // namespace mbed

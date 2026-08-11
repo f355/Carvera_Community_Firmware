@@ -20,37 +20,31 @@
 namespace mbed {
 
 SPISlave::SPISlave(PinName mosi, PinName miso, PinName sclk, PinName ssel) {
-    spi_init(&_spi, mosi, miso, sclk, ssel);
-    _bits = 8;
-    _mode = 0;
-    _hz = 1000000;
-    spi_format(&_spi, _bits, _mode, 1);
-    spi_frequency(&_spi, _hz);
+  spi_init(&_spi, mosi, miso, sclk, ssel);
+  _bits = 8;
+  _mode = 0;
+  _hz = 1000000;
+  spi_format(&_spi, _bits, _mode, 1);
+  spi_frequency(&_spi, _hz);
 }
 
 void SPISlave::format(int bits, int mode) {
-    _bits = bits;
-    _mode = mode;
-    spi_format(&_spi, _bits, _mode, 1);
+  _bits = bits;
+  _mode = mode;
+  spi_format(&_spi, _bits, _mode, 1);
 }
 
 void SPISlave::frequency(int hz) {
-    _hz = hz;
-    spi_frequency(&_spi, _hz);
+  _hz = hz;
+  spi_frequency(&_spi, _hz);
 }
 
-int SPISlave::receive(void) {
-    return(spi_slave_receive(&_spi));
-}
+int SPISlave::receive(void) { return (spi_slave_receive(&_spi)); }
 
-int SPISlave::read(void) {
-    return(spi_slave_read(&_spi));
-}
+int SPISlave::read(void) { return (spi_slave_read(&_spi)); }
 
-void SPISlave::reply(int value) {
-    spi_slave_write(&_spi, value);
-}
+void SPISlave::reply(int value) { spi_slave_write(&_spi, value); }
 
-} // namespace mbed
+}  // namespace mbed
 
 #endif

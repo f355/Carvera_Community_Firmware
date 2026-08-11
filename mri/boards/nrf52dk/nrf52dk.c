@@ -13,45 +13,27 @@
    limitations under the License.
 */
 /* Routines which expose nRF52-DK specific functionality to the mri debugger. */
-#include <string.h>
 #include <core/platforms.h>
 #include <core/try_catch.h>
 #include <devices/nrf52/nrf52_init.h>
+#include <string.h>
 
+static const char g_memoryMapXml[] =
+    "<?xml version=\"1.0\"?>"
+    "<!DOCTYPE memory-map PUBLIC \"+//IDN gnu.org//DTD GDB Memory Map V1.0//EN\" "
+    "\"http://sourceware.org/gdb/gdb-memory-map.dtd\">"
+    "<memory-map>"
+    "<memory type=\"flash\" start=\"0x00000000\" length=\"0x80000\"> <property "
+    "name=\"blocksize\">0x1000</property></memory>"
+    "<memory type=\"ram\" start=\"0x20000000\" length=\"0x10000\"> </memory>"
+    "</memory-map>";
 
-static const char g_memoryMapXml[] = "<?xml version=\"1.0\"?>"
-                                     "<!DOCTYPE memory-map PUBLIC \"+//IDN gnu.org//DTD GDB Memory Map V1.0//EN\" \"http://sourceware.org/gdb/gdb-memory-map.dtd\">"
-                                     "<memory-map>"
-                                     "<memory type=\"flash\" start=\"0x00000000\" length=\"0x80000\"> <property name=\"blocksize\">0x1000</property></memory>"
-                                     "<memory type=\"ram\" start=\"0x20000000\" length=\"0x10000\"> </memory>"
-                                     "</memory-map>";
+void Platform_Init(Token* pParameterTokens) { mriNRF52_Init(pParameterTokens); }
 
+const uint8_t* Platform_GetUid(void) { return NULL; }
 
-void Platform_Init(Token* pParameterTokens)
-{
-    mriNRF52_Init(pParameterTokens);
-}
+size_t Platform_GetUidSize(void) { return 0; }
 
+size_t Platform_GetDeviceMemoryMapXmlSize(void) { return sizeof(g_memoryMapXml) - 1; }
 
-const uint8_t* Platform_GetUid(void)
-{
-    return NULL;
-}
-
-
-size_t Platform_GetUidSize(void)
-{
-    return 0;
-}
-
-
-size_t Platform_GetDeviceMemoryMapXmlSize(void)
-{
-    return sizeof(g_memoryMapXml) - 1;
-}
-
-
-const char* Platform_GetDeviceMemoryMapXml(void)
-{
-    return g_memoryMapXml;
-}
+const char* Platform_GetDeviceMemoryMapXml(void) { return g_memoryMapXml; }

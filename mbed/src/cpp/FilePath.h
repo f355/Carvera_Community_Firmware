@@ -16,30 +16,29 @@
 #ifndef MBED_FILEPATH_H
 #define MBED_FILEPATH_H
 
-#include "platform.h"
-
-#include "FileSystemLike.h"
 #include "FileLike.h"
+#include "FileSystemLike.h"
+#include "platform.h"
 
 namespace mbed {
 
 class FilePath {
-public:
-    FilePath(const char* file_path);
+ public:
+  FilePath(const char* file_path);
 
-    const char* fileName(void);
+  const char* fileName(void);
 
-    bool          isFileSystem(void);
-    FileSystemLike* fileSystem(void);
+  bool isFileSystem(void);
+  FileSystemLike* fileSystem(void);
 
-    bool    isFile(void);
-    FileLike* file(void);
+  bool isFile(void);
+  FileLike* file(void);
 
-private:
-    const char* file_name;
-    FileBase* fb;
+ private:
+  const char* file_name;
+  FileBase* fb;
 };
 
-} // namespace mbed
+}  // namespace mbed
 
 #endif

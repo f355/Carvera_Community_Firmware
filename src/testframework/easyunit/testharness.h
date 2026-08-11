@@ -23,16 +23,14 @@ barthelemy@prologique.com
 #ifndef TESTHARNESS_H
 #define TESTHARNESS_H
 
+#include "defaulttestprinter.h"
+#include "simplestring.h"
 #include "test.h"
 #include "testcase.h"
 #include "testpartresult.h"
-#include "testregistry.h"
-#include "simplestring.h"
 #include "testprinter.h"
+#include "testregistry.h"
 #include "testresult.h"
 #include "testrunner.h"
-#include "defaulttestprinter.h"
 
 #endif
-
-

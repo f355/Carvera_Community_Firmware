@@ -16,8 +16,8 @@
 #ifndef TOKEN_H_
 #define TOKEN_H_
 
-#include <stddef.h>
 #include <core/try_catch.h>
+#include <stddef.h>
 
 /* Maximum number of tokens that a string can be separated into. */
 #define TOKEN_MAX_TOKENS 10
@@ -25,34 +25,32 @@
 /* Maximum size of string that can be split into tokens. */
 #define TOKEN_MAX_STRING 64
 
-struct Token
-{
-    const char* tokenPointers[TOKEN_MAX_TOKENS];
-    const char* pTokenSeparators;
-    size_t      tokenCount;
-    char        copyOfString[TOKEN_MAX_STRING + 1];
+struct Token {
+  const char* tokenPointers[TOKEN_MAX_TOKENS];
+  const char* pTokenSeparators;
+  size_t tokenCount;
+  char copyOfString[TOKEN_MAX_STRING + 1];
 };
 typedef struct Token Token;
 
-
 /* Real name of functions are in mri namespace. */
-         void        mriToken_Init(Token* pToken);
-         void        mriToken_InitWith(Token* pToken, const char* pTheseTokenSeparators);
-__throws void        mriToken_SplitString(Token* pToken, const char* pStringToSplit);
-         size_t      mriToken_GetTokenCount(Token* pToken);
+void mriToken_Init(Token* pToken);
+void mriToken_InitWith(Token* pToken, const char* pTheseTokenSeparators);
+__throws void mriToken_SplitString(Token* pToken, const char* pStringToSplit);
+size_t mriToken_GetTokenCount(Token* pToken);
 __throws const char* mriToken_GetToken(Token* pToken, size_t tokenIndex);
-         const char* mriToken_MatchingString(Token* pToken, const char* pTokenToSearchFor);
-         const char* mriToken_MatchingStringPrefix(Token* pToken, const char* pTokenPrefixToSearchFor);
-         void        mriToken_Copy(Token* pTokenCopy, Token* pTokenOriginal);
+const char* mriToken_MatchingString(Token* pToken, const char* pTokenToSearchFor);
+const char* mriToken_MatchingStringPrefix(Token* pToken, const char* pTokenPrefixToSearchFor);
+void mriToken_Copy(Token* pTokenCopy, Token* pTokenOriginal);
 
 /* Macroes which allow code to drop the mri namespace prefix. */
-#define Token_Init                  mriToken_Init
-#define Token_InitWith              mriToken_InitWith
-#define Token_SplitString           mriToken_SplitString
-#define Token_GetTokenCount         mriToken_GetTokenCount
-#define Token_GetToken              mriToken_GetToken
-#define Token_MatchingString        mriToken_MatchingString
-#define Token_MatchingStringPrefix  mriToken_MatchingStringPrefix
-#define Token_Copy                  mriToken_Copy
+#define Token_Init mriToken_Init
+#define Token_InitWith mriToken_InitWith
+#define Token_SplitString mriToken_SplitString
+#define Token_GetTokenCount mriToken_GetTokenCount
+#define Token_GetToken mriToken_GetToken
+#define Token_MatchingString mriToken_MatchingString
+#define Token_MatchingStringPrefix mriToken_MatchingStringPrefix
+#define Token_Copy mriToken_Copy
 
 #endif /* TOKEN_H_ */

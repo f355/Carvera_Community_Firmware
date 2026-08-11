@@ -16,13 +16,13 @@
 #ifndef NRF52_H_
 #define NRF52_H_
 
-#include <stdint.h>
 #include <core/token.h>
+#include <stdint.h>
+
 #include "nrf52_uart.h"
 
 /* Flag to indicate whether context will contain FPU registers or not. */
 #define MRI_DEVICE_HAS_FPU 1
-
 
 void mriNRF52_Init(Token* pParameterTokens);
 

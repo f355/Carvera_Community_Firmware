@@ -21,25 +21,21 @@
 #define EXTRACT_HI_NIBBLE(X) (((X) >> 4) & 0xF)
 #define EXTRACT_LO_NIBBLE(X) ((X) & 0xF)
 
-static const char NibbleToHexChar[16] = { '0', '1', '2', '3', '4', '5', '6', '7',
-                                          '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+static const char NibbleToHexChar[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
+                                         '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
 
-static inline int HexCharToNibble(unsigned char HexChar)
-{
-    if (HexChar >= 'a' && HexChar <= 'f')
-    {
-        return HexChar - 'a' + 10;
-    }
-    if (HexChar >= 'A' && HexChar <= 'F')
-    {
-        return HexChar - 'A' + 10;
-    }
-    if (HexChar >= '0' && HexChar <= '9')
-    {
-        return HexChar - '0';
-    }
+static inline int HexCharToNibble(unsigned char HexChar) {
+  if (HexChar >= 'a' && HexChar <= 'f') {
+    return HexChar - 'a' + 10;
+  }
+  if (HexChar >= 'A' && HexChar <= 'F') {
+    return HexChar - 'A' + 10;
+  }
+  if (HexChar >= '0' && HexChar <= '9') {
+    return HexChar - '0';
+  }
 
-    __throw_and_return(invalidHexDigitException, -1);
+  __throw_and_return(invalidHexDigitException, -1);
 }
 
 #endif /* HEX_CONVERT_H_ */

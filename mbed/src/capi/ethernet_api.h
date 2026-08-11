@@ -32,7 +32,7 @@ void ethernet_free(void);
 // write size bytes from data to ethernet buffer
 // return num bytes written
 // or -1 if size is too big
-int ethernet_write(const char *data, int size);
+int ethernet_write(const char* data, int size);
 
 // send ethernet write buffer, returning the packet size sent
 int ethernet_send(void);
@@ -42,10 +42,10 @@ int ethernet_receive(void);
 
 // read size bytes in to data, return actual num bytes read (0..size)
 // if data == NULL, throw the bytes away
-int ethernet_read(char *data, int size);
+int ethernet_read(char* data, int size);
 
 // get the ethernet address
-void ethernet_address(char *mac);
+void ethernet_address(char* mac);
 
 // see if the link is up
 int ethernet_link(void);
@@ -60,4 +60,3 @@ void ethernet_set_link(int speed, int duplex);
 #endif
 
 #endif
-

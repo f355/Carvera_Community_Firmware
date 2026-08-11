@@ -18,54 +18,47 @@
 namespace mbed {
 
 FilePath::FilePath(const char* file_path) : file_name(NULL), fb(NULL) {
-    if ((file_path[0] != '/') || (file_path[1] == 0)) return;
+  if ((file_path[0] != '/') || (file_path[1] == 0)) return;
 
-    const char* file_system = &file_path[1];
-    file_name = file_system;
-    int len = 0;
-    while (true) {
-        char c = *file_name;
-        if (c == '/') { // end of object name
-            file_name++; // point to one char after the '/'
-            break;
-        }
-        if (c == 0) { // end of object name, with no filename
-            break;
-        }
-        len++;
-        file_name++;
+  const char* file_system = &file_path[1];
+  file_name = file_system;
+  int len = 0;
+  while (true) {
+    char c = *file_name;
+    if (c == '/') {  // end of object name
+      file_name++;   // point to one char after the '/'
+      break;
     }
+    if (c == 0) {  // end of object name, with no filename
+      break;
+    }
+    len++;
+    file_name++;
+  }
 
-    FileBase::lookup(file_system, len);
+  FileBase::lookup(file_system, len);
 
-
-    fb = FileBase::lookup(file_system, len);
+  fb = FileBase::lookup(file_system, len);
 }
 
-const char* FilePath::fileName(void) {
-    return file_name;
-}
+const char* FilePath::fileName(void) { return file_name; }
 
-bool FilePath::isFileSystem(void) {
-    return (fb->getPathType() == FileSystemPathType);
-}
+bool FilePath::isFileSystem(void) { return (fb->getPathType() == FileSystemPathType); }
 
 FileSystemLike* FilePath::fileSystem(void) {
-    if (isFileSystem()) {
-        return (FileSystemLike*)fb;
-    }
-    return NULL;
+  if (isFileSystem()) {
+    return (FileSystemLike*)fb;
+  }
+  return NULL;
 }
 
-bool FilePath::isFile(void) {
-    return (fb->getPathType() == FilePathType);
-}
+bool FilePath::isFile(void) { return (fb->getPathType() == FilePathType); }
 
 FileLike* FilePath::file(void) {
-    if (isFile()) {
-        return (FileLike*)fb;
-    }
-    return NULL;
+  if (isFile()) {
+    return (FileLike*)fb;
+  }
+  return NULL;
 }
 
-} // namespace mbed
+}  // namespace mbed

@@ -19,93 +19,81 @@
 
 namespace mbed {
 
-Stream::Stream(const char *name) : FileLike(name) {
-    /* open ourselves */
-    char buf[12]; /* :0x12345678 + null byte */
-    std::sprintf(buf, ":%p", this);
-    _file = std::fopen(buf, "w+");
-    setbuf(_file, NULL);
+Stream::Stream(const char* name) : FileLike(name) {
+  /* open ourselves */
+  char buf[12]; /* :0x12345678 + null byte */
+  std::sprintf(buf, ":%p", this);
+  _file = std::fopen(buf, "w+");
+  setbuf(_file, NULL);
 }
 
-Stream::~Stream() {
-    fclose(_file);
-}
+Stream::~Stream() { fclose(_file); }
 
 int Stream::putc(int c) {
-    fflush(_file);
-    return std::fputc(c, _file);
+  fflush(_file);
+  return std::fputc(c, _file);
 }
-int Stream::puts(const char *s) {
-    fflush(_file);
-    return std::fputs(s, _file);
+int Stream::puts(const char* s) {
+  fflush(_file);
+  return std::fputs(s, _file);
 }
 int Stream::getc() {
-    fflush(_file);
-    return std::fgetc(_file);
+  fflush(_file);
+  return std::fgetc(_file);
 }
-char* Stream::gets(char *s, int size) {
-    fflush(_file);
-    return std::fgets(s,size,_file);
+char* Stream::gets(char* s, int size) {
+  fflush(_file);
+  return std::fgets(s, size, _file);
 }
 
-int Stream::close() {
-    return 0;
-}
+int Stream::close() { return 0; }
 
 ssize_t Stream::write(const void* buffer, size_t length) {
-    const char* ptr = (const char*)buffer;
-    const char* end = ptr + length;
-    while (ptr != end) {
-        if (_putc(*ptr++) == EOF) {
-            break;
-        }
+  const char* ptr = (const char*)buffer;
+  const char* end = ptr + length;
+  while (ptr != end) {
+    if (_putc(*ptr++) == EOF) {
+      break;
     }
-    return ptr - (const char*)buffer;
+  }
+  return ptr - (const char*)buffer;
 }
 
 ssize_t Stream::read(void* buffer, size_t length) {
-    char* ptr = (char*)buffer;
-    char* end = ptr + length;
-    while (ptr != end) {
-        int c = _getc();
-        if (c==EOF) break;
-        *ptr++ = c;
-    }
-    return ptr - (const char*)buffer;
+  char* ptr = (char*)buffer;
+  char* end = ptr + length;
+  while (ptr != end) {
+    int c = _getc();
+    if (c == EOF) break;
+    *ptr++ = c;
+  }
+  return ptr - (const char*)buffer;
 }
 
-off_t Stream::lseek(off_t offset, int whence) {
-    return 0;
-}
+off_t Stream::lseek(off_t offset, int whence) { return 0; }
 
-int Stream::isatty() {
-    return 0;
-}
+int Stream::isatty() { return 0; }
 
-int Stream::fsync() {
-    return 0;
-}
+int Stream::fsync() { return 0; }
 
-off_t Stream::flen() {
-    return 0;
-}
+off_t Stream::flen() { return 0; }
 
 int Stream::printf(const char* format, ...) {
-    std::va_list arg;
-    va_start(arg, format);
-    fflush(_file);
-    int r = vfprintf(_file, format, arg);
-    va_end(arg);
-    return r;
+  std::va_list arg;
+  va_start(arg, format);
+  fflush(_file);
+  int r = vfprintf(_file, format, arg);
+  va_end(arg);
+  return r;
 }
 
 int Stream::scanf(const char* format, ...) {
-    std::va_list arg;
-    va_start(arg, format);
-    fflush(_file);
-    int r = vfscanf(_file, format, arg);
-    va_end(arg);
-    return r;
+  std::va_list arg;
+  va_start(arg, format);
+  fflush(_file);
+  int r = vfscanf(_file, format, arg);
+  va_end(arg);
+  return r;
 }
 
-} // namespace mbed
+}  // namespace mbed

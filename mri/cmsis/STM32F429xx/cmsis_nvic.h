@@ -27,7 +27,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************
- */ 
+ */
 
 #ifndef MBED_CMSIS_NVIC_H
 #define MBED_CMSIS_NVIC_H
@@ -36,8 +36,8 @@
 // CORE: 16 vectors = 64 bytes from 0x00 to 0x3F
 // MCU Peripherals: 91 vectors = 364 bytes from 0x40 to 0x1AB
 // Total: 107 vectors = 428 bytes (0x1AC) to be reserved in RAM
-#define NVIC_NUM_VECTORS      107
-#define NVIC_USER_IRQ_OFFSET  16
+#define NVIC_NUM_VECTORS 107
+#define NVIC_USER_IRQ_OFFSET 16
 
 #include "cmsis.h"
 

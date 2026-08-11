@@ -1,6 +1,6 @@
 /**********************************************************************
-* $Id$		lpc17xx_libcfg_default.h				2010-05-21
-*//**
+ * $Id$		lpc17xx_libcfg_default.h				2010-05-21
+ *//**
 * @file		lpc17xx_libcfg_default.h
 * @brief	Default Library configuration header file
 * @version	2.0
@@ -35,7 +35,6 @@
 /* Includes ------------------------------------------------------------------- */
 #include "lpc_types.h"
 
-
 /* Public Macros -------------------------------------------------------------- */
 /** @defgroup LIBCFG_DEFAULT_Public_Macros LIBCFG_DEFAULT Public Macros
  * @{
@@ -45,8 +44,7 @@
 /* Un-comment the line below to compile the library in DEBUG mode, this will expanse
    the "CHECK_PARAM" macro in the FW library code */
 
-//#define DEBUG
-
+// #define DEBUG
 
 /******************* PERIPHERAL FW LIBRARY CONFIGURATION DEFINITIONS ***********************/
 /* Comment the line below to disable the specific peripheral inclusion */
@@ -78,7 +76,6 @@
 #define _SSP0
 #define _SSP1
 
-
 /* I2C ------------------------------- */
 #define _I2C
 #define _I2C0
@@ -91,17 +88,14 @@
 /* WDT ------------------------------- */
 #define _WDT
 
-
 /* GPDMA ------------------------------- */
 #define _GPDMA
-
 
 /* DAC ------------------------------- */
 #define _DAC
 
 /* DAC ------------------------------- */
 #define _ADC
-
 
 /* PWM ------------------------------- */
 #define _PWM
@@ -124,27 +118,27 @@
 #define _MCPWM
 
 /* CAN--------------------------------*/
-//#define _CAN
+// #define _CAN
 
 /* RIT ------------------------------- */
 #define _RIT
 
 /* EMAC ------------------------------ */
-//#define _EMAC
+// #define _EMAC
 
 /************************** GLOBAL/PUBLIC MACRO DEFINITIONS *********************************/
 
-#ifdef  DEBUG
+#ifdef DEBUG
 /*******************************************************************************
-* @brief		The CHECK_PARAM macro is used for function's parameters check.
-* 				It is used only if the library is compiled in DEBUG mode.
-* @param[in]	expr - If expr is false, it calls check_failed() function
-*                    	which reports the name of the source file and the source
-*                    	line number of the call that failed.
-*                    - If expr is true, it returns no value.
-* @return		None
-*******************************************************************************/
-#define CHECK_PARAM(expr) ((expr) ? (void)0 : check_failed((uint8_t *)__FILE__, __LINE__))
+ * @brief		The CHECK_PARAM macro is used for function's parameters check.
+ * 				It is used only if the library is compiled in DEBUG mode.
+ * @param[in]	expr - If expr is false, it calls check_failed() function
+ *                    	which reports the name of the source file and the source
+ *                    	line number of the call that failed.
+ *                    - If expr is true, it returns no value.
+ * @return		None
+ *******************************************************************************/
+#define CHECK_PARAM(expr) ((expr) ? (void)0 : check_failed((uint8_t*)__FILE__, __LINE__))
 #else
 #define CHECK_PARAM(expr)
 #endif /* DEBUG */
@@ -153,14 +147,13 @@
  * @}
  */
 
-
 /* Public Functions ----------------------------------------------------------- */
 /** @defgroup LIBCFG_DEFAULT_Public_Functions LIBCFG_DEFAULT Public Functions
  * @{
  */
 
-#ifdef  DEBUG
-void check_failed(uint8_t *file, uint32_t line);
+#ifdef DEBUG
+void check_failed(uint8_t* file, uint32_t line);
 #endif
 
 /**

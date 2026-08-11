@@ -25,7 +25,6 @@ barthelemy@prologique.com
 #ifndef TESTCASE_H
 #define TESTCASE_H
 
-
 class Test;
 class TestResult;
 
@@ -33,122 +32,117 @@ class TestResult;
  * A TestCase is a collection of unit tests (instance of Test) and is
  * always specified by the first parameter of a Test declaration.
  */
-class TestCase
-{
-	public:
+class TestCase {
+ public:
+  /**
+   * Main TestCase constructor.
+   *
+   * @param name TestCase name
+   * @param testResult Pointer to the TestResult used to report results
+   * of executed Test
+   */
+  TestCase(const SimpleString& name, TestResult* testResult);
 
-		/**
-		 * Main TestCase constructor.
-		 *
-		 * @param name TestCase name
-		 * @param testResult Pointer to the TestResult used to report results
-		 * of executed Test
-		 */
-		TestCase(const SimpleString& name, TestResult *testResult);
+  virtual ~TestCase();
 
-		virtual ~TestCase();
+  /**
+   * Add a Test to the Test list. This method is used by TestRegistry.
+   *
+   * @param test Test instance to add to the Test list.
+   */
+  void addTest(Test* test);
 
-		/**
-		 * Add a Test to the Test list. This method is used by TestRegistry.
-		 *
-		 * @param test Test instance to add to the Test list.
-		 */
-		void addTest(Test *test);
+  /**
+   * Get the Test list.
+   *
+   * @return Test list
+   */
+  Test* getTests() const;
 
-		/**
-		 * Get the Test list.
-		 *
-		 * @return Test list
-		 */
-		Test* getTests() const;
+  /**
+   * Execute all Tests in the Test list of this TestCase. In fact, it calls
+   * the run() method of all Tests.
+   */
+  void run();
 
-    /**
-     * Execute all Tests in the Test list of this TestCase. In fact, it calls
-     * the run() method of all Tests.
-     */
-		void run();
+  /**
+   * Get the Test list size (number of Tests in this TestCase).
+   *
+   * @return The Test list size
+   */
+  int getTestsCount() const;
 
-    /**
-     * Get the Test list size (number of Tests in this TestCase).
-     *
-     * @return The Test list size
-     */
-		int getTestsCount() const;
+  /**
+   * Get the total number of failures reported by all Tests.
+   *
+   * @return The total number of failures reported by all Tests. 0
+   * if no test were run or if no failures were reported.
+   */
+  int getFailuresCount() const;
 
-		/**
-		 * Get the total number of failures reported by all Tests.
-		 *
-		 * @return The total number of failures reported by all Tests. 0
-		 * if no test were run or if no failures were reported.
-		 */
-		int getFailuresCount() const;
+  /**
+   * Get the total number of successes reported by all Tests.
+   *
+   * @return The total number of successes reported by all Tests. 0
+   * if no test were run or if no successes were reported.
+   */
+  int getSuccessesCount() const;
 
-		/**
-		 * Get the total number of successes reported by all Tests.
-		 *
-		 * @return The total number of successes reported by all Tests. 0
-		 * if no test were run or if no successes were reported.
-		 */
-		int getSuccessesCount() const;
+  /**
+   * Get the total number of errors reported by all Tests.
+   *
+   * @return The total number of errors reported by all Tests. 0
+   * if no test were run, if this is the embedded version or if
+   * no errors were reported.
+   */
+  int getErrorsCount() const;
 
-		/**
-		 * Get the total number of errors reported by all Tests.
-		 *
-		 * @return The total number of errors reported by all Tests. 0
-		 * if no test were run, if this is the embedded version or if
-		 * no errors were reported.
-		 */
-		int getErrorsCount() const;
+  /**
+   * Indicates whether or not this TestCase was executed.
+   *
+   * @return true if the method run() of this TestCase was called. false
+   * otherwise
+   */
+  bool ran() const;
 
-		/**
-		 * Indicates whether or not this TestCase was executed.
-		 *
-		 * @return true if the method run() of this TestCase was called. false
-		 * otherwise
-		 */
-		bool ran() const;
+  /**
+   * Get the TestCase name. This name is specified by the first parameter
+   * of the Test declaration. For example, if a test was declared as
+   * TEST(TESTCASE1, TEST1), the TestCase name would be "TESTCASE1".
+   *
+   * @return The name of the TestCase
+   */
+  const SimpleString& getName() const;
 
-		/**
-		 * Get the TestCase name. This name is specified by the first parameter
-		 * of the Test declaration. For example, if a test was declared as
-		 * TEST(TESTCASE1, TEST1), the TestCase name would be "TESTCASE1".
-		 *
-		 * @return The name of the TestCase
-		 */
-		const SimpleString& getName() const;
+  /**
+   * Get the next TestCase in the list.
+   *
+   * @return The next TestCase in the TestCase linked list
+   */
+  TestCase* getNext() const;
 
-		/**
-		 * Get the next TestCase in the list.
-		 *
-		 * @return The next TestCase in the TestCase linked list
-		 */
-		TestCase* getNext() const;
+  /**
+   * Set the next TestCase in the list.
+   *
+   * @return The next TestCase in the TestCase linked list
+   */
+  void setNext(TestCase* testCase);
 
-		/**
-		 * Set the next TestCase in the list.
-		 *
-		 * @return The next TestCase in the TestCase linked list
-		 */
-		void setNext(TestCase *testCase);
+ protected:
+  int failuresCount_{0};
+  int successesCount_{0};
+  int errorsCount_{0};
+  int testsCount_{0};
+  Test* tests_{0};
+  SimpleString name_;
+  TestCase* nextTestCase_{0};
+  TestResult* testResult_;
 
-	protected:
-		int failuresCount_{0};
-		int successesCount_{0};
-		int errorsCount_{0};
-		int testsCount_{0};
-		Test *tests_{0};
-		SimpleString name_;
-		TestCase *nextTestCase_{0};
-		TestResult *testResult_;
-
-	private:
-	  void updateCount(Test *test);
-	  void runTests(Test *test);
-	  void runTest(Test *test);
-	  bool ran_{false};
-
+ private:
+  void updateCount(Test* test);
+  void runTests(Test* test);
+  void runTest(Test* test);
+  bool ran_{false};
 };
 
-#endif // TESTCASE_H
-
-
+#endif  // TESTCASE_H

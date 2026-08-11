@@ -17,21 +17,21 @@
 #define MBED_DIRHANDLE_H
 
 #if defined(__ARMCC_VERSION) || defined(__ICCARM__)
-#   define NAME_MAX 255
+#define NAME_MAX 255
 typedef int mode_t;
 
 #else
-#   include <sys/syslimits.h>
+#include <sys/syslimits.h>
 #endif
 
 #include "FileHandle.h"
 
 struct dirent {
-    char d_name[NAME_MAX+1];
-    unsigned int d_fsize;
-    bool d_isdir;
-    unsigned short d_date;
-    unsigned short d_time;
+  char d_name[NAME_MAX + 1];
+  unsigned int d_fsize;
+  bool d_isdir;
+  unsigned short d_date;
+  unsigned short d_time;
 };
 
 namespace mbed {
@@ -50,60 +50,59 @@ namespace mbed {
  *  reflect this.
  */
 class DirHandle {
+ public:
+  /** Closes the directory.
+   *
+   *  @returns
+   *    0 on success,
+   *   -1 on error.
+   */
+  virtual int closedir() = 0;
 
-public:
-    /** Closes the directory.
-     *
-     *  @returns
-     *    0 on success,
-     *   -1 on error.
-     */
-    virtual int closedir()=0;
+  /** Return the directory entry at the current position, and
+   *  advances the position to the next entry.
+   *
+   * @returns
+   *  A pointer to a dirent structure representing the
+   *  directory entry at the current position, or NULL on reaching
+   *  end of directory or error.
+   */
+  virtual struct dirent* readdir() = 0;
 
-    /** Return the directory entry at the current position, and
-     *  advances the position to the next entry.
-     *
-     * @returns
-     *  A pointer to a dirent structure representing the
-     *  directory entry at the current position, or NULL on reaching
-     *  end of directory or error.
-     */
-    virtual struct dirent *readdir()=0;
+  /** Resets the position to the beginning of the directory.
+   */
+  virtual void rewinddir() = 0;
 
-    /** Resets the position to the beginning of the directory.
-     */
-    virtual void rewinddir()=0;
+  /** Returns the current position of the DirHandle.
+   *
+   * @returns
+   *   the current position,
+   *  -1 on error.
+   */
+  virtual off_t telldir() { return -1; }
 
-    /** Returns the current position of the DirHandle.
-     *
-     * @returns
-     *   the current position,
-     *  -1 on error.
-     */
-    virtual off_t telldir() { return -1; }
+  /** Sets the position of the DirHandle.
+   *
+   *  @param location The location to seek to. Must be a value returned by telldir.
+   */
+  virtual void seekdir(off_t location) {}
 
-    /** Sets the position of the DirHandle.
-     *
-     *  @param location The location to seek to. Must be a value returned by telldir.
-     */
-    virtual void seekdir(off_t location) { }
-
-    virtual ~DirHandle() {}
+  virtual ~DirHandle() {}
 };
 
-} // namespace mbed
+}  // namespace mbed
 
 typedef mbed::DirHandle DIR;
 
 extern "C" {
-    DIR *opendir(const char*);
-    struct dirent *readdir(DIR *);
-    int closedir(DIR*);
-    void rewinddir(DIR*);
-    long telldir(DIR*);
-    void seekdir(DIR*, long);
+DIR* opendir(const char*);
+struct dirent* readdir(DIR*);
+int closedir(DIR*);
+void rewinddir(DIR*);
+long telldir(DIR*);
+void seekdir(DIR*, long);
 #if !defined(__GNUC__)
-    int mkdir(const char *name, mode_t n);
+int mkdir(const char* name, mode_t n);
 #endif
 };
 

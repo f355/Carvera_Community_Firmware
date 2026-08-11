@@ -1,8 +1,11 @@
 /*
-      This file is part of Smoothie (http://smoothieware.org/). The motion control part is heavily based on Grbl (https://github.com/simen/grbl).
-      Smoothie is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
-      Smoothie is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-      You should have received a copy of the GNU General Public License along with Smoothie. If not, see <http://www.gnu.org/licenses/>.
+      This file is part of Smoothie (http://smoothieware.org/). The motion control part is heavily based on Grbl
+   (https://github.com/simen/grbl). Smoothie is free software: you can redistribute it and/or modify it under the terms
+   of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version. Smoothie is distributed in the hope that it will be useful, but WITHOUT ANY
+   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+   General Public License for more details. You should have received a copy of the GNU General Public License along with
+   Smoothie. If not, see <http://www.gnu.org/licenses/>.
 */
 
 /*
@@ -14,201 +17,192 @@ Author: Michael Hackney, mhackney@eclecticangler.com
 */
 
 #include "TemperatureSwitch.h"
-#include "libs/Module.h"
-#include "libs/Kernel.h"
-#include "modules/tools/temperaturecontrol/TemperatureControlPublicAccess.h"
-#include "SwitchPublicAccess.h"
-#include "LaserPublicAccess.h"
 
-#include "utils.h"
-#include "Gcode.h"
 #include "Config.h"
 #include "ConfigValue.h"
-#include "checksumm.h"
+#include "Gcode.h"
+#include "LaserPublicAccess.h"
 #include "PublicData.h"
 #include "StreamOutputPool.h"
+#include "SwitchPublicAccess.h"
 #include "TemperatureControlPool.h"
+#include "checksumm.h"
+#include "libs/Kernel.h"
+#include "libs/Module.h"
+#include "modules/tools/temperaturecontrol/TemperatureControlPublicAccess.h"
 #include "mri.h"
+#include "utils.h"
 
-#define temperatureswitch_checksum                      CHECKSUM("temperatureswitch")
-#define enable_checksum                                 CHECKSUM("enable")
-#define temperatureswitch_threshold_temp_checksum 	    CHECKSUM("threshold_temp")
-#define temperatureswitch_cooldown_power_init_checksum  CHECKSUM("cooldown_power_init")
-#define temperatureswitch_cooldown_power_step_checksum  CHECKSUM("cooldown_power_step")
+#define temperatureswitch_checksum CHECKSUM("temperatureswitch")
+#define enable_checksum CHECKSUM("enable")
+#define temperatureswitch_threshold_temp_checksum CHECKSUM("threshold_temp")
+#define temperatureswitch_cooldown_power_init_checksum CHECKSUM("cooldown_power_init")
+#define temperatureswitch_cooldown_power_step_checksum CHECKSUM("cooldown_power_step")
 #define temperatureswitch_cooldown_power_laser_checksum CHECKSUM("cooldown_power_laser")
-#define temperatureswitch_cooldown_delay_checksum       CHECKSUM("cooldown_delay")
+#define temperatureswitch_cooldown_delay_checksum CHECKSUM("cooldown_delay")
 
-#define temperatureswitch_switch_checksum               CHECKSUM("switch")
-#define designator_checksum                             CHECKSUM("designator")
+#define temperatureswitch_switch_checksum CHECKSUM("switch")
+#define designator_checksum CHECKSUM("designator")
 
-TemperatureSwitch::TemperatureSwitch()
-{
-}
+TemperatureSwitch::TemperatureSwitch() {}
 
-TemperatureSwitch::~TemperatureSwitch()
-{
-    THEKERNEL->unregister_for_event(ON_SECOND_TICK, this);
-    THEKERNEL->unregister_for_event(ON_GCODE_RECEIVED, this);
+TemperatureSwitch::~TemperatureSwitch() {
+  THEKERNEL->unregister_for_event(ON_SECOND_TICK, this);
+  THEKERNEL->unregister_for_event(ON_GCODE_RECEIVED, this);
 }
 
 // Load module
-void TemperatureSwitch::on_module_loaded()
-{
-    vector<uint16_t> modulist;
-    // allow for multiple temperature switches
-    THEKERNEL->config->get_module_list(&modulist, temperatureswitch_checksum);
-    for (auto m : modulist) {
-        load_config(m);
-    }
+void TemperatureSwitch::on_module_loaded() {
+  vector<uint16_t> modulist;
+  // allow for multiple temperature switches
+  THEKERNEL->config->get_module_list(&modulist, temperatureswitch_checksum);
+  for (auto m : modulist) {
+    load_config(m);
+  }
 
-    // no longer need this instance as it is just used to load the other instances
-    delete this;
+  // no longer need this instance as it is just used to load the other instances
+  delete this;
 }
 
-TemperatureSwitch* TemperatureSwitch::load_config(uint16_t modcs)
-{
-    // see if enabled
-    if (!THEKERNEL->config->value(temperatureswitch_checksum, modcs, enable_checksum)->as_bool(false)) {
-        return nullptr;
-    }
+TemperatureSwitch* TemperatureSwitch::load_config(uint16_t modcs) {
+  // see if enabled
+  if (!THEKERNEL->config->value(temperatureswitch_checksum, modcs, enable_checksum)->as_bool(false)) {
+    return nullptr;
+  }
 
-    // load settings from config file
-    string switchname = THEKERNEL->config->value(temperatureswitch_checksum, modcs, temperatureswitch_switch_checksum)->as_string("");
-    if(switchname.empty()) {
-		// no switch specified so invalid entry
-		THEKERNEL->streams->printf("WARNING TEMPERATURESWITCH: no switch specified\n");
-		return nullptr;
-    }
+  // load settings from config file
+  string switchname =
+      THEKERNEL->config->value(temperatureswitch_checksum, modcs, temperatureswitch_switch_checksum)->as_string("");
+  if (switchname.empty()) {
+    // no switch specified so invalid entry
+    THEKERNEL->streams->printf("WARNING TEMPERATURESWITCH: no switch specified\n");
+    return nullptr;
+  }
 
-    // create a new temperature switch module
-    TemperatureSwitch *ts= new TemperatureSwitch();
+  // create a new temperature switch module
+  TemperatureSwitch* ts = new TemperatureSwitch();
 
-    ts->temperatureswitch_switch_cs= get_checksum(switchname); // checksum of the switch to use
+  ts->temperatureswitch_switch_cs = get_checksum(switchname);  // checksum of the switch to use
 
-    ts->temperatureswitch_threshold_temp = THEKERNEL->config->value(temperatureswitch_checksum, modcs, temperatureswitch_threshold_temp_checksum)->as_number(35.0f);
-    ts->temperatureswitch_cooldown_power_init = THEKERNEL->config->value(temperatureswitch_checksum, modcs, temperatureswitch_cooldown_power_init_checksum)->as_number(50.0f);
-    ts->temperatureswitch_cooldown_power_step = THEKERNEL->config->value(temperatureswitch_checksum, modcs, temperatureswitch_cooldown_power_step_checksum)->as_number(10.0f);
-    ts->temperatureswitch_cooldown_power_laser = THEKERNEL->config->value(temperatureswitch_checksum, modcs, temperatureswitch_cooldown_power_laser_checksum)->as_number(80.0f);
-    ts->temperatureswitch_cooldown_delay = THEKERNEL->config->value(temperatureswitch_checksum, modcs, temperatureswitch_cooldown_delay_checksum)->as_number(180);
+  ts->temperatureswitch_threshold_temp =
+      THEKERNEL->config->value(temperatureswitch_checksum, modcs, temperatureswitch_threshold_temp_checksum)
+          ->as_number(35.0f);
+  ts->temperatureswitch_cooldown_power_init =
+      THEKERNEL->config->value(temperatureswitch_checksum, modcs, temperatureswitch_cooldown_power_init_checksum)
+          ->as_number(50.0f);
+  ts->temperatureswitch_cooldown_power_step =
+      THEKERNEL->config->value(temperatureswitch_checksum, modcs, temperatureswitch_cooldown_power_step_checksum)
+          ->as_number(10.0f);
+  ts->temperatureswitch_cooldown_power_laser =
+      THEKERNEL->config->value(temperatureswitch_checksum, modcs, temperatureswitch_cooldown_power_laser_checksum)
+          ->as_number(80.0f);
+  ts->temperatureswitch_cooldown_delay =
+      THEKERNEL->config->value(temperatureswitch_checksum, modcs, temperatureswitch_cooldown_delay_checksum)
+          ->as_number(180);
 
-    // set initial state
-    ts->cooldown_delay_counter = -1;
+  // set initial state
+  ts->cooldown_delay_counter = -1;
 
-    ts->register_for_event(ON_SECOND_TICK);
-    
-    ts->module_checksum = modcs;
+  ts->register_for_event(ON_SECOND_TICK);
 
-    return ts;
+  ts->module_checksum = modcs;
+
+  return ts;
 }
 
-void TemperatureSwitch::on_gcode_received(void *argument)
-{
-}
+void TemperatureSwitch::on_gcode_received(void* argument) {}
 
 // Called once a second but we only need to service on the cooldown and heatup poll intervals
-void TemperatureSwitch::on_second_tick(void *argument)
-{
-	bool ok;
-	if (THEKERNEL->get_laser_mode()) {
-		
-	    if(CARVERA == THEKERNEL->factory_set->MachineModel)
-	    {
-	    	if (cooldown_delay_counter != -88)
-	    		THEKERNEL->streams->printf("Laser on, Turn on spindle fan...\r\n");
-	    	struct pad_switch pad;
-	    	pad.state = true;
-	    	pad.value = temperatureswitch_cooldown_power_laser;
-		    ok = PublicData::set_value(switch_checksum, this->temperatureswitch_switch_cs, state_value_checksum, &pad);
-		    if (!ok) {
-		        THEKERNEL->streams->printf("Error turn on spindle fan.\r\n");
-		    }
-		    cooldown_delay_counter = -88;
-		}
-	} else {
-		float current_temp = 0;
-		
-		if(CARVERA == THEKERNEL->factory_set->MachineModel)
-	    {
-	    	current_temp = this->get_highest_temperature();
-	    }
-	    else if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
-	    {
-	    	current_temp = this->get_temperature();
-	    }
-	    if (current_temp >= this->temperatureswitch_threshold_temp) {
-//	    	if (cooldown_delay_counter != -99 && !THEKERNEL->is_uploading())
-//	    		THEKERNEL->streams->printf("Spindle temp: [%.2f], Turn on spindle fan...\r\n", current_temp);
-	    	struct pad_switch pad;
-	    	pad.state = true;
-	    	pad.value = temperatureswitch_cooldown_power_init + (current_temp - temperatureswitch_threshold_temp) * temperatureswitch_cooldown_power_step;
-		    ok = PublicData::set_value(switch_checksum, this->temperatureswitch_switch_cs, state_value_checksum, &pad);
-		    if (!ok) {
-		    	if(CARVERA == THEKERNEL->factory_set->MachineModel)
-	    		{
-		        	THEKERNEL->streams->printf("Error turn on spindle fan.\r\n");
-		        }
-			    else if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
-			    {
-			    	THEKERNEL->streams->printf("Error turn on fan.\r\n");
-			    }
-		        
-		    }
-	    	cooldown_delay_counter = -99;
-	    } else {
-	    	if (cooldown_delay_counter == -88 || cooldown_delay_counter == -99) {
-	    		cooldown_delay_counter = 0;
-	    	} else if (cooldown_delay_counter >= 0) {
-	    		cooldown_delay_counter ++;
-	    		if (cooldown_delay_counter > temperatureswitch_cooldown_delay) {
-//	    			if (!THEKERNEL->is_uploading())
-//	    				THEKERNEL->streams->printf("Spindle temp: [%.2f], Turn off spindle fan...\r\n", current_temp);
-	    			bool switch_state = false;
-	    		    ok = PublicData::set_value(switch_checksum, this->temperatureswitch_switch_cs, state_checksum, &switch_state);
-	    		    if (!ok) {
-				    	if(CARVERA == THEKERNEL->factory_set->MachineModel)
-			    		{
-	    		        	THEKERNEL->streams->printf("Error turn off spindle fan.\r\n");
-	    		        }
-					    else if(CARVERA_AIR == THEKERNEL->factory_set->MachineModel)
-					    {
-					    	THEKERNEL->streams->printf("Error turn off fan.\r\n");
-					    }
-	    		    }
-	    			cooldown_delay_counter = -1;
-	    		}
-	    	}
-		}
-	}
+void TemperatureSwitch::on_second_tick(void* argument) {
+  bool ok;
+  if (THEKERNEL->get_laser_mode()) {
+    if (CARVERA == THEKERNEL->factory_set->MachineModel) {
+      if (cooldown_delay_counter != -88) THEKERNEL->streams->printf("Laser on, Turn on spindle fan...\r\n");
+      struct pad_switch pad;
+      pad.state = true;
+      pad.value = temperatureswitch_cooldown_power_laser;
+      ok = PublicData::set_value(switch_checksum, this->temperatureswitch_switch_cs, state_value_checksum, &pad);
+      if (!ok) {
+        THEKERNEL->streams->printf("Error turn on spindle fan.\r\n");
+      }
+      cooldown_delay_counter = -88;
+    }
+  } else {
+    float current_temp = 0;
+
+    if (CARVERA == THEKERNEL->factory_set->MachineModel) {
+      current_temp = this->get_highest_temperature();
+    } else if (CARVERA_AIR == THEKERNEL->factory_set->MachineModel) {
+      current_temp = this->get_temperature();
+    }
+    if (current_temp >= this->temperatureswitch_threshold_temp) {
+      //	    	if (cooldown_delay_counter != -99 && !THEKERNEL->is_uploading())
+      //	    		THEKERNEL->streams->printf("Spindle temp: [%.2f], Turn on spindle fan...\r\n",
+      // current_temp);
+      struct pad_switch pad;
+      pad.state = true;
+      pad.value = temperatureswitch_cooldown_power_init +
+                  (current_temp - temperatureswitch_threshold_temp) * temperatureswitch_cooldown_power_step;
+      ok = PublicData::set_value(switch_checksum, this->temperatureswitch_switch_cs, state_value_checksum, &pad);
+      if (!ok) {
+        if (CARVERA == THEKERNEL->factory_set->MachineModel) {
+          THEKERNEL->streams->printf("Error turn on spindle fan.\r\n");
+        } else if (CARVERA_AIR == THEKERNEL->factory_set->MachineModel) {
+          THEKERNEL->streams->printf("Error turn on fan.\r\n");
+        }
+      }
+      cooldown_delay_counter = -99;
+    } else {
+      if (cooldown_delay_counter == -88 || cooldown_delay_counter == -99) {
+        cooldown_delay_counter = 0;
+      } else if (cooldown_delay_counter >= 0) {
+        cooldown_delay_counter++;
+        if (cooldown_delay_counter > temperatureswitch_cooldown_delay) {
+          //	    			if (!THEKERNEL->is_uploading())
+          //	    				THEKERNEL->streams->printf("Spindle temp: [%.2f], Turn off spindle
+          // fan...\r\n", current_temp);
+          bool switch_state = false;
+          ok = PublicData::set_value(switch_checksum, this->temperatureswitch_switch_cs, state_checksum, &switch_state);
+          if (!ok) {
+            if (CARVERA == THEKERNEL->factory_set->MachineModel) {
+              THEKERNEL->streams->printf("Error turn off spindle fan.\r\n");
+            } else if (CARVERA_AIR == THEKERNEL->factory_set->MachineModel) {
+              THEKERNEL->streams->printf("Error turn off fan.\r\n");
+            }
+          }
+          cooldown_delay_counter = -1;
+        }
+      }
+    }
+  }
 }
 
-float TemperatureSwitch::get_temperature()
-{
-    std::vector<struct pad_temperature> controllers;
-    bool ok = PublicData::get_value(temperature_control_checksum, poll_controls_checksum, &controllers);
-    if (ok) {
-        for (auto &c : controllers) {
-        	if (c.id == this->module_checksum) {
-        		return c.current_temperature;
-        	}
-        }
+float TemperatureSwitch::get_temperature() {
+  std::vector<struct pad_temperature> controllers;
+  bool ok = PublicData::get_value(temperature_control_checksum, poll_controls_checksum, &controllers);
+  if (ok) {
+    for (auto& c : controllers) {
+      if (c.id == this->module_checksum) {
+        return c.current_temperature;
+      }
     }
-    return 50;
+  }
+  return 50;
 }
 
 // Get the highest temperature from the set of temperature controllers
-float TemperatureSwitch::get_highest_temperature()
-{
-    float high_temp = 0.0;
+float TemperatureSwitch::get_highest_temperature() {
+  float high_temp = 0.0;
 
-    std::vector<struct pad_temperature> controllers;
-    bool ok = PublicData::get_value(temperature_control_checksum, poll_controls_checksum, &controllers);
-    if (ok) {
-        for (auto &c : controllers) {
-            // check if this controller's temp is the highest and save it if so
-            if (c.current_temperature > high_temp) {
-                high_temp = c.current_temperature;
-            }
-        }
+  std::vector<struct pad_temperature> controllers;
+  bool ok = PublicData::get_value(temperature_control_checksum, poll_controls_checksum, &controllers);
+  if (ok) {
+    for (auto& c : controllers) {
+      // check if this controller's temp is the highest and save it if so
+      if (c.current_temperature > high_temp) {
+        high_temp = c.current_temperature;
+      }
     }
-    return high_temp;
+  }
+  return high_temp;
 }

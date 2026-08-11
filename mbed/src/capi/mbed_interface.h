@@ -76,7 +76,7 @@ int mbed_interface_powerdown(void);
  *    0 if successful,
  *   -1 otherwise (e.g. interface not present)
  */
-int mbed_interface_uid(char *uid);
+int mbed_interface_uid(char* uid);
 
 #endif
 
@@ -88,7 +88,7 @@ int mbed_interface_uid(char *uid);
  *
  *  @param mac A 6-byte array to write the MAC address
  */
-void mbed_mac_address(char *mac);
+void mbed_mac_address(char* mac);
 
 /** Cause the mbed to flash the BLOD (Blue LEDs Of Death) sequence
  */

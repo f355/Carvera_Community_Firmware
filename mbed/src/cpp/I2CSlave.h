@@ -59,95 +59,89 @@ namespace mbed {
  * @endcode
  */
 class I2CSlave {
+ public:
+  enum RxStatus { NoData = 0, ReadAddressed = 1, WriteGeneral = 2, WriteAddressed = 3 };
 
-public:
-    enum RxStatus {
-        NoData         = 0,
-        ReadAddressed  = 1,
-        WriteGeneral   = 2,
-        WriteAddressed = 3
-    };
+  /** Create an I2C Slave interface, connected to the specified pins.
+   *
+   *  @param sda I2C data line pin
+   *  @param scl I2C clock line pin
+   */
+  I2CSlave(PinName sda, PinName scl);
 
-    /** Create an I2C Slave interface, connected to the specified pins.
-     *
-     *  @param sda I2C data line pin
-     *  @param scl I2C clock line pin
-     */
-    I2CSlave(PinName sda, PinName scl);
+  /** Set the frequency of the I2C interface
+   *
+   *  @param hz The bus frequency in hertz
+   */
+  void frequency(int hz);
 
-    /** Set the frequency of the I2C interface
-     *
-     *  @param hz The bus frequency in hertz
-     */
-    void frequency(int hz);
+  /** Checks to see if this I2C Slave has been addressed.
+   *
+   *  @returns
+   *  A status indicating if the device has been addressed, and how
+   *  - NoData            - the slave has not been addressed
+   *  - ReadAddressed     - the master has requested a read from this slave
+   *  - WriteAddressed    - the master is writing to this slave
+   *  - WriteGeneral      - the master is writing to all slave
+   */
+  int receive(void);
 
-    /** Checks to see if this I2C Slave has been addressed.
-     *
-     *  @returns
-     *  A status indicating if the device has been addressed, and how
-     *  - NoData            - the slave has not been addressed
-     *  - ReadAddressed     - the master has requested a read from this slave
-     *  - WriteAddressed    - the master is writing to this slave
-     *  - WriteGeneral      - the master is writing to all slave
-     */
-    int receive(void);
+  /** Read from an I2C master.
+   *
+   *  @param data pointer to the byte array to read data in to
+   *  @param length maximum number of bytes to read
+   *
+   *  @returns
+   *       0 on success,
+   *   non-0 otherwise
+   */
+  int read(char* data, int length);
 
-    /** Read from an I2C master.
-     *
-     *  @param data pointer to the byte array to read data in to
-     *  @param length maximum number of bytes to read
-     *
-     *  @returns
-     *       0 on success,
-     *   non-0 otherwise
-     */
-    int read(char *data, int length);
+  /** Read a single byte from an I2C master.
+   *
+   *  @returns
+   *    the byte read
+   */
+  int read(void);
 
-    /** Read a single byte from an I2C master.
-     *
-     *  @returns
-     *    the byte read
-     */
-    int read(void);
+  /** Write to an I2C master.
+   *
+   *  @param data pointer to the byte array to be transmitted
+   *  @param length the number of bytes to transmite
+   *
+   *  @returns
+   *       0 on success,
+   *   non-0 otherwise
+   */
+  int write(const char* data, int length);
 
-    /** Write to an I2C master.
-     *
-     *  @param data pointer to the byte array to be transmitted
-     *  @param length the number of bytes to transmite
-     *
-     *  @returns
-     *       0 on success,
-     *   non-0 otherwise
-     */
-    int write(const char *data, int length);
+  /** Write a single byte to an I2C master.
+   *
+   *  @data the byte to write
+   *
+   *  @returns
+   *    '1' if an ACK was received,
+   *    '0' otherwise
+   */
+  int write(int data);
 
-    /** Write a single byte to an I2C master.
-     *
-     *  @data the byte to write
-     *
-     *  @returns
-     *    '1' if an ACK was received,
-     *    '0' otherwise
-     */
-    int write(int data);
+  /** Sets the I2C slave address.
+   *
+   *  @param address The address to set for the slave (ignoring the least
+   *  signifcant bit). If set to 0, the slave will only respond to the
+   *  general call address.
+   */
+  void address(int address);
 
-    /** Sets the I2C slave address.
-     *
-     *  @param address The address to set for the slave (ignoring the least
-     *  signifcant bit). If set to 0, the slave will only respond to the
-     *  general call address.
-     */
-    void address(int address);
+  /** Reset the I2C slave back into the known ready receiving state.
+   */
+  void stop(void);
 
-    /** Reset the I2C slave back into the known ready receiving state.
-     */
-    void stop(void);
-
-protected:
-    i2c_t _i2c;
+ protected:
+  i2c_t _i2c;
 };
 
-} // namespace mbed
+}  // namespace mbed
 
 #endif
 

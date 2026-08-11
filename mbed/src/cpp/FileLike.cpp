@@ -17,12 +17,8 @@
 
 namespace mbed {
 
-FileLike::FileLike(const char *name) : FileHandle(), FileBase(name, FilePathType) {
+FileLike::FileLike(const char* name) : FileHandle(), FileBase(name, FilePathType) {}
 
-}
+FileLike::~FileLike() {}
 
-FileLike::~FileLike() {
-
-}
-
-} // namespace mbed
+}  // namespace mbed

@@ -12,34 +12,25 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-#include <string.h>
 #include <limits.h>
+#include <string.h>
 
-extern "C"
-{
+extern "C" {
 #include <core/platforms.h>
 }
 
 // Include C++ headers for test harness.
 #include "CppUTest/TestHarness.h"
 
-TEST_GROUP(NativeMem)
-{
-    void setup()
-    {
-    }
+TEST_GROUP(NativeMem){void setup(){}
 
-    void teardown()
-    {
-    }
-};
+                      void teardown(){}};
 
-TEST(NativeMem, Platform_MemoryRead)
-{
-    const uint8_t srcBuffer[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
-    uint8_t       destBuffer[8] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+TEST(NativeMem, Platform_MemoryRead) {
+  const uint8_t srcBuffer[8] = {0, 1, 2, 3, 4, 5, 6, 7};
+  uint8_t destBuffer[8] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-    uintmri_t bytesRead = Platform_ReadMemory(destBuffer, (uintmri_t)&srcBuffer[0], sizeof(destBuffer));
-    CHECK_EQUAL(sizeof(destBuffer), bytesRead);
-    CHECK_EQUAL(0, memcmp(destBuffer, srcBuffer, sizeof(destBuffer)));
+  uintmri_t bytesRead = Platform_ReadMemory(destBuffer, (uintmri_t)&srcBuffer[0], sizeof(destBuffer));
+  CHECK_EQUAL(sizeof(destBuffer), bytesRead);
+  CHECK_EQUAL(0, memcmp(destBuffer, srcBuffer, sizeof(destBuffer)));
 }

@@ -16,22 +16,21 @@
 #ifndef LPC43XX_UART_H_
 #define LPC43XX_UART_H_
 
-#include <stdint.h>
 #include <LPC43xx.h>
 #include <core/token.h>
+#include <stdint.h>
 
 #define SCU_PIN(GROUP, NUM) (((GROUP) << 16) | (NUM))
 
-typedef struct
-{
-    LPC_USART_T*        pUartRegisters;
-    CGU_BASE_CLK_T      baseClock;
-    CCU_CLK_T           registerClock;
-    CCU_CLK_T           peripheralClock;
-    uint32_t            txPin;
-    uint32_t            txFunction;
-    uint32_t            rxPin;
-    uint32_t            rxFunction;
+typedef struct {
+  LPC_USART_T* pUartRegisters;
+  CGU_BASE_CLK_T baseClock;
+  CCU_CLK_T registerClock;
+  CCU_CLK_T peripheralClock;
+  uint32_t txPin;
+  uint32_t txFunction;
+  uint32_t rxPin;
+  uint32_t rxFunction;
 } UartConfiguration;
 
 void mriLpc43xxUart_Init(Token* pParameterTokens);

@@ -10,13 +10,14 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif 
+#endif
 
-#define __CM3_CMSIS_VERSION_MAIN  (0x01)                                                       /*!< [31:16] CMSIS HAL main version */
-#define __CM3_CMSIS_VERSION_SUB   (0x20)                                                       /*!< [15:0]  CMSIS HAL sub version  */
-#define __CM3_CMSIS_VERSION       ((__CM3_CMSIS_VERSION_MAIN << 16) | __CM3_CMSIS_VERSION_SUB) /*!< CMSIS HAL version number       */
+#define __CM3_CMSIS_VERSION_MAIN (0x01) /*!< [31:16] CMSIS HAL main version */
+#define __CM3_CMSIS_VERSION_SUB (0x20)  /*!< [15:0]  CMSIS HAL sub version  */
+#define __CM3_CMSIS_VERSION \
+  ((__CM3_CMSIS_VERSION_MAIN << 16) | __CM3_CMSIS_VERSION_SUB) /*!< CMSIS HAL version number       */
 
-#define __CORTEX_M                (0x03)                                                       /*!< Cortex core                    */
+#define __CORTEX_M (0x03) /*!< Cortex core                    */
 
 /**
  *  Lint configuration \n
@@ -67,9 +68,9 @@ extern "C" {
 /*lint -e528 */
 /*lint -e751 */
 
-#include <stdint.h>                           /* Include standard types */
+#include <stdint.h> /* Include standard types */
 
-#if defined ( __CC_ARM   )
+#if defined(__CC_ARM)
 /**
  * @brief  Return the Main Stack Pointer (current ARM7 stack)
  *
@@ -82,18 +83,15 @@ extern "C" {
 extern uint32_t __get_MSP(void);
 #endif
 
-
-#if defined (__ICCARM__)
-  #include <intrinsics.h>                     /* IAR Intrinsics   */
+#if defined(__ICCARM__)
+#include <intrinsics.h> /* IAR Intrinsics   */
 #endif
-
 
 #ifndef __NVIC_PRIO_BITS
-  #define __NVIC_PRIO_BITS    4               /*!< standard definition for NVIC Priority Bits */
+#define __NVIC_PRIO_BITS 4 /*!< standard definition for NVIC Priority Bits */
 #endif
 
-typedef struct
-{
+typedef struct {
   uint32_t IRQStatus;
   uint32_t FIQStatus;
   uint32_t RawIntr;
@@ -112,10 +110,8 @@ typedef struct
   uint32_t Address;
 } NVIC_TypeDef;
 
-#define NVIC_BASE              (0xFFFFF000)
-#define NVIC                   ((      NVIC_TypeDef *)       NVIC_BASE)
-
-
+#define NVIC_BASE (0xFFFFF000)
+#define NVIC ((NVIC_TypeDef*)NVIC_BASE)
 
 /**
  * IO definitions
@@ -124,97 +120,95 @@ typedef struct
  */
 
 #ifdef __cplusplus
-#define     __I     volatile                  /*!< defines 'read only' permissions      */
+#define __I volatile /*!< defines 'read only' permissions      */
 #else
-#define     __I     volatile const            /*!< defines 'read only' permissions      */
+#define __I volatile const /*!< defines 'read only' permissions      */
 #endif
-#define     __O     volatile                  /*!< defines 'write only' permissions     */
-#define     __IO    volatile                  /*!< defines 'read / write' permissions   */
+#define __O volatile  /*!< defines 'write only' permissions     */
+#define __IO volatile /*!< defines 'read / write' permissions   */
 
+#if defined(__CC_ARM)
+#define __ASM __asm       /*!< asm keyword for ARM Compiler          */
+#define __INLINE __inline /*!< inline keyword for ARM Compiler       */
 
+#elif defined(__ICCARM__)
+#define __ASM __asm     /*!< asm keyword for IAR Compiler           */
+#define __INLINE inline /*!< inline keyword for IAR Compiler. Only avaiable in High optimization mode! */
 
+#elif defined(__GNUC__)
+#define __ASM __asm     /*!< asm keyword for GNU Compiler          */
+#define __INLINE inline /*!< inline keyword for GNU Compiler       */
 
-
-#if defined ( __CC_ARM   )
-  #define __ASM            __asm                                      /*!< asm keyword for ARM Compiler          */
-  #define __INLINE         __inline                                   /*!< inline keyword for ARM Compiler       */
-
-#elif defined ( __ICCARM__ )
-  #define __ASM           __asm                                       /*!< asm keyword for IAR Compiler           */
-  #define __INLINE        inline                                      /*!< inline keyword for IAR Compiler. Only avaiable in High optimization mode! */
-
-#elif defined   (  __GNUC__  )
-  #define __ASM            __asm                                      /*!< asm keyword for GNU Compiler          */
-  #define __INLINE         inline                                     /*!< inline keyword for GNU Compiler       */
-
-#elif defined   (  __TASKING__  )
-  #define __ASM            __asm                                      /*!< asm keyword for TASKING Compiler          */
-  #define __INLINE         inline                                     /*!< inline keyword for TASKING Compiler       */
+#elif defined(__TASKING__)
+#define __ASM __asm     /*!< asm keyword for TASKING Compiler          */
+#define __INLINE inline /*!< inline keyword for TASKING Compiler       */
 
 #endif
-
 
 /* ###################  Compiler specific Intrinsics  ########################### */
 
-#if defined ( __CC_ARM   ) /*------------------RealView Compiler -----------------*/
+#if defined(__CC_ARM) /*------------------RealView Compiler -----------------*/
 /* ARM armcc specific functions */
 
-#define __enable_fault_irq                __enable_fiq
-#define __disable_fault_irq               __disable_fiq
+#define __enable_fault_irq __enable_fiq
+#define __disable_fault_irq __disable_fiq
 
-#define __NOP                             __nop
-//#define __WFI                             __wfi
-//#define __WFE                             __wfe
-//#define __SEV                             __sev
-//#define __ISB()                           __isb(0)
-//#define __DSB()                           __dsb(0)
-//#define __DMB()                           __dmb(0)
-//#define __REV                             __rev
-//#define __RBIT                            __rbit
-#define __LDREXB(ptr)                     ((unsigned char ) __ldrex(ptr))
-#define __LDREXH(ptr)                     ((unsigned short) __ldrex(ptr))
-#define __LDREXW(ptr)                     ((unsigned int  ) __ldrex(ptr))
-#define __STREXB(value, ptr)              __strex(value, ptr)
-#define __STREXH(value, ptr)              __strex(value, ptr)
-#define __STREXW(value, ptr)              __strex(value, ptr)
+#define __NOP __nop
+// #define __WFI                             __wfi
+// #define __WFE                             __wfe
+// #define __SEV                             __sev
+// #define __ISB()                           __isb(0)
+// #define __DSB()                           __dsb(0)
+// #define __DMB()                           __dmb(0)
+// #define __REV                             __rev
+// #define __RBIT                            __rbit
+#define __LDREXB(ptr) ((unsigned char)__ldrex(ptr))
+#define __LDREXH(ptr) ((unsigned short)__ldrex(ptr))
+#define __LDREXW(ptr) ((unsigned int)__ldrex(ptr))
+#define __STREXB(value, ptr) __strex(value, ptr)
+#define __STREXH(value, ptr) __strex(value, ptr)
+#define __STREXW(value, ptr) __strex(value, ptr)
 
-#define __disable_irq()         unsigned tmp_IntEnable = LPC_VIC->IntEnable; \
-                                LPC_VIC->IntEnClr = 0xffffffff
+#define __disable_irq()                        \
+  unsigned tmp_IntEnable = LPC_VIC->IntEnable; \
+  LPC_VIC->IntEnClr = 0xffffffff
 
-#define __enable_irq()          LPC_VIC->IntEnable = tmp_IntEnable
+#define __enable_irq() LPC_VIC->IntEnable = tmp_IntEnable
 
-#elif (defined (__ICCARM__)) /*------------------ ICC Compiler -------------------*/
+#elif (defined(__ICCARM__)) /*------------------ ICC Compiler -------------------*/
 
-#define __enable_irq                              __enable_interrupt        /*!< global Interrupt enable */
-#define __disable_irq                             __disable_interrupt       /*!< global Interrupt disable */
-#define __NOP                                     __no_operation()          /*!< no operation intrinsic in IAR Compiler */ 
+#define __enable_irq __enable_interrupt   /*!< global Interrupt enable */
+#define __disable_irq __disable_interrupt /*!< global Interrupt disable */
+#define __NOP __no_operation()            /*!< no operation intrinsic in IAR Compiler */
 
-#elif (defined (__GNUC__)) /*------------------ GNU Compiler ---------------------*/
+#elif (defined(__GNUC__)) /*------------------ GNU Compiler ---------------------*/
 
 static __INLINE void __enable_irq() {
-    unsigned long temp;
-    __asm__ __volatile__("mrs %0, cpsr\n"
-                         "bic %0, %0, #0x80\n"
-                         "msr cpsr_c, %0"
-                         : "=r" (temp)
-                         :
-                         : "memory");
+  unsigned long temp;
+  __asm__ __volatile__(
+      "mrs %0, cpsr\n"
+      "bic %0, %0, #0x80\n"
+      "msr cpsr_c, %0"
+      : "=r"(temp)
+      :
+      : "memory");
 }
 
 static __INLINE void __disable_irq() {
-    unsigned long old,temp;
-    __asm__ __volatile__("mrs %0, cpsr\n"
-                         "orr %1, %0, #0xc0\n"
-                         "msr cpsr_c, %1"
-                         : "=r" (old), "=r" (temp)
-                         :
-                         : "memory");
-    // return (old & 0x80) == 0;
+  unsigned long old, temp;
+  __asm__ __volatile__(
+      "mrs %0, cpsr\n"
+      "orr %1, %0, #0xc0\n"
+      "msr cpsr_c, %1"
+      : "=r"(old), "=r"(temp)
+      :
+      : "memory");
+  // return (old & 0x80) == 0;
 }
 
-static __INLINE void __NOP()                      { __ASM volatile ("nop"); }
+static __INLINE void __NOP() { __ASM volatile("nop"); }
 
-#elif (defined (__TASKING__)) /*------------------ TASKING Compiler ---------------------*/
+#elif (defined(__TASKING__)) /*------------------ TASKING Compiler ---------------------*/
 /* TASKING carm specific functions */
 
 /*
@@ -225,36 +219,27 @@ static __INLINE void __NOP()                      { __ASM volatile ("nop"); }
 
 #endif
 
-
 /**
  * @brief  Enable Interrupt in NVIC Interrupt Controller
  *
  * @param  IRQn_Type IRQn specifies the interrupt number
- * @return none 
+ * @return none
  *
  * Enable a device specific interupt in the NVIC interrupt controller.
  * The interrupt number cannot be a negative value.
  */
-static __INLINE void NVIC_EnableIRQ(IRQn_Type IRQn)
-{
- NVIC->IntEnable = 1 << (uint32_t)IRQn;
-}
-
+static __INLINE void NVIC_EnableIRQ(IRQn_Type IRQn) { NVIC->IntEnable = 1 << (uint32_t)IRQn; }
 
 /**
  * @brief  Disable the interrupt line for external interrupt specified
- * 
+ *
  * @param  IRQn_Type IRQn is the positive number of the external interrupt
  * @return none
- * 
+ *
  * Disable a device specific interupt in the NVIC interrupt controller.
  * The interrupt number cannot be a negative value.
  */
-static __INLINE void NVIC_DisableIRQ(IRQn_Type IRQn)
-{
- NVIC->IntEnClr = 1 << (uint32_t)IRQn;
-}
-
+static __INLINE void NVIC_DisableIRQ(IRQn_Type IRQn) { NVIC->IntEnClr = 1 << (uint32_t)IRQn; }
 
 #ifdef __cplusplus
 }

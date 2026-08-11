@@ -14,27 +14,31 @@
  * limitations under the License.
  */
 #include "gpio_api.h"
-#include "wait_api.h"
 #include "toolchain.h"
+#include "wait_api.h"
 
 WEAK void mbed_die(void);
 WEAK void mbed_die(void) {
-    gpio_t led_1; gpio_init(&led_1, LED1, PIN_OUTPUT);
-    gpio_t led_2; gpio_init(&led_2, LED2, PIN_OUTPUT);
-    gpio_t led_3; gpio_init(&led_3, LED3, PIN_OUTPUT);
-    gpio_t led_4; gpio_init(&led_4, LED4, PIN_OUTPUT);
+  gpio_t led_1;
+  gpio_init(&led_1, LED1, PIN_OUTPUT);
+  gpio_t led_2;
+  gpio_init(&led_2, LED2, PIN_OUTPUT);
+  gpio_t led_3;
+  gpio_init(&led_3, LED3, PIN_OUTPUT);
+  gpio_t led_4;
+  gpio_init(&led_4, LED4, PIN_OUTPUT);
 
-    while (1) {
-        gpio_write(&led_1, 1);
-        gpio_write(&led_2, 0);
-        gpio_write(&led_3, 0);
-        gpio_write(&led_4, 1);
-        wait_ms(150);
+  while (1) {
+    gpio_write(&led_1, 1);
+    gpio_write(&led_2, 0);
+    gpio_write(&led_3, 0);
+    gpio_write(&led_4, 1);
+    wait_ms(150);
 
-        gpio_write(&led_1, 0);
-        gpio_write(&led_2, 1);
-        gpio_write(&led_3, 1);
-        gpio_write(&led_4, 0);
-        wait_ms(150);
-    }
+    gpio_write(&led_1, 0);
+    gpio_write(&led_2, 1);
+    gpio_write(&led_3, 1);
+    gpio_write(&led_4, 0);
+    wait_ms(150);
+  }
 }

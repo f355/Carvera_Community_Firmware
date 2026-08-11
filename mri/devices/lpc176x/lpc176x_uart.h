@@ -16,21 +16,20 @@
 #ifndef LPC176X_UART_H_
 #define LPC176X_UART_H_
 
-#include <stdint.h>
 #include <LPC17xx.h>
 #include <core/token.h>
+#include <stdint.h>
 
-typedef struct
-{
-    volatile uint32_t*  pPeripheralClockSelection;
-    volatile uint32_t*  pTxPinSelection;
-    volatile uint32_t*  pRxPinSelection;
-    LPC_UART_TypeDef*   pUartRegisters;
-    uint32_t            powerConfigurationBit;
-    uint32_t            peripheralClockSelectionBitmask;
-    uint32_t            txPinSelectionMask;
-    uint32_t            rxPinSelectionMask;
-    uint32_t            pinSelectionValue;
+typedef struct {
+  volatile uint32_t* pPeripheralClockSelection;
+  volatile uint32_t* pTxPinSelection;
+  volatile uint32_t* pRxPinSelection;
+  LPC_UART_TypeDef* pUartRegisters;
+  uint32_t powerConfigurationBit;
+  uint32_t peripheralClockSelectionBitmask;
+  uint32_t txPinSelectionMask;
+  uint32_t rxPinSelectionMask;
+  uint32_t pinSelectionValue;
 } UartConfiguration;
 
 void mriLpc176xUart_Init(Token* pParameterTokens);

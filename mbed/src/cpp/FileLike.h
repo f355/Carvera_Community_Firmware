@@ -27,18 +27,17 @@ namespace mbed {
  *  FileHandle.
  */
 class FileLike : public FileHandle, public FileBase {
+ public:
+  /* Constructor FileLike
+   *
+   * Variables
+   *  name - The name to use to open the file.
+   */
+  FileLike(const char* name);
 
-public:
-    /* Constructor FileLike
-     *
-     * Variables
-     *  name - The name to use to open the file.
-     */
-    FileLike(const char *name);
-
-    virtual ~FileLike();
+  virtual ~FileLike();
 };
 
-} // namespace mbed
+}  // namespace mbed
 
 #endif

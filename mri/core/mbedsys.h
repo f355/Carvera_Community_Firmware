@@ -21,26 +21,24 @@
 extern "C" {
 #endif
 
-
 /* Types used by functions implemented in mbed.ar */
 typedef int FILEHANDLE;
 
 /* File openmode values for mbed _sys_open() */
-#define OPENMODE_R      0
-#define OPENMODE_B      1
-#define OPENMODE_PLUS   2
-#define OPENMODE_W      4
-#define OPENMODE_A      8
+#define OPENMODE_R 0
+#define OPENMODE_B 1
+#define OPENMODE_PLUS 2
+#define OPENMODE_W 4
+#define OPENMODE_A 8
 
 /* Functions implemented in mbed.ar */
-FILEHANDLE  _sys_open(const char* name, int openmode);
-int         _sys_close(FILEHANDLE fh);
-int         _sys_write(FILEHANDLE fh, const unsigned char* buf, unsigned len, int mode);
-int         _sys_read(FILEHANDLE fh, unsigned char* buf, unsigned len, int mode);
-int         _sys_seek(FILEHANDLE fh, long pos);
-long        _sys_flen(FILEHANDLE fh);
-int         _sys_istty(FILEHANDLE fh);
-
+FILEHANDLE _sys_open(const char* name, int openmode);
+int _sys_close(FILEHANDLE fh);
+int _sys_write(FILEHANDLE fh, const unsigned char* buf, unsigned len, int mode);
+int _sys_read(FILEHANDLE fh, unsigned char* buf, unsigned len, int mode);
+int _sys_seek(FILEHANDLE fh, long pos);
+long _sys_flen(FILEHANDLE fh);
+int _sys_istty(FILEHANDLE fh);
 
 #ifdef __cplusplus
 }

@@ -21,55 +21,52 @@ typedef int FILEHANDLE;
 #include <stdio.h>
 
 #if defined(__ARMCC_VERSION) || defined(__ICCARM__)
-#    define O_RDONLY 0
-#    define O_WRONLY 1
-#    define O_RDWR   2
-#    define O_CREAT  0x0200
-#    define O_TRUNC  0x0400
-#    define O_APPEND 0x0008
+#define O_RDONLY 0
+#define O_WRONLY 1
+#define O_RDWR 2
+#define O_CREAT 0x0200
+#define O_TRUNC 0x0400
+#define O_APPEND 0x0008
 
-#    define NAME_MAX 255
+#define NAME_MAX 255
 
 typedef int mode_t;
 typedef int ssize_t;
 typedef long off_t;
 
 #else
-#    include <sys/fcntl.h>
-#    include <sys/types.h>
-#    include <sys/syslimits.h>
+#include <sys/fcntl.h>
+#include <sys/syslimits.h>
+#include <sys/types.h>
 #endif
 
 #include "platform.h"
 
 namespace mbed {
 
-typedef enum {
-    FilePathType,
-    FileSystemPathType
-} PathType;
+typedef enum { FilePathType, FileSystemPathType } PathType;
 
 class FileBase {
-public:
-    FileBase(const char *name, PathType t);
+ public:
+  FileBase(const char* name, PathType t);
 
-    virtual ~FileBase();
+  virtual ~FileBase();
 
-    const char* getName(void);
-    PathType    getPathType(void);
+  const char* getName(void);
+  PathType getPathType(void);
 
-    static FileBase *lookup(const char *name, unsigned int len);
+  static FileBase* lookup(const char* name, unsigned int len);
 
-    static FileBase *get(int n);
+  static FileBase* get(int n);
 
-protected:
-    static FileBase *_head;
+ protected:
+  static FileBase* _head;
 
-    FileBase   *_next;
-    const char *_name;
-    PathType    _path_type;
+  FileBase* _next;
+  const char* _name;
+  PathType _path_type;
 };
 
-} // namespace mbed
+}  // namespace mbed
 
 #endif

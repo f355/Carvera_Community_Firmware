@@ -20,13 +20,7 @@
 extern "C" {
 #endif
 
-typedef enum {
-    Port0 = 0,
-    Port1 = 1,
-    Port2 = 2,
-    Port3 = 3,
-    Port4 = 4
-} PortName;
+typedef enum { Port0 = 0, Port1 = 1, Port2 = 2, Port3 = 3, Port4 = 4 } PortName;
 
 #ifdef __cplusplus
 }

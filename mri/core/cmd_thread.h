@@ -23,7 +23,7 @@ uint32_t mriCmd_HandleThreadContextCommand(void);
 uint32_t mriCmd_HandleIsThreadActiveCommand(void);
 
 /* Macroes which allow code to drop the mri namespace prefix. */
-#define HandleThreadContextCommand          mriCmd_HandleThreadContextCommand
-#define HandleIsThreadActiveCommand         mriCmd_HandleIsThreadActiveCommand
+#define HandleThreadContextCommand mriCmd_HandleThreadContextCommand
+#define HandleIsThreadActiveCommand mriCmd_HandleIsThreadActiveCommand
 
 #endif /* CMD_THREAD_H_ */

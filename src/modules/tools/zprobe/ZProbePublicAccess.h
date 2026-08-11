@@ -2,7 +2,7 @@
 #define __ZPROBEPUBLICACCESS_H_
 
 // addresses used for public data access
-#define zprobe_checksum    CHECKSUM("zprobe")
+#define zprobe_checksum CHECKSUM("zprobe")
 #define get_zprobe_pin_states_checksum CHECKSUM("zprobe_pin_states")
 #define get_zprobe_time_checksum CHECKSUM("zprobe_time")
 #define set_tlo_calibrating_checksum CHECKSUM("set_tlo_calibrating")

@@ -1,11 +1,12 @@
 /*
- This code is derived from (and mostly copied from) Johann Rocholls code at https://github.com/jcrocholl/Marlin/blob/deltabot/Marlin/Marlin_main.cpp
- license is the same as his code.
+ This code is derived from (and mostly copied from) Johann Rocholls code at
+ https://github.com/jcrocholl/Marlin/blob/deltabot/Marlin/Marlin_main.cpp license is the same as his code.
 
     Summary
     -------
-    Probes grid_size points in X and Y (total probes grid_size * grid_size) and stores the relative offsets from the 0,0 Z height
-    When enabled every move will calculate the Z offset based on interpolating the height offset within the grids nearest 4 points.
+    Probes grid_size points in X and Y (total probes grid_size * grid_size) and stores the relative offsets from the 0,0
+ Z height When enabled every move will calculate the Z offset based on interpolating the height offset within the grids
+ nearest 4 points.
 
     Configuration
     -------------
@@ -24,7 +25,8 @@
     If "grid_x_size" and "grid_x_size" omitted then "size" will be used.
     If "size" omitted default value will be used.
 
-    I and J params used for grid size. If both omitted values from config will be used. If only one provided (I or J) then it will be used for both x_size and y-size.
+    I and J params used for grid size. If both omitted values from config will be used. If only one provided (I or J)
+ then it will be used for both x_size and y-size.
 
     The width and length of the rectangle that is probed is set with...
 
@@ -41,30 +43,32 @@
 
       leveling-strategy.rectangular-grid.save        true
 
-      Then when M500 is issued it will save M375 which will cause the grid to be loaded on boot. The default is to not autoload the grid on boot
+      Then when M500 is issued it will save M375 which will cause the grid to be loaded on boot. The default is to not
+ autoload the grid on boot
 
-    An initial_height can be set that moves the Z to that Z position before the initial probe, this should be around 5-10mm above the bed.
-    NOTE this is the ABSOLUTE Z machine position and presumes the Z axis home has been set correctly. The default is disabled.
-    If this is not set the probe will start from the current position.
+    An initial_height can be set that moves the Z to that Z position before the initial probe, this should be around
+ 5-10mm above the bed. NOTE this is the ABSOLUTE Z machine position and presumes the Z axis home has been set correctly.
+ The default is disabled. If this is not set the probe will start from the current position.
 
       leveling-strategy.rectangular-grid.initial_height  10
 
-    If two corners rectangular mode is activated using "leveling-strategy.rectangular-grid.only_by_two_corners true" then G29/31/32 will not work without providing XYAB parameters
-        XY - start point, AB rectangle size from starting point
-        "Two corners"" is not absolutely the correct name for this mode, because it uses only one corner and rectangle size.
-        It can be turned off with G32 R0 and turned on with G32 R1.
+    If two corners rectangular mode is activated using "leveling-strategy.rectangular-grid.only_by_two_corners true"
+ then G29/31/32 will not work without providing XYAB parameters XY - start point, AB rectangle size from starting point
+        "Two corners"" is not absolutely the correct name for this mode, because it uses only one corner and rectangle
+ size. It can be turned off with G32 R0 and turned on with G32 R1.
 
     Display mode of current grid can be changed to human readable mode (table with coordinates) by using
        leveling-strategy.rectangular-grid.human_readable  true
 
-    For probes like the bltouch you can define a before probe and after probe GCode sequence (to deploy and stow the probe)
-        leveling-strategy.rectangular-grid.before_probe_gcode M280
-        leveling-strategy.rectangular-grid.after_probe_gcode M281
+    For probes like the bltouch you can define a before probe and after probe GCode sequence (to deploy and stow the
+ probe) leveling-strategy.rectangular-grid.before_probe_gcode M280 leveling-strategy.rectangular-grid.after_probe_gcode
+ M281
 
 
     Usage
     -----
-    G29 test probes a rectangle of width Xnnn and Ynnn starting at the current XY probe position, optionally Innn Jnnn can be used to change the grid size
+    G29 test probes a rectangle of width Xnnn and Ynnn starting at the current XY probe position, optionally Innn Jnnn
+ can be used to change the grid size
 
     G31/G32 probes the grid and turns the compensation on, this will remain in effect until reset or M561/M370
         optional parameters Xn Yn sets the size for this rectangular probe, which gets saved with M375
@@ -85,48 +89,49 @@
 */
 
 #include "CartGridStrategy.h"
-#include "libs/FirmwareFileSystem.h"
 
-#include "Kernel.h"
-#include "Config.h"
-#include "Robot.h"
-#include "StreamOutputPool.h"
-#include "Gcode.h"
-#include "checksumm.h"
-#include "ConfigValue.h"
-#include "PublicDataRequest.h"
-#include "PublicData.h"
-#include "Conveyor.h"
-#include "ZProbe.h"
-#include "nuts_bolts.h"
-#include "utils.h"
-#include "platform_memory.h"
-
-#include <string>
-#include <algorithm>
-#include <cstdlib>
-#include <cmath>
 #include <fastmath.h>
 
-#define grid_size_checksum           CHECKSUM("size")
-#define grid_x_size_checksum         CHECKSUM("grid_x_size")
-#define grid_y_size_checksum         CHECKSUM("grid_y_size")
-#define tolerance_checksum           CHECKSUM("tolerance")
-#define save_checksum                CHECKSUM("save")
-#define probe_offsets_checksum       CHECKSUM("probe_offsets")
-#define initial_height_checksum      CHECKSUM("initial_height")
-#define x_size_checksum              CHECKSUM("x_size")
-#define y_size_checksum              CHECKSUM("y_size")
-#define do_home_checksum             CHECKSUM("do_home")
-#define m_attach_checksum            CHECKSUM("m_attach")
-#define mount_position_checksum      CHECKSUM("mount_position")
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <string>
+
+#include "Config.h"
+#include "ConfigValue.h"
+#include "Conveyor.h"
+#include "Gcode.h"
+#include "Kernel.h"
+#include "PublicData.h"
+#include "PublicDataRequest.h"
+#include "Robot.h"
+#include "StreamOutputPool.h"
+#include "ZProbe.h"
+#include "checksumm.h"
+#include "libs/FirmwareFileSystem.h"
+#include "nuts_bolts.h"
+#include "platform_memory.h"
+#include "utils.h"
+
+#define grid_size_checksum CHECKSUM("size")
+#define grid_x_size_checksum CHECKSUM("grid_x_size")
+#define grid_y_size_checksum CHECKSUM("grid_y_size")
+#define tolerance_checksum CHECKSUM("tolerance")
+#define save_checksum CHECKSUM("save")
+#define probe_offsets_checksum CHECKSUM("probe_offsets")
+#define initial_height_checksum CHECKSUM("initial_height")
+#define x_size_checksum CHECKSUM("x_size")
+#define y_size_checksum CHECKSUM("y_size")
+#define do_home_checksum CHECKSUM("do_home")
+#define m_attach_checksum CHECKSUM("m_attach")
+#define mount_position_checksum CHECKSUM("mount_position")
 #define only_by_two_corners_checksum CHECKSUM("only_by_two_corners")
-#define human_readable_checksum      CHECKSUM("human_readable")
-#define height_limit_checksum        CHECKSUM("height_limit")
-#define dampening_start_checksum     CHECKSUM("dampening_start")
-#define before_probe_gcode_checksum  CHECKSUM("before_probe_gcode")
-#define after_probe_gcode_checksum   CHECKSUM("after_probe_gcode")
-#define flex_x_points_checksum       CHECKSUM("flex_x_points")
+#define human_readable_checksum CHECKSUM("human_readable")
+#define height_limit_checksum CHECKSUM("height_limit")
+#define dampening_start_checksum CHECKSUM("dampening_start")
+#define before_probe_gcode_checksum CHECKSUM("before_probe_gcode")
+#define after_probe_gcode_checksum CHECKSUM("after_probe_gcode")
+#define flex_x_points_checksum CHECKSUM("flex_x_points")
 #define flex_compensation_always_active_checksum CHECKSUM("flex_compensation_always_active")
 
 #define GRIDFILE "/sd/cartesian.grid"
@@ -137,1335 +142,1417 @@
 
 #define PI 3.14159265358979323846F
 
-CartGridStrategy::CartGridStrategy(ZProbe *zprobe) : LevelingStrategy(zprobe)
-{
-    grid = nullptr;
-    flex_compensation_data = nullptr;
+CartGridStrategy::CartGridStrategy(ZProbe* zprobe) : LevelingStrategy(zprobe) {
+  grid = nullptr;
+  flex_compensation_data = nullptr;
+  flex_compensation_active = false;
+  flex_data_size = 0;
+  cartesian_grid_active = false;
+  flex_compensation_always_active = false;
+}
+
+CartGridStrategy::~CartGridStrategy() {
+  if (grid != nullptr) AHB.dealloc(grid);
+  if (flex_compensation_data != nullptr) AHB.dealloc(flex_compensation_data);
+}
+
+bool CartGridStrategy::handleConfig() {
+  uint8_t grid_size =
+      THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, grid_size_checksum)
+          ->as_number(7);
+  this->current_grid_x_size = this->configured_grid_x_size =
+      THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, grid_x_size_checksum)
+          ->as_number(grid_size);
+  this->current_grid_y_size = this->configured_grid_y_size =
+      THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, grid_y_size_checksum)
+          ->as_number(grid_size);
+
+  // we use a different file format depending on whether it is square or not
+  this->new_file_format = true;
+
+  this->force_debug = false;
+
+  tolerance =
+      THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, tolerance_checksum)
+          ->as_number(0.03F);
+  save = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, save_checksum)
+             ->as_bool(false);
+  do_home = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, do_home_checksum)
+                ->as_bool(true);
+  only_by_two_corners =
+      THEKERNEL->config
+          ->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, only_by_two_corners_checksum)
+          ->as_bool(false);
+  human_readable =
+      THEKERNEL->config
+          ->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, human_readable_checksum)
+          ->as_bool(false);
+  do_manual_attach =
+      THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, m_attach_checksum)
+          ->as_bool(false);
+
+  this->height_limit =
+      THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, height_limit_checksum)
+          ->as_number(NAN);
+  this->dampening_start =
+      THEKERNEL->config
+          ->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, dampening_start_checksum)
+          ->as_number(NAN);
+
+  if (!isnan(this->height_limit) && !isnan(this->dampening_start)) {
+    this->damping_interval = height_limit - dampening_start;
+  } else {
+    this->damping_interval = NAN;
+  }
+
+  this->x_start = 0.0F;
+  this->y_start = 0.0F;
+  this->x_size =
+      THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, x_size_checksum)
+          ->as_number(0.0F);
+  this->y_size =
+      THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, y_size_checksum)
+          ->as_number(0.0F);
+  if (this->x_size == 0.0F || this->y_size == 0.0F) {
+    THEKERNEL->streams->printf("Error: Invalid config, x_size and y_size must be defined\n");
+    return false;
+  }
+
+  // the initial height above the bed we stop the intial move down after home to find the bed
+  // this should be a height that is enough that the probe will not hit the bed and is an offset from max_z (can be set
+  // to 0 if max_z takes into account the probe offset)
+  this->initial_height =
+      THEKERNEL->config
+          ->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, initial_height_checksum)
+          ->as_number(NAN);
+  if (initial_height <= 0) initial_height = NAN;
+
+  // Probe offsets xxx,yyy,zzz
+  {
+    std::string po =
+        THEKERNEL->config
+            ->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, probe_offsets_checksum)
+            ->as_string("0,0,0");
+    std::vector<float> v = parse_number_list(po.c_str());
+    if (v.size() >= 3) {
+      this->probe_offsets = std::make_tuple(v[0], v[1], v[2]);
+    }
+  }
+
+  //  manual attachment point xxx,yyy,zzz
+  if (do_manual_attach) {
+    std::string ap =
+        THEKERNEL->config
+            ->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, mount_position_checksum)
+            ->as_string("0,0,50");
+    std::vector<float> w = parse_number_list(ap.c_str());
+    if (w.size() >= 3) {
+      m_attach = new float[3];
+      m_attach[0] = w[0];
+      m_attach[1] = w[1];
+      m_attach[2] = w[2];
+    } else {
+      // error
+      m_attach = nullptr;
+      do_manual_attach = false;
+    }
+  } else {
+    m_attach = nullptr;
+  }
+
+  this->before_probe =
+      THEKERNEL->config
+          ->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, before_probe_gcode_checksum)
+          ->as_string("");
+  this->after_probe =
+      THEKERNEL->config
+          ->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, after_probe_gcode_checksum)
+          ->as_string("");
+
+  // for the gcode commands we need to replace _ for space
+  std::replace(before_probe.begin(), before_probe.end(), '_', ' ');  // replace _ with space
+  std::replace(after_probe.begin(), after_probe.end(), '_', ' ');    // replace _ with space
+
+  // allocate in AHB
+  grid = (float*)AHB.alloc(configured_grid_x_size * configured_grid_y_size * sizeof(float));
+
+  if (grid == nullptr) {
+    THEKERNEL->streams->printf("Error: Not enough memory\n");
+    return false;
+  }
+
+  // Flex compensation configuration
+  this->flex_x_points =
+      THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, flex_x_points_checksum)
+          ->as_number(30);
+  this->flex_x_start = 0.0F;
+
+  // Allocate memory for flex compensation data
+  flex_data_size = flex_x_points * sizeof(float);
+  flex_compensation_data = (float*)AHB.alloc(flex_data_size);
+
+  if (flex_compensation_data == nullptr) {
+    THEKERNEL->streams->printf("Error: Not enough memory for flex compensation data\n");
+    return false;
+  }
+
+  this->flex_compensation_always_active = THEKERNEL->config
+                                              ->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum,
+                                                      flex_compensation_always_active_checksum)
+                                              ->as_bool(false);
+  reset_flex_compensation();
+  reset_bed_level();
+
+  // Flex file load is deferred until after_config_cache_clear(): fopen/std::function
+  // and long printf paths allocate on the main heap, which must not grow into the
+  // fixed config-cache region while the cache is still live.
+
+  return true;
+}
+
+void CartGridStrategy::after_config_cache_clear() {
+  if (!flex_compensation_always_active) {
+    return;
+  }
+
+  if (load_flex_compensation_data(THEKERNEL->streams)) {
+    flex_compensation_active = true;
+    updateCompensationTransform();
+  } else {
+    THEKERNEL->set_flex_compensation_load_error(true);
     flex_compensation_active = false;
-    flex_data_size = 0;
-    cartesian_grid_active = false;
-    flex_compensation_always_active = false;
+    updateCompensationTransform();
+  }
 }
 
-CartGridStrategy::~CartGridStrategy()
-{
-    if(grid != nullptr) AHB.dealloc(grid);
-    if(flex_compensation_data != nullptr) AHB.dealloc(flex_compensation_data);
-}
+void CartGridStrategy::save_grid(StreamOutput* stream) {
+  if (isnan(grid[0])) {
+    stream->printf("error:No grid to save\n");
+    return;
+  }
 
-bool CartGridStrategy::handleConfig()
-{
+  // we use a different file format depending on whether it is square or not
+  const char* filename = (this->new_file_format) ? GRIDFILE_NM : GRIDFILE;
+  FILE* fp = fwfs::fopen(filename, "w");
+  if (fp == NULL) {
+    stream->printf("error:Failed to open grid file %s\n", filename);
+    return;
+  }
+  uint8_t tmp_configured_grid_size = current_grid_x_size;
+  if (fwfs::fwrite(&tmp_configured_grid_size, sizeof(uint8_t), 1, fp) != 1) {
+    stream->printf("error:Failed to write grid x size\n");
+    fwfs::fclose(fp);
+    return;
+  }
 
-    uint8_t grid_size = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, grid_size_checksum)->as_number(7);
-    this->current_grid_x_size = this->configured_grid_x_size = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, grid_x_size_checksum)->as_number(grid_size);
-    this->current_grid_y_size = this->configured_grid_y_size = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, grid_y_size_checksum)->as_number(grid_size);
-
-    // we use a different file format depending on whether it is square or not
-    this->new_file_format= true;
-
-    this->force_debug = false;
-
-    tolerance = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, tolerance_checksum)->as_number(0.03F);
-    save = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, save_checksum)->as_bool(false);
-    do_home = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, do_home_checksum)->as_bool(true);
-    only_by_two_corners = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, only_by_two_corners_checksum)->as_bool(false);
-    human_readable = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, human_readable_checksum)->as_bool(false);
-    do_manual_attach = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, m_attach_checksum)->as_bool(false);
-
-    this->height_limit = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, height_limit_checksum)->as_number(NAN);
-    this->dampening_start = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, dampening_start_checksum)->as_number(NAN);
-
-    if(!isnan(this->height_limit) && !isnan(this->dampening_start)) {
-        this->damping_interval = height_limit - dampening_start;
-    } else {
-        this->damping_interval = NAN;
+  if (this->new_file_format) {
+    tmp_configured_grid_size = current_grid_y_size;
+    if (fwfs::fwrite(&tmp_configured_grid_size, sizeof(uint8_t), 1, fp) != 1) {
+      stream->printf("error:Failed to write grid y size\n");
+      fwfs::fclose(fp);
+      return;
     }
+  }
 
-    this->x_start = 0.0F;
-    this->y_start = 0.0F;
-    this->x_size = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, x_size_checksum)->as_number(0.0F);
-    this->y_size = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, y_size_checksum)->as_number(0.0F);
-    if (this->x_size == 0.0F || this->y_size == 0.0F) {
-        THEKERNEL->streams->printf("Error: Invalid config, x_size and y_size must be defined\n");
-        return false;
-    }
+  if (fwfs::fwrite(&x_start, sizeof(float), 1, fp) != 1) {
+    stream->printf("error:Failed to write x_start\n");
+    fwfs::fclose(fp);
+    return;
+  }
 
-    // the initial height above the bed we stop the intial move down after home to find the bed
-    // this should be a height that is enough that the probe will not hit the bed and is an offset from max_z (can be set to 0 if max_z takes into account the probe offset)
-    this->initial_height = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, initial_height_checksum)->as_number(NAN);
-    if(initial_height <= 0) initial_height= NAN;
+  if (fwfs::fwrite(&y_start, sizeof(float), 1, fp) != 1) {
+    stream->printf("error:Failed to write y_start\n");
+    fwfs::fclose(fp);
+    return;
+  }
 
-    // Probe offsets xxx,yyy,zzz
-    {
-        std::string po = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, probe_offsets_checksum)->as_string("0,0,0");
-        std::vector<float> v = parse_number_list(po.c_str());
-        if(v.size() >= 3) {
-            this->probe_offsets = std::make_tuple(v[0], v[1], v[2]);
-        }
-    }
+  if (fwfs::fwrite(&x_size, sizeof(float), 1, fp) != 1) {
+    stream->printf("error:Failed to write x_size\n");
+    fwfs::fclose(fp);
+    return;
+  }
 
-    //  manual attachment point xxx,yyy,zzz
-    if (do_manual_attach)
-    {
-        std::string ap = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, mount_position_checksum)->as_string("0,0,50");
-        std::vector<float> w = parse_number_list(ap.c_str());
-        if(w.size() >= 3) {
-            m_attach = new float[3];
-            m_attach[0]= w[0];
-            m_attach[1]= w[1];
-            m_attach[2]= w[2];
-        }else{
-            // error
-            m_attach= nullptr;
-            do_manual_attach= false;
-        }
-    }else{
-        m_attach= nullptr;
-    }
+  if (fwfs::fwrite(&y_size, sizeof(float), 1, fp) != 1) {
+    stream->printf("error:Failed to write y_size\n");
+    fwfs::fclose(fp);
+    return;
+  }
 
-    this->before_probe = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, before_probe_gcode_checksum)->as_string("");
-    this->after_probe = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, after_probe_gcode_checksum)->as_string("");
-
-    // for the gcode commands we need to replace _ for space
-    std::replace(before_probe.begin(), before_probe.end(), '_', ' '); // replace _ with space
-    std::replace(after_probe.begin(), after_probe.end(), '_', ' '); // replace _ with space
-
-    // allocate in AHB
-    grid = (float *)AHB.alloc(configured_grid_x_size * configured_grid_y_size * sizeof(float));
-
-    if(grid == nullptr) {
-        THEKERNEL->streams->printf("Error: Not enough memory\n");
-        return false;
-    }
-
-    // Flex compensation configuration
-    this->flex_x_points = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, flex_x_points_checksum)->as_number(30);
-    this->flex_x_start = 0.0F;
-
-    // Allocate memory for flex compensation data
-    flex_data_size = flex_x_points * sizeof(float);
-    flex_compensation_data = (float *)AHB.alloc(flex_data_size);
-
-    if(flex_compensation_data == nullptr) {
-        THEKERNEL->streams->printf("Error: Not enough memory for flex compensation data\n");
-        return false;
-    }
-
-    this->flex_compensation_always_active = THEKERNEL->config->value(leveling_strategy_checksum, cart_grid_leveling_strategy_checksum, flex_compensation_always_active_checksum)->as_bool(false);
-    reset_flex_compensation();
-    reset_bed_level();
-
-    // Flex file load is deferred until after_config_cache_clear(): fopen/std::function
-    // and long printf paths allocate on the main heap, which must not grow into the
-    // fixed config-cache region while the cache is still live.
-
-    return true;
-}
-
-void CartGridStrategy::after_config_cache_clear()
-{
-    if(!flex_compensation_always_active) {
+  for (int y = 0; y < current_grid_y_size; y++) {
+    for (int x = 0; x < current_grid_x_size; x++) {
+      if (fwfs::fwrite(&grid[x + (current_grid_x_size * y)], sizeof(float), 1, fp) != 1) {
+        stream->printf("error:Failed to write grid\n");
+        fwfs::fclose(fp);
         return;
+      }
+    }
+  }
+  stream->printf("grid saved to %s\n", filename);
+  fwfs::fclose(fp);
+}
+
+bool CartGridStrategy::load_grid(StreamOutput* stream) {
+  // we use a different file format depending on whether it is square or not
+  const char* filename = (this->new_file_format) ? GRIDFILE_NM : GRIDFILE;
+
+  FILE* fp = fwfs::fopen(filename, "r");
+  if (fp == NULL) {
+    stream->printf("error:Failed to open grid %s\n", filename);
+    return false;
+  }
+
+  uint8_t load_grid_x_size, load_grid_y_size;
+  float x, y, temp_x_start, temp_y_start;
+
+  if (fwfs::fread(&load_grid_x_size, sizeof(uint8_t), 1, fp) != 1) {
+    stream->printf("error:Failed to read grid size\n");
+    fwfs::fclose(fp);
+    return false;
+  }
+
+  if (load_grid_x_size > configured_grid_x_size) {
+    stream->printf("error:grid size x is greater than config - read %d - config %d\n", load_grid_x_size,
+                   configured_grid_x_size);
+    fwfs::fclose(fp);
+    return false;
+  }
+
+  load_grid_y_size = load_grid_x_size;
+
+  if (this->new_file_format) {
+    if (fwfs::fread(&load_grid_y_size, sizeof(uint8_t), 1, fp) != 1) {
+      stream->printf("error:Failed to read grid size\n");
+      fwfs::fclose(fp);
+      return false;
     }
 
-    if(load_flex_compensation_data(THEKERNEL->streams)) {
-        flex_compensation_active = true;
-        updateCompensationTransform();
-    } else {
-        THEKERNEL->set_flex_compensation_load_error(true);
+    if (load_grid_y_size > configured_grid_y_size) {
+      stream->printf("error:grid size y is greater than config - read %d - config %d\n", load_grid_y_size,
+                     configured_grid_y_size);
+      fwfs::fclose(fp);
+      return false;
+    }
+  }
+
+  current_grid_x_size = load_grid_x_size;
+  current_grid_y_size = load_grid_y_size;
+
+  if (fwfs::fread(&temp_x_start, sizeof(float), 1, fp) != 1) {
+    stream->printf("error:Failed to read x_start\n");
+    fwfs::fclose(fp);
+    return false;
+  }
+
+  if (fwfs::fread(&temp_y_start, sizeof(float), 1, fp) != 1) {
+    stream->printf("error:Failed to read y_start\n");
+    fwfs::fclose(fp);
+    return false;
+  }
+
+  x_start = temp_x_start;
+  y_start = temp_y_start;
+
+  if (fwfs::fread(&x, sizeof(float), 1, fp) != 1) {
+    stream->printf("error:Failed to read grid x size\n");
+    fwfs::fclose(fp);
+    return false;
+  }
+
+  if (fwfs::fread(&y, sizeof(float), 1, fp) != 1) {
+    stream->printf("error:Failed to read grid y size\n");
+    fwfs::fclose(fp);
+    return false;
+  }
+
+  x_size = x;
+  y_size = y;
+
+  // keep track of worst case delta
+  float max_delta = 0, max_z = grid[0], min_z = grid[0];  // initilize to sane values
+
+  for (int y = 0; y < current_grid_y_size; y++) {
+    for (int x = 0; x < current_grid_x_size; x++) {
+      if (fwfs::fread(&grid[x + (current_grid_x_size * y)], sizeof(float), 1, fp) != 1) {
+        stream->printf("error:Failed to read grid\n");
+        fwfs::fclose(fp);
+        return false;
+      }
+      if ((grid[x + (current_grid_x_size * y)]) > max_z) max_z = grid[x + (current_grid_x_size * y)];
+      if ((grid[x + (current_grid_x_size * y)]) < min_z) min_z = grid[x + (current_grid_x_size * y)];
+    }
+  }
+  max_delta = fabs(max_z - min_z);
+  THEROBOT->set_max_delta(max_delta);
+  stream->printf("grid loaded, grid: (%f, %f), size: %d x %d\n", x_size, y_size, load_grid_x_size, load_grid_y_size);
+  fwfs::fclose(fp);
+  return true;
+}
+
+bool CartGridStrategy::handleGcode(Gcode* gcode) {
+  if (gcode->has_g) {
+    if (gcode->g == 31 || gcode->g == 32) {  // do a grid probe
+      // first wait for an empty queue i.e. no moves left
+      THEKERNEL->conveyor->wait_for_idle();
+
+      // home if needed
+      if (do_home && !only_by_two_corners && !(gcode->has_letter('R') && gcode->get_int('R') == 1)) {
+        zprobe->home();
+      }
+
+      if (!before_probe.empty()) {
+        Gcode gc(before_probe, &(StreamOutput::NullStream));
+        THEKERNEL->call_event(ON_GCODE_RECEIVED, &gc);
+      }
+
+      THEROBOT->disable_segmentation = true;
+      if (!doProbe(gcode)) {
+        gcode->stream->printf(
+            "Probe failed to complete, check the initial probe height and/or initial_height settings\n");
+      } else {
+        gcode->stream->printf("Probe completed.\n");
+      }
+      THEROBOT->disable_segmentation = false;
+
+      if (!after_probe.empty()) {
+        Gcode gc(after_probe, &(StreamOutput::NullStream));
+        THEKERNEL->call_event(ON_GCODE_RECEIVED, &gc);
+      }
+
+      return true;
+
+    } else if (gcode->g == 29) {
+      // first wait for an empty queue i.e. no moves left
+      THEKERNEL->conveyor->wait_for_idle();
+
+      // home if needed
+      if (do_home && !only_by_two_corners && !(gcode->has_letter('R') && gcode->get_int('R') == 1)) {
+        zprobe->home();
+      }
+
+      if (!before_probe.empty()) {
+        Gcode gc(before_probe, &(StreamOutput::NullStream));
+        THEKERNEL->call_event(ON_GCODE_RECEIVED, &gc);
+      }
+
+      if (!scan_bed(gcode)) {
+        gcode->stream->printf("scan failed to complete\n");
+      }
+
+      if (!after_probe.empty()) {
+        Gcode gc(after_probe, &(StreamOutput::NullStream));
+        THEKERNEL->call_event(ON_GCODE_RECEIVED, &gc);
+      }
+      return true;
+
+    } else if (gcode->g == 33) {  // G33: Perform flex measurement and enable compensation
+
+      if (THEKERNEL->factory_set->MachineModel != CARVERA_AIR) {
+        gcode->stream->printf("Flex compensation is only supported on Carvera Air\n");
+        return false;
+      }
+
+      // Wait for empty queue
+      THEKERNEL->conveyor->wait_for_idle();
+
+      if (!before_probe.empty()) {
+        Gcode gc(before_probe, &(StreamOutput::NullStream));
+        THEKERNEL->call_event(ON_GCODE_RECEIVED, &gc);
+      }
+
+      THEROBOT->disable_segmentation = true;
+      if (!doFlexMeasurement(gcode)) {
+        gcode->stream->printf("Flex measurement failed to complete\n");
+      } else {
+        gcode->stream->printf("Flex measurement completed and compensation enabled.\n");
+        THEKERNEL->set_flex_compensation_load_error(false);
+      }
+      THEROBOT->disable_segmentation = false;
+
+      if (!after_probe.empty()) {
+        Gcode gc(after_probe, &(StreamOutput::NullStream));
+        THEKERNEL->call_event(ON_GCODE_RECEIVED, &gc);
+      }
+
+      return true;
+    }
+
+  } else if (gcode->has_m) {
+    if (gcode->m == 370 || gcode->m == 561) {  // M370, M561: Clear bed
+      // disable cartesian grid compensation only
+      cartesian_grid_active = false;
+      updateCompensationTransform();
+      reset_bed_level();
+      gcode->stream->printf("Cartesian grid cleared and disabled\n");
+      return true;
+
+    } else if (gcode->m == 374) {  // M374: Save grid, M374.1: delete saved grid
+      if (gcode->subcode == 1) {
+        // we use a different file format depending on whether it is square or not
+        const char* filename = (this->new_file_format) ? GRIDFILE_NM : GRIDFILE;
+        fwfs::remove(filename);
+        gcode->stream->printf("%s deleted\n", filename);
+      } else {
+        __disable_irq();
+        save_grid(gcode->stream);
+        __enable_irq();
+      }
+
+      return true;
+
+    } else if (gcode->m == 375) {  // M375: load grid, M375.1 display grid
+      if (gcode->subcode == 1) {
+        print_bed_level(gcode->stream);
+      } else {
+        if (load_grid(gcode->stream)) {
+          cartesian_grid_active = true;
+          updateCompensationTransform();
+        }
+      }
+      return true;
+    } else if (gcode->m == 380) {  // M380: Disable flex compensation, M380.1: Display data, M380.2: Save, M380.3: Load,
+                                   // M380.4: Delete
+      if (gcode->subcode == 1) {
+        // Display current flex compensation data
+        print_flex_compensation_data(gcode->stream);
+      } else if (gcode->subcode == 2) {
+        // Save flex compensation data
+        __disable_irq();
+        save_flex_compensation_data(gcode->stream);
+        __enable_irq();
+      } else if (gcode->subcode == 3) {
+        // Load flex compensation data
+        if (load_flex_compensation_data(gcode->stream)) {
+          flex_compensation_active = true;
+          updateCompensationTransform();
+          THEKERNEL->set_flex_compensation_load_error(false);
+        } else {
+          flex_compensation_active = false;
+          updateCompensationTransform();
+        }
+      } else if (gcode->subcode == 4) {
+        // Delete flex compensation data
+        fwfs::remove(FLEX_COMPENSATION_FILE);
+        gcode->stream->printf("Flex compensation data deleted\n");
+      } else if (gcode->subcode == 5) {
+        // Enable Debugging
+        this->force_debug = true;
+        gcode->stream->printf("Flex compensation debugging enabled\n");
+      } else if (gcode->subcode == 6) {
+        // Disable Debugging
+        this->force_debug = false;
+        gcode->stream->printf("Flex compensation debugging disabled\n");
+      } else {
+        // Disable flex compensation only
         flex_compensation_active = false;
         updateCompensationTransform();
+        reset_flex_compensation();
+        gcode->stream->printf("Flex compensation disabled\n");
+      }
+      return true;
+    } else if (gcode->m == 565) {  // M565: Set Z probe offsets
+      float x = 0, y = 0, z = 0;
+      if (gcode->has_letter('X')) x = gcode->get_value('X');
+      if (gcode->has_letter('Y')) y = gcode->get_value('Y');
+      if (gcode->has_letter('Z')) z = gcode->get_value('Z');
+      probe_offsets = std::make_tuple(x, y, z);
+      return true;
+
+    } else if (gcode->m == 500 || gcode->m == 503) {  // M500 save, M503 display
+      float x, y, z;
+      std::tie(x, y, z) = probe_offsets;
+      gcode->stream->printf(";Probe offsets:\nM565 X%1.5f Y%1.5f Z%1.5f\n", x, y, z);
+      if (save) {
+        if (!isnan(grid[0]))
+          gcode->stream->printf(";Load saved grid\nM375\n");
+        else if (gcode->m == 503)
+          gcode->stream->printf(";WARNING No grid to save\n");
+      }
+      return true;
     }
-}
+  }
 
-void CartGridStrategy::save_grid(StreamOutput *stream)
-{
-    if(isnan(grid[0])) {
-        stream->printf("error:No grid to save\n");
-        return;
-    }
-
-    // we use a different file format depending on whether it is square or not
-    const char *filename= (this->new_file_format) ? GRIDFILE_NM : GRIDFILE;
-    FILE *fp = fwfs::fopen(filename, "w");
-    if(fp == NULL) {
-        stream->printf("error:Failed to open grid file %s\n", filename);
-        return;
-    }
-    uint8_t tmp_configured_grid_size = current_grid_x_size;
-    if(fwfs::fwrite(&tmp_configured_grid_size, sizeof(uint8_t), 1, fp) != 1) {
-        stream->printf("error:Failed to write grid x size\n");
-        fwfs::fclose(fp);
-        return;
-    }
-
-    if(this->new_file_format){
-        tmp_configured_grid_size = current_grid_y_size;
-        if(fwfs::fwrite(&tmp_configured_grid_size, sizeof(uint8_t), 1, fp) != 1) {
-            stream->printf("error:Failed to write grid y size\n");
-            fwfs::fclose(fp);
-            return;
-        }
-    }
-
-    if(fwfs::fwrite(&x_start, sizeof(float), 1, fp) != 1)  {
-        stream->printf("error:Failed to write x_start\n");
-        fwfs::fclose(fp);
-        return;
-    }
-    
-    if(fwfs::fwrite(&y_start, sizeof(float), 1, fp) != 1)  {
-        stream->printf("error:Failed to write y_start\n");
-        fwfs::fclose(fp);
-        return;
-    }
-
-    if(fwfs::fwrite(&x_size, sizeof(float), 1, fp) != 1)  {
-        stream->printf("error:Failed to write x_size\n");
-        fwfs::fclose(fp);
-        return;
-    }
-
-    if(fwfs::fwrite(&y_size, sizeof(float), 1, fp) != 1)  {
-        stream->printf("error:Failed to write y_size\n");
-        fwfs::fclose(fp);
-        return;
-    }
-
-    for (int y = 0; y < current_grid_y_size; y++) {
-        for (int x = 0; x < current_grid_x_size; x++) {
-            if(fwfs::fwrite(&grid[x + (current_grid_x_size * y)], sizeof(float), 1, fp) != 1) {
-                stream->printf("error:Failed to write grid\n");
-                fwfs::fclose(fp);
-                return;
-            }
-        }
-    }
-    stream->printf("grid saved to %s\n", filename);
-    fwfs::fclose(fp);
-}
-
-bool CartGridStrategy::load_grid(StreamOutput *stream)
-{
-    // we use a different file format depending on whether it is square or not
-    const char *filename= (this->new_file_format) ? GRIDFILE_NM : GRIDFILE;
-
-    FILE *fp = fwfs::fopen(filename, "r");
-    if(fp == NULL) {
-        stream->printf("error:Failed to open grid %s\n", filename);
-        return false;
-    }
-
-    uint8_t load_grid_x_size, load_grid_y_size;
-    float x, y, temp_x_start, temp_y_start;
-
-    if(fwfs::fread(&load_grid_x_size, sizeof(uint8_t), 1, fp) != 1) {
-        stream->printf("error:Failed to read grid size\n");
-        fwfs::fclose(fp);
-        return false;
-    }
-
-    if(load_grid_x_size > configured_grid_x_size) {
-        stream->printf("error:grid size x is greater than config - read %d - config %d\n", load_grid_x_size, configured_grid_x_size);
-        fwfs::fclose(fp);
-        return false;
-    }
-
-    load_grid_y_size = load_grid_x_size;
-
-    if(this->new_file_format){
-        if(fwfs::fread(&load_grid_y_size, sizeof(uint8_t), 1, fp) != 1) {
-            stream->printf("error:Failed to read grid size\n");
-            fwfs::fclose(fp);
-            return false;
-        }
-
-        if(load_grid_y_size > configured_grid_y_size) {
-            stream->printf("error:grid size y is greater than config - read %d - config %d\n", load_grid_y_size, configured_grid_y_size);
-            fwfs::fclose(fp);
-            return false;
-        }
-    }
-
-    current_grid_x_size = load_grid_x_size;
-    current_grid_y_size = load_grid_y_size;
-
-    if(fwfs::fread(&temp_x_start, sizeof(float), 1, fp) != 1) {
-        stream->printf("error:Failed to read x_start\n");
-        fwfs::fclose(fp);
-        return false;
-    }
-
-    if(fwfs::fread(&temp_y_start, sizeof(float), 1, fp) != 1) {
-        stream->printf("error:Failed to read y_start\n");
-        fwfs::fclose(fp);
-        return false;
-    }
-
-    x_start = temp_x_start;
-    y_start = temp_y_start;
-
-    if(fwfs::fread(&x, sizeof(float), 1, fp) != 1) {
-        stream->printf("error:Failed to read grid x size\n");
-        fwfs::fclose(fp);
-        return false;
-    }
-
-    if(fwfs::fread(&y, sizeof(float), 1, fp) != 1) {
-        stream->printf("error:Failed to read grid y size\n");
-        fwfs::fclose(fp);
-        return false;
-    }
-
-    x_size = x;
-    y_size = y;
-
-    // keep track of worst case delta
-    float max_delta = 0, max_z = grid[0], min_z = grid[0]; //initilize to sane values
-
-    for (int y = 0; y < current_grid_y_size; y++) {
-        for (int x = 0; x < current_grid_x_size; x++) {
-            if(fwfs::fread(&grid[x + (current_grid_x_size * y)], sizeof(float), 1, fp) != 1) {
-                stream->printf("error:Failed to read grid\n");
-                fwfs::fclose(fp);
-                return false;
-            }
-            if((grid[x + (current_grid_x_size * y)]) > max_z) max_z = grid[x + (current_grid_x_size * y)];
-            if((grid[x + (current_grid_x_size * y)]) < min_z) min_z = grid[x + (current_grid_x_size * y)];
-        }
-    }
-    max_delta = fabs(max_z - min_z);
-    THEROBOT->set_max_delta(max_delta);
-    stream->printf("grid loaded, grid: (%f, %f), size: %d x %d\n", x_size, y_size, load_grid_x_size, load_grid_y_size);
-    fwfs::fclose(fp);
-    return true;
-}
-
-bool CartGridStrategy::handleGcode(Gcode *gcode)
-{
-    if(gcode->has_g) {
-        if(gcode->g == 31 || gcode->g == 32) { // do a grid probe
-            // first wait for an empty queue i.e. no moves left
-            THEKERNEL->conveyor->wait_for_idle();
-
-            // home if needed
-            if (do_home && !only_by_two_corners && !(gcode->has_letter('R') && gcode->get_int('R') == 1)){
-                zprobe->home();
-            }
-
-            if(!before_probe.empty()) {
-                Gcode gc(before_probe, &(StreamOutput::NullStream));
-                THEKERNEL->call_event(ON_GCODE_RECEIVED, &gc);
-            }
-
-            THEROBOT->disable_segmentation= true;
-            if(!doProbe(gcode)) {
-                gcode->stream->printf("Probe failed to complete, check the initial probe height and/or initial_height settings\n");
-            } else {
-                gcode->stream->printf("Probe completed.\n");
-            }
-            THEROBOT->disable_segmentation= false;
-
-            if(!after_probe.empty()) {
-                Gcode gc(after_probe, &(StreamOutput::NullStream));
-                THEKERNEL->call_event(ON_GCODE_RECEIVED, &gc);
-            }
-
-            return true;
-
-        }else if(gcode->g == 29) {
-            // first wait for an empty queue i.e. no moves left
-            THEKERNEL->conveyor->wait_for_idle();
-
-            // home if needed
-            if (do_home && !only_by_two_corners && !(gcode->has_letter('R') && gcode->get_int('R') == 1)){
-                zprobe->home();
-            }
-
-            if(!before_probe.empty()) {
-                Gcode gc(before_probe, &(StreamOutput::NullStream));
-                THEKERNEL->call_event(ON_GCODE_RECEIVED, &gc);
-            }
-
-            if(!scan_bed(gcode)) {
-                gcode->stream->printf("scan failed to complete\n");
-            }
-
-            if(!after_probe.empty()) {
-                Gcode gc(after_probe, &(StreamOutput::NullStream));
-                THEKERNEL->call_event(ON_GCODE_RECEIVED, &gc);
-            }
-            return true;
-
-        }else if(gcode->g == 33) { // G33: Perform flex measurement and enable compensation
-
-            if(THEKERNEL->factory_set->MachineModel != CARVERA_AIR) {
-                gcode->stream->printf("Flex compensation is only supported on Carvera Air\n");
-                return false;
-            }
-
-            // Wait for empty queue
-            THEKERNEL->conveyor->wait_for_idle();
-
-            if(!before_probe.empty()) {
-                Gcode gc(before_probe, &(StreamOutput::NullStream));
-                THEKERNEL->call_event(ON_GCODE_RECEIVED, &gc);
-            }
-
-            THEROBOT->disable_segmentation = true;
-            if(!doFlexMeasurement(gcode)) {
-                gcode->stream->printf("Flex measurement failed to complete\n");
-            } else {
-                gcode->stream->printf("Flex measurement completed and compensation enabled.\n");
-                THEKERNEL->set_flex_compensation_load_error(false);
-            }
-            THEROBOT->disable_segmentation = false;
-
-            if(!after_probe.empty()) {
-                Gcode gc(after_probe, &(StreamOutput::NullStream));
-                THEKERNEL->call_event(ON_GCODE_RECEIVED, &gc);
-            }
-
-            return true;
-        }
-
-    } else if(gcode->has_m) {
-        if(gcode->m == 370 || gcode->m == 561) { // M370, M561: Clear bed
-            // disable cartesian grid compensation only
-            cartesian_grid_active = false;
-            updateCompensationTransform();
-            reset_bed_level();
-            gcode->stream->printf("Cartesian grid cleared and disabled\n");
-            return true;
-
-        } else if(gcode->m == 374) { // M374: Save grid, M374.1: delete saved grid
-            if(gcode->subcode == 1) {
-                // we use a different file format depending on whether it is square or not
-                const char *filename= (this->new_file_format) ? GRIDFILE_NM : GRIDFILE;
-                fwfs::remove(filename);
-                gcode->stream->printf("%s deleted\n", filename);
-            } else {
-                __disable_irq();
-                save_grid(gcode->stream);
-                __enable_irq();
-            }
-
-            return true;
-
-        } else if(gcode->m == 375) { // M375: load grid, M375.1 display grid
-            if(gcode->subcode == 1) {
-                print_bed_level(gcode->stream);
-            } else {
-                if (load_grid(gcode->stream)) {
-                    cartesian_grid_active = true;
-                    updateCompensationTransform();
-                }
-            }
-            return true;
-        } else if(gcode->m == 380) { // M380: Disable flex compensation, M380.1: Display data, M380.2: Save, M380.3: Load, M380.4: Delete
-            if(gcode->subcode == 1) {
-                // Display current flex compensation data
-                print_flex_compensation_data(gcode->stream);
-            } else if(gcode->subcode == 2) {
-                // Save flex compensation data
-                __disable_irq();
-                save_flex_compensation_data(gcode->stream);
-                __enable_irq();
-            } else if(gcode->subcode == 3) {
-                // Load flex compensation data
-                if (load_flex_compensation_data(gcode->stream)) {
-                    flex_compensation_active = true;
-                    updateCompensationTransform();
-                    THEKERNEL->set_flex_compensation_load_error(false);
-                }else{
-                    flex_compensation_active = false;
-                    updateCompensationTransform();
-                }
-            } else if(gcode->subcode == 4) {
-                // Delete flex compensation data
-                fwfs::remove(FLEX_COMPENSATION_FILE);
-                gcode->stream->printf("Flex compensation data deleted\n");
-            }else if(gcode->subcode == 5) {
-                // Enable Debugging
-                this->force_debug = true;
-                gcode->stream->printf("Flex compensation debugging enabled\n");
-            }else if(gcode->subcode == 6) {
-                // Disable Debugging
-                this->force_debug = false;
-                gcode->stream->printf("Flex compensation debugging disabled\n");
-            } else {
-                // Disable flex compensation only
-                flex_compensation_active = false;
-                updateCompensationTransform();
-                reset_flex_compensation();
-                gcode->stream->printf("Flex compensation disabled\n");
-            }
-            return true;
-        } else if(gcode->m == 565) { // M565: Set Z probe offsets
-            float x = 0, y = 0, z = 0;
-            if(gcode->has_letter('X')) x = gcode->get_value('X');
-            if(gcode->has_letter('Y')) y = gcode->get_value('Y');
-            if(gcode->has_letter('Z')) z = gcode->get_value('Z');
-            probe_offsets = std::make_tuple(x, y, z);
-            return true;
-
-        } else if(gcode->m == 500 || gcode->m == 503) { // M500 save, M503 display
-            float x, y, z;
-            std::tie(x, y, z) = probe_offsets;
-            gcode->stream->printf(";Probe offsets:\nM565 X%1.5f Y%1.5f Z%1.5f\n", x, y, z);
-            if(save) {
-                if(!isnan(grid[0])) gcode->stream->printf(";Load saved grid\nM375\n");
-                else if(gcode->m == 503) gcode->stream->printf(";WARNING No grid to save\n");
-            }
-            return true;
-        }
-    }
-
-    return false;
+  return false;
 }
 
 #define X_PROBE_OFFSET_FROM_EXTRUDER std::get<0>(probe_offsets)
 #define Y_PROBE_OFFSET_FROM_EXTRUDER std::get<1>(probe_offsets)
 #define Z_PROBE_OFFSET_FROM_EXTRUDER std::get<2>(probe_offsets)
 
-void CartGridStrategy::setAdjustFunction(bool on)
-{
-    // Legacy method - now just sets cartesian grid state and updates transform
-    cartesian_grid_active = on;
-    updateCompensationTransform();
+void CartGridStrategy::setAdjustFunction(bool on) {
+  // Legacy method - now just sets cartesian grid state and updates transform
+  cartesian_grid_active = on;
+  updateCompensationTransform();
 }
 
-void CartGridStrategy::updateCompensationTransform()
-{   
-    if(flex_compensation_active) {
-        THEKERNEL->set_flex_compensation_active(true);
+void CartGridStrategy::updateCompensationTransform() {
+  if (flex_compensation_active) {
+    THEKERNEL->set_flex_compensation_active(true);
+  } else {
+    THEKERNEL->set_flex_compensation_active(false);
+  }
+  // Enable compensation transform if ANY compensation is active
+  if (cartesian_grid_active || flex_compensation_active) {
+    // set the compensationTransform in robot
+    using std::placeholders::_1;
+    using std::placeholders::_2;
+    using std::placeholders::_3;
+    THEROBOT->compensationTransform = std::bind(&CartGridStrategy::doCompensation, this, _1, _2, _3);
+  } else {
+    // clear it
+    THEROBOT->compensationTransform = nullptr;
+  }
+}
+
+bool CartGridStrategy::findBed(float x, float y, float z) {
+  if (!isnan(initial_height)) {
+    zprobe->coordinated_move(NAN, NAN, initial_height, zprobe->getFastFeedrate());  // move Z only to initial_height
+  }
+  zprobe->coordinated_move(x - X_PROBE_OFFSET_FROM_EXTRUDER, y - Y_PROBE_OFFSET_FROM_EXTRUDER, NAN,
+                           zprobe->getFastFeedrate());  // move at initial_height to x, y
+
+  // find bed at 0,0 run at fast feed rate
+  float mm;
+  if (!zprobe->run_probe_return(mm, zprobe->getFastFeedrate())) return false;
+
+  // leave head probe_height above bed
+  float dz = z - mm;
+  zprobe->coordinated_move(NAN, NAN, dz, zprobe->getFastFeedrate(), true);  // relative move
+
+  return true;
+}
+
+bool CartGridStrategy::scan_bed(Gcode* gc) {
+  float _x_start, _y_start, _x_size, _y_size;
+  int n = gc->has_letter('I') ? gc->get_value('I') : configured_grid_x_size;
+  int m = gc->has_letter('J') ? gc->get_value('J') : configured_grid_y_size;
+
+  if ((n < 5) || (m < 5)) {
+    gc->stream->printf("Need at least a 5x5 grid to scan\n");
+    return false;
+  }
+
+  if (gc->has_letter('X') && gc->has_letter('Y')) {
+    _x_size = gc->get_value('X');  // override default probe width
+    _y_size = gc->get_value('Y');  // override default probe length
+  } else {
+    gc->stream->printf("X and Y parameters needed to specify x size and y size\n");
+    return false;
+  }
+
+  // NOTE as we are positioning the probe we need to reverse offset for the probe offset
+  _x_start = THEROBOT->get_axis_position(X_AXIS) + X_PROBE_OFFSET_FROM_EXTRUDER;
+  _y_start = THEROBOT->get_axis_position(Y_AXIS) + Y_PROBE_OFFSET_FROM_EXTRUDER;
+
+  if (!findBed(_x_start, _y_start, gc->has_letter('H') ? gc->get_value('H') : zprobe->getProbeHeight())) return false;
+
+  // do first reference probe at start
+  float mm;
+  if (!zprobe->doProbeAt(mm, _x_start - X_PROBE_OFFSET_FROM_EXTRUDER, _y_start - Y_PROBE_OFFSET_FROM_EXTRUDER))
+    return false;
+  float z_reference = (gc->has_letter('H') ? gc->get_value('H') : zprobe->getProbeHeight()) - mm;
+  gc->stream->printf("first probe at X%1.3f, Y%1.3f is %1.3f mm\n", _x_start, _y_start, z_reference);
+  float max_delta = fabs(z_reference);
+
+  float x_step = _x_size / n;
+  float y_step = _y_size / m;
+  float max_z = z_reference;
+  float min_z = z_reference;
+  for (int c = 0; c < m; ++c) {
+    std::string scanline;
+    float y = _y_start + y_step * c;
+    for (int r = 0; r < n; ++r) {
+      float x = _x_start + x_step * r;
+      if (!zprobe->doProbeAt(mm, x - X_PROBE_OFFSET_FROM_EXTRUDER, y - Y_PROBE_OFFSET_FROM_EXTRUDER)) return false;
+      float z = (gc->has_letter('H') ? gc->get_value('H') : zprobe->getProbeHeight()) - mm;
+      max_z = (z > max_z) ? z : max_z;
+      min_z = (z < min_z) ? z : min_z;
+      z = z - z_reference;
+      char buf[16];
+      size_t n = snprintf(buf, sizeof(buf), "%1.3f ", z);
+      scanline.append(buf, n);
+      if (fabs(z) > max_delta) max_delta = fabs(z);
+    }
+    gc->stream->printf("%s\n", scanline.c_str());
+  }
+  gc->stream->printf("Max deviation from zero: %1.3f\n", max_delta);
+  max_delta = fabs(max_z - min_z);
+  gc->stream->printf("Max deviation between highest and lowest: %1.3f\n", max_delta);
+  return true;
+}
+
+bool CartGridStrategy::doProbe(Gcode* gc) {
+  bool use_wcs = false;
+  gc->stream->printf("Rectangular Grid Probe...\n");
+
+  // if R1 then force only_by_two_corners using current position for start point
+  // R0 turns off two corners mode
+  if (gc->has_letter('R')) {
+    if (gc->get_int('R') == 1) {
+      only_by_two_corners = true;
+      use_wcs = true;
+      gc->stream->printf("Leveling start, offset by XY\n");
     } else {
-        THEKERNEL->set_flex_compensation_active(false);
+      only_by_two_corners = false;
     }
-    // Enable compensation transform if ANY compensation is active
-    if(cartesian_grid_active || flex_compensation_active) {
-        // set the compensationTransform in robot
-        using std::placeholders::_1;
-        using std::placeholders::_2;
-        using std::placeholders::_3;
-        THEROBOT->compensationTransform = std::bind(&CartGridStrategy::doCompensation, this, _1, _2, _3);
+  }
+
+  if (only_by_two_corners) {
+    if (gc->has_letter('X') && gc->has_letter('Y') && gc->has_letter('A') && gc->has_letter('B')) {
+      if (use_wcs) {
+        float xo = gc->get_value('X');  // offset current start position
+        float yo = gc->get_value('Y');
+        // NOTE as we are positioning the probe we need to reverse offset for the probe offset
+        this->x_start = THEROBOT->get_axis_position(X_AXIS) + xo + X_PROBE_OFFSET_FROM_EXTRUDER;
+        this->y_start = THEROBOT->get_axis_position(Y_AXIS) + yo + Y_PROBE_OFFSET_FROM_EXTRUDER;
+      } else {
+        this->x_start = gc->get_value('X');  // override default probe start point
+        this->y_start = gc->get_value('Y');  // override default probe start point
+      }
+      this->x_size = gc->get_value('A');  // override default probe width
+      this->y_size = gc->get_value('B');  // override default probe length
     } else {
-        // clear it
-        THEROBOT->compensationTransform = nullptr;
+      gc->stream->printf("In only_by_two_corners mode all XYAB parameters needed\n");
+      return false;
     }
-}
+  } else {
+    if (gc->has_letter('X')) this->x_size = gc->get_value('X');  // override default probe width, will get saved
+    if (gc->has_letter('Y')) this->y_size = gc->get_value('Y');  // override default probe length, will get saved
+    this->x_start = 0;
+    this->y_start = 0;
+  }
 
-bool CartGridStrategy::findBed(float x, float y, float z)
-{
-    if(!isnan(initial_height)) {
-        zprobe->coordinated_move(NAN, NAN, initial_height, zprobe->getFastFeedrate()); // move Z only to initial_height
+  if (x_size == 0 || y_size == 0) {
+    gc->stream->printf("ERROR: Probe Size cannot be 0\n");
+    return false;
+  }
+
+  // Temporarily disable cartesian grid compensation during probing
+  cartesian_grid_active = false;
+  updateCompensationTransform();
+  reset_bed_level();
+
+  if (gc->has_letter('I')) current_grid_x_size = gc->get_value('I');  // override default grid x size
+  if (gc->has_letter('J')) current_grid_y_size = gc->get_value('J');  // override default grid y size
+
+  if ((this->current_grid_x_size * this->current_grid_y_size) >
+      (this->configured_grid_x_size * this->configured_grid_y_size)) {
+    gc->stream->printf("Grid size (%d x %d = %d) bigger than configured (%d x %d = %d). Change configuration.\n",
+                       this->current_grid_x_size, this->current_grid_y_size,
+                       this->current_grid_x_size * this->current_grid_x_size, this->configured_grid_x_size,
+                       this->configured_grid_y_size, this->configured_grid_x_size * this->configured_grid_y_size);
+    return false;
+  }
+
+  if (do_manual_attach) {
+    // Move to the attachment point defined
+    zprobe->coordinated_move(m_attach[0], m_attach[1], m_attach[2], zprobe->getFastFeedrate());
+
+    gc->stream->printf(" ************************************************************\n");
+    gc->stream->printf("     Ensure probe is attached and trigger probe when done\n");
+    gc->stream->printf(" ************************************************************\n");
+
+    while (!zprobe->getProbeStatus()) {
+      if (THEKERNEL->is_halted()) return (false);
+      THEKERNEL->call_event(ON_IDLE);
     }
-    zprobe->coordinated_move(x - X_PROBE_OFFSET_FROM_EXTRUDER, y - Y_PROBE_OFFSET_FROM_EXTRUDER, NAN, zprobe->getFastFeedrate()); // move at initial_height to x, y
+  }
 
-    // find bed at 0,0 run at fast feed rate
-    float mm;
-    if(!zprobe->run_probe_return(mm, zprobe->getFastFeedrate())) return false;
+  // find bed, and leave probe probe_height above bed
+  if (!findBed(x_start, y_start, gc->has_letter('H') ? gc->get_value('H') : zprobe->getProbeHeight())) {
+    gc->stream->printf("Finding bed failed, check the initial height setting\n");
+    return false;
+  }
 
-    // leave head probe_height above bed
-    float dz = z - mm;
-    zprobe->coordinated_move(NAN, NAN, dz, zprobe->getFastFeedrate(), true); // relative move
+  gc->stream->printf(
+      "Probe start ht: %0.3f mm, start MCS x,y: %0.3f,%0.3f, rectangular bed width,height in mm: %0.3f,%0.3f, grid "
+      "size: %dx%d\n",
+      gc->has_letter('H') ? gc->get_value('H') : zprobe->getProbeHeight(), x_start, y_start, x_size, y_size,
+      current_grid_x_size, current_grid_y_size);
 
-    return true;
-}
+  // do first probe at start point
+  float mm;
+  if (!zprobe->doProbeAt(mm, this->x_start - X_PROBE_OFFSET_FROM_EXTRUDER,
+                         this->y_start - Y_PROBE_OFFSET_FROM_EXTRUDER))
+    return false;
+  float z_reference =
+      (gc->has_letter('H') ? gc->get_value('H') : zprobe->getProbeHeight()) - mm;  // this should be zero
+  gc->stream->printf("probe at 0,0 is %1.3f mm\n", z_reference);
 
-bool CartGridStrategy::scan_bed(Gcode *gc)
-{
-    float _x_start, _y_start, _x_size, _y_size;
-    int n = gc->has_letter('I') ? gc->get_value('I') : configured_grid_x_size;
-    int m = gc->has_letter('J') ? gc->get_value('J') : configured_grid_y_size;
+  // keep track of worst case delta
+  float max_delta = fabs(z_reference);
+  float max_z = z_reference;
+  float min_z = z_reference;
 
-    if((n < 5)||(m < 5)) {
-        gc->stream->printf("Need at least a 5x5 grid to scan\n");
-        return false;
-    }
-
-    if(gc->has_letter('X') && gc->has_letter('Y')) {
-        _x_size = gc->get_value('X'); // override default probe width
-        _y_size = gc->get_value('Y'); // override default probe length
+  // probe all the points of the grid
+  for (int yCount = 0; yCount < this->current_grid_y_size; yCount++) {
+    float yProbe = this->y_start + (this->y_size / (this->current_grid_y_size - 1)) * yCount;
+    int xStart, xStop, xInc;
+    if (yCount % 2) {
+      xStart = this->current_grid_x_size - 1;
+      xStop = -1;
+      xInc = -1;
     } else {
-        gc->stream->printf("X and Y parameters needed to specify x size and y size\n");
+      xStart = 0;
+      xStop = this->current_grid_x_size;
+      xInc = 1;
+    }
+
+    for (int xCount = xStart; xCount != xStop; xCount += xInc) {
+      float xProbe = this->x_start + (this->x_size / (this->current_grid_x_size - 1)) * xCount;
+
+      if (!zprobe->doProbeAt(mm, xProbe - X_PROBE_OFFSET_FROM_EXTRUDER, yProbe - Y_PROBE_OFFSET_FROM_EXTRUDER)) {
         return false;
+      }
+
+      float measured_z = (gc->has_letter('H') ? gc->get_value('H') : zprobe->getProbeHeight()) -
+                         mm;  // this is the delta z from bed at 0,0
+      max_z = (measured_z > max_z) ? measured_z : max_z;
+      min_z = (measured_z < min_z) ? measured_z : min_z;
+      measured_z = measured_z - z_reference;
+      gc->stream->printf("DEBUG: X%1.3f, Y%1.3f, Z%1.3f\n", xProbe, yProbe, measured_z);
+      grid[xCount + (this->current_grid_x_size * yCount)] = measured_z;
+      if (fabs(measured_z) > max_delta) max_delta = fabs(measured_z);
     }
+  }
 
-    // NOTE as we are positioning the probe we need to reverse offset for the probe offset
-    _x_start = THEROBOT->get_axis_position(X_AXIS) + X_PROBE_OFFSET_FROM_EXTRUDER;
-    _y_start = THEROBOT->get_axis_position(Y_AXIS) + Y_PROBE_OFFSET_FROM_EXTRUDER;
+  print_bed_level(gc->stream);
 
-    if(!findBed(_x_start, _y_start, gc->has_letter('H') ? gc->get_value('H') : zprobe->getProbeHeight())) return false;
+  gc->stream->printf("Max deviation from zero: %1.3f\n", max_delta);
+  max_delta = fabs(max_z - min_z);
+  gc->stream->printf("Max deviation between highest and lowest: %1.3f\n", max_delta);
 
-    // do first reference probe at start
-    float mm;
-    if(!zprobe->doProbeAt(mm, _x_start - X_PROBE_OFFSET_FROM_EXTRUDER, _y_start - Y_PROBE_OFFSET_FROM_EXTRUDER)) return false;
-    float z_reference = (gc->has_letter('H') ? gc->get_value('H') : zprobe->getProbeHeight()) - mm;
-    gc->stream->printf("first probe at X%1.3f, Y%1.3f is %1.3f mm\n", _x_start, _y_start, z_reference);
-    float max_delta= fabs(z_reference);
+  if (do_manual_attach) {
+    // Move to the attachment point defined for removal of probe
+    zprobe->coordinated_move(m_attach[0], m_attach[1], m_attach[2], zprobe->getFastFeedrate());
 
-    float x_step = _x_size / n;
-    float y_step = _y_size / m;
-    float max_z = z_reference;
-    float min_z = z_reference;
-    for (int c = 0; c < m; ++c) {
-        std::string scanline;
-        float y = _y_start + y_step * c;
-        for (int r = 0; r < n; ++r) {
-            float x = _x_start + x_step * r;
-            if(!zprobe->doProbeAt(mm, x - X_PROBE_OFFSET_FROM_EXTRUDER, y - Y_PROBE_OFFSET_FROM_EXTRUDER)) return false;
-            float z = (gc->has_letter('H') ? gc->get_value('H') : zprobe->getProbeHeight()) - mm;
-            max_z = (z > max_z ) ? z : max_z;
-            min_z = (z < min_z ) ? z : min_z;	
-            z = z - z_reference;
-            char buf[16];
-            size_t n= snprintf(buf, sizeof(buf), "%1.3f ", z);
-            scanline.append(buf, n);
-            if(fabs(z) > max_delta) max_delta= fabs(z);
-        }
-        gc->stream->printf("%s\n", scanline.c_str());
-    }
-    gc->stream->printf("Max deviation from zero: %1.3f\n", max_delta);
-    max_delta = fabs(max_z - min_z);
-    gc->stream->printf("Max deviation between highest and lowest: %1.3f\n", max_delta);
-    return true;
+    gc->stream->printf(" ********************\n");
+    gc->stream->printf("     Remove probe\n");
+    gc->stream->printf(" ********************\n");
+  }
+
+  cartesian_grid_active = true;
+  updateCompensationTransform();
+
+  THEROBOT->set_max_delta(max_delta);
+
+  return true;
 }
 
-bool CartGridStrategy::doProbe(Gcode *gc)
-{
-    bool use_wcs= false;
-    gc->stream->printf("Rectangular Grid Probe...\n");
+void CartGridStrategy::doCompensation(float* target, bool inverse, bool debug) {
+  // First handle flex compensation if active (applied first as requested)
+  if (flex_compensation_active && flex_compensation_data != nullptr && flex_current_x_points > 0) {
+    // Convert constants to integers (multiply by 10000 for fixed-point arithmetic)
+    int rod_distance_int = 900000;
+    int triangle_y_int =
+        900000;  // Y distance between the plane through both rods to the center of the spindle (90.0 * 10000)
+    int machine_offset_z_int =
+        510000;  // Z distance between the centerplane between the rods and the end of the spindle (51.0 * 10000)
+    int sensor_machine_z_int = -1153400;  // Z machine coordinate if the tool length would be 0 (-115.36 * 10000)
+    int refmz_int = (int)(THEKERNEL->eeprom_data->REFMZ * 10000.0f);
+    int TLO_int = (int)(THEKERNEL->eeprom_data->TLO * 10000.0f);
+    float interpolated_delta = 0.0;
 
-    // if R1 then force only_by_two_corners using current position for start point
-    // R0 turns off two corners mode
-    if(gc->has_letter('R')) {
-        if(gc->get_int('R') == 1) {
-            only_by_two_corners= true;
-            use_wcs= true;
-            gc->stream->printf("Leveling start, offset by XY\n");
-        }else{
-            only_by_two_corners= false;
-        }
-    }
+    // Convert target Z to integer for calculation
+    int target_z_int = (int)(target[Z_AXIS] * 10000.0f);
+    int triangle_z_int = abs(target_z_int) + machine_offset_z_int + TLO_int + refmz_int - sensor_machine_z_int;
+    float triangle_length_float = sqrtf((triangle_y_int / 10000.0f) * (triangle_y_int / 10000.0f) +
+                                        (triangle_z_int / 10000.0f) * (triangle_z_int / 10000.0f));
+    float y_rot = 0.0;
+    float z_rot = 0.0;
+    float z_trans = 0.0;
 
-    if(only_by_two_corners){
-        if(gc->has_letter('X') && gc->has_letter('Y') && gc->has_letter('A') && gc->has_letter('B')){
-            if(use_wcs) {
-                float xo = gc->get_value('X'); // offset current start position
-                float yo = gc->get_value('Y');
-                // NOTE as we are positioning the probe we need to reverse offset for the probe offset
-                this->x_start = THEROBOT->get_axis_position(X_AXIS) + xo + X_PROBE_OFFSET_FROM_EXTRUDER;
-                this->y_start = THEROBOT->get_axis_position(Y_AXIS) + yo + Y_PROBE_OFFSET_FROM_EXTRUDER;
-            }else{
-                this->x_start = gc->get_value('X'); // override default probe start point
-                this->y_start = gc->get_value('Y'); // override default probe start point
-            }
-            this->x_size = gc->get_value('A'); // override default probe width
-            this->y_size = gc->get_value('B'); // override default probe length
-        } else {
-            gc->stream->printf("In only_by_two_corners mode all XYAB parameters needed\n");
-            return false;
-        }
+    // Check if target is within flex compensation range
+    if (target[X_AXIS] >= flex_x_start && target[X_AXIS] <= flex_x_start + flex_x_size) {
+      // Calculate grid spacing using integers
+      int flex_x_size_int = (int)(flex_x_size * 10000.0f);
+      int grid_spacing_int = flex_x_size_int / (flex_current_x_points - 1);
+
+      // Find which grid segment the target falls into
+      int target_x_int = (int)(target[X_AXIS] * 10000.0f);
+      int flex_x_start_int = (int)(flex_x_start * 10000.0f);
+      int relative_x_int = target_x_int - flex_x_start_int;
+      int grid_index = relative_x_int / grid_spacing_int;
+
+      // Clamp grid_index to valid range
+      if (grid_index >= flex_current_x_points - 1) {
+        grid_index = flex_current_x_points - 2;  // Use last segment
+      }
+      if (grid_index < 0) {
+        grid_index = 0;  // Use first segment
+      }
+
+      // Calculate interpolation factor using integers
+      int grid_x_low_int = flex_x_start_int + grid_index * grid_spacing_int;
+      int grid_x_high_int = flex_x_start_int + (grid_index + 1) * grid_spacing_int;
+      int t_numerator = target_x_int - grid_x_low_int;
+      int t_denominator = grid_x_high_int - grid_x_low_int;
+
+      // Calculate interpolation factor t (0 to 10000 for 0.0 to 1.0)
+      int t_int = 0;
+      if (t_denominator != 0) {
+        t_int = (t_numerator * 10000) / t_denominator;
+      }
+
+      // Clamp t_int to [0, 10000] range
+      if (t_int < 0) t_int = 0;
+      if (t_int > 10000) t_int = 10000;
+
+      // Linear interpolation between two grid points using integers
+      float delta_low = flex_compensation_data[grid_index];
+      float delta_high = flex_compensation_data[grid_index + 1];
+      interpolated_delta = delta_low + (t_int / 10000.0f) * (delta_high - delta_low);
     } else {
-        if(gc->has_letter('X')) this->x_size = gc->get_value('X'); // override default probe width, will get saved
-        if(gc->has_letter('Y')) this->y_size = gc->get_value('Y'); // override default probe length, will get saved
-        this->x_start= 0;
-        this->y_start= 0;
+      if (target[X_AXIS] < this->x_start) {
+        interpolated_delta = flex_compensation_data[0];
+      } else {
+        interpolated_delta = flex_compensation_data[flex_current_x_points - 1];
+      }
     }
 
-    if(x_size == 0 || y_size == 0) {
-        gc->stream->printf("ERROR: Probe Size cannot be 0\n");
-        return false;
+    z_trans = 0.5f * interpolated_delta * (rod_distance_int / (2.0f * 10000.0f));
+
+    // The data has been normalized to a radius of 1.0 so we need to multiply by the triangle length to get the actual
+    // distance for the rotational components
+    interpolated_delta = interpolated_delta * triangle_length_float;
+
+    // rotational component
+    y_rot = cos(atan((triangle_y_int / 10000.0f) / (triangle_z_int / 10000.0f))) * interpolated_delta;
+    z_rot = sin(atan((triangle_y_int / 10000.0f) / (triangle_z_int / 10000.0f))) * interpolated_delta;
+
+    if (inverse) {
+      target[Y_AXIS] = target[Y_AXIS] - y_rot;
+      target[Z_AXIS] = target[Z_AXIS] + z_rot + z_trans;
+    } else {
+      target[Y_AXIS] = target[Y_AXIS] + y_rot;
+      target[Z_AXIS] = target[Z_AXIS] - z_rot - z_trans;
+      if (this->force_debug) {
+        THEKERNEL->streams->printf("//DEBUG: FLEX COMPENSATION: X:%f, DeltaY:%f, DeltaZ: %f\n", target[0], y_rot,
+                                   z_rot + z_trans);
+      }
+    }
+  }
+
+  // Then handle cartesian grid compensation if active (applied to flex-compensated coordinates)
+  if (cartesian_grid_active && !isnan(grid[0])) {
+    // Adjust print surface height by linear interpolation over the bed_level array.
+    // offset scale: 1 for default (use offset as is)
+    float scale = 1.0;
+    if (!isnan(this->damping_interval)) {
+      // if the height is below our compensation limit:
+      if (target[Z_AXIS] <= this->height_limit) {
+        // scale the offset as necessary:
+        if (target[Z_AXIS] >= this->dampening_start) {
+          scale = (1.0 - ((target[Z_AXIS] - this->dampening_start) / this->damping_interval));
+        }  // else leave scale at 1.0;
+      } else {
+        return;  // if Z is higher than max, no compensation
+      }
     }
 
-    // Temporarily disable cartesian grid compensation during probing
-    cartesian_grid_active = false;
-    updateCompensationTransform();
-    reset_bed_level();
+    // find min/maxes, and handle the case where size is negative (assuming this is possible? Legacy code supported
+    // this)
+    float min_x = std::min(this->x_start, this->x_start + this->x_size);
+    float max_x = std::max(this->x_start, this->x_start + this->x_size);
+    float min_y = std::min(this->y_start, this->y_start + this->y_size);
+    float max_y = std::max(this->y_start, this->y_start + this->y_size);
 
-    if(gc->has_letter('I')) current_grid_x_size = gc->get_value('I'); // override default grid x size
-    if(gc->has_letter('J')) current_grid_y_size = gc->get_value('J'); // override default grid y size
+    // clamp the input to the bounds of the compensation grid
+    // if a point is beyond the bounds of the grid, it will get the offset of the closest grid point
+    //    float x_target = std::min(std::max(target[X_AXIS], min_x), max_x);
+    //    float y_target = std::min(std::max(target[Y_AXIS], min_y), max_y);
 
-    if((this->current_grid_x_size * this->current_grid_y_size)  > (this->configured_grid_x_size * this->configured_grid_y_size)){
-        gc->stream->printf("Grid size (%d x %d = %d) bigger than configured (%d x %d = %d). Change configuration.\n",
-                            this->current_grid_x_size, this->current_grid_y_size, this->current_grid_x_size*this->current_grid_x_size,
-                            this->configured_grid_x_size, this->configured_grid_y_size, this->configured_grid_x_size*this->configured_grid_y_size);
-        return false;
-    }
+    // change to set offset = 0 if a point is beyond the bounds of the grid
+    float x_target = target[X_AXIS];
+    float y_target = target[Y_AXIS];
+    if (x_target < min_x - 0.001 || x_target > max_x + 0.001 || y_target < min_y - 0.001 || y_target > max_y + 0.001) {
+      // Continue to flex compensation even if cartesian grid is out of bounds
+    } else {
+      // we need to make sure that floor_x and floor_y are always < grid_size-1
+      float grid_x =
+          std::max(0.001F, std::min(this->current_grid_x_size - 1.001F,
+                                    (x_target - this->x_start) / (this->x_size / (this->current_grid_x_size - 1))));
+      float grid_y =
+          std::max(0.001F, std::min(this->current_grid_y_size - 1.001F,
+                                    (y_target - this->y_start) / (this->y_size / (this->current_grid_y_size - 1))));
+      int floor_x = floorf(grid_x);
+      int floor_y = floorf(grid_y);
+      float ratio_x = grid_x - floor_x;
+      float ratio_y = grid_y - floor_y;
+      float z1 = grid[(floor_x) + ((floor_y) * this->current_grid_x_size)];
+      float z2 = grid[(floor_x) + ((floor_y + 1) * this->current_grid_x_size)];
+      float z3 = grid[(floor_x + 1) + ((floor_y) * this->current_grid_x_size)];
+      float z4 = grid[(floor_x + 1) + ((floor_y + 1) * this->current_grid_x_size)];
+      float left = (1 - ratio_y) * z1 + ratio_y * z2;
+      float right = (1 - ratio_y) * z3 + ratio_y * z4;
+      float offset = (1 - ratio_x) * left + ratio_x * right;
 
-    if (do_manual_attach) {
-        // Move to the attachment point defined
-        zprobe->coordinated_move( m_attach[0], m_attach[1], m_attach[2], zprobe->getFastFeedrate());
-
-        gc->stream->printf(" ************************************************************\n");
-        gc->stream->printf("     Ensure probe is attached and trigger probe when done\n");
-        gc->stream->printf(" ************************************************************\n");
-
-        while( !zprobe->getProbeStatus()) {
-            if(THEKERNEL->is_halted()) return(false);
-            THEKERNEL->call_event(ON_IDLE);
-        }
-    }
-
-    // find bed, and leave probe probe_height above bed
-    if(!findBed(x_start, y_start, gc->has_letter('H') ? gc->get_value('H') : zprobe->getProbeHeight())) {
-        gc->stream->printf("Finding bed failed, check the initial height setting\n");
-        return false;
-    }
-
-    gc->stream->printf("Probe start ht: %0.3f mm, start MCS x,y: %0.3f,%0.3f, rectangular bed width,height in mm: %0.3f,%0.3f, grid size: %dx%d\n", gc->has_letter('H') ? gc->get_value('H') : zprobe->getProbeHeight(),
-    		x_start, y_start, x_size, y_size, current_grid_x_size, current_grid_y_size);
-
-    // do first probe at start point
-    float mm;
-    if(!zprobe->doProbeAt(mm, this->x_start - X_PROBE_OFFSET_FROM_EXTRUDER, this->y_start - Y_PROBE_OFFSET_FROM_EXTRUDER)) return false;
-    float z_reference = (gc->has_letter('H') ? gc->get_value('H') : zprobe->getProbeHeight()) - mm; // this should be zero
-    gc->stream->printf("probe at 0,0 is %1.3f mm\n", z_reference);
-
-    // keep track of worst case delta
-    float max_delta= fabs(z_reference);
-    float max_z = z_reference;
-    float min_z = z_reference;
-
-    // probe all the points of the grid
-    for (int yCount = 0; yCount < this->current_grid_y_size; yCount++) {
-        float yProbe = this->y_start + (this->y_size / (this->current_grid_y_size - 1)) * yCount;
-        int xStart, xStop, xInc;
-        if (yCount % 2) {
-            xStart = this->current_grid_x_size - 1;
-            xStop = -1;
-            xInc = -1;
-        } else {
-            xStart = 0;
-            xStop = this->current_grid_x_size;
-            xInc = 1;
-        }
-
-        for (int xCount = xStart; xCount != xStop; xCount += xInc) {
-            float xProbe = this->x_start + (this->x_size / (this->current_grid_x_size - 1)) * xCount;
-
-            if(!zprobe->doProbeAt(mm, xProbe - X_PROBE_OFFSET_FROM_EXTRUDER, yProbe - Y_PROBE_OFFSET_FROM_EXTRUDER)){
-                return false;
-            }
-
-            float measured_z = (gc->has_letter('H') ? gc->get_value('H') : zprobe->getProbeHeight()) - mm; // this is the delta z from bed at 0,0
-            max_z = (measured_z > max_z ) ? measured_z : max_z;
-            min_z = (measured_z < min_z ) ? measured_z : min_z;	
-            measured_z = measured_z - z_reference;
-            gc->stream->printf("DEBUG: X%1.3f, Y%1.3f, Z%1.3f\n", xProbe, yProbe, measured_z);
-            grid[xCount + (this->current_grid_x_size * yCount)] = measured_z;
-            if(fabs(measured_z) > max_delta) max_delta= fabs(measured_z);
-        }
-    }
-
-    print_bed_level(gc->stream);
-
-    gc->stream->printf("Max deviation from zero: %1.3f\n", max_delta);
-    max_delta = fabs(max_z - min_z);
-    gc->stream->printf("Max deviation between highest and lowest: %1.3f\n", max_delta);
-
-    if (do_manual_attach) {
-        // Move to the attachment point defined for removal of probe
-        zprobe->coordinated_move( m_attach[0], m_attach[1], m_attach[2], zprobe->getFastFeedrate());
-
-        gc->stream->printf(" ********************\n");
-        gc->stream->printf("     Remove probe\n");
-        gc->stream->printf(" ********************\n");
-    }
-
-    cartesian_grid_active = true;
-    updateCompensationTransform();
-
-    THEROBOT->set_max_delta(max_delta);
-
-    return true;
-}
-
-void CartGridStrategy::doCompensation(float *target, bool inverse, bool debug)
-{
-    // First handle flex compensation if active (applied first as requested)
-    if(flex_compensation_active && flex_compensation_data != nullptr && flex_current_x_points > 0) {
-        // Convert constants to integers (multiply by 10000 for fixed-point arithmetic)
-        int rod_distance_int = 900000;
-        int triangle_y_int = 900000;            // Y distance between the plane through both rods to the center of the spindle (90.0 * 10000)
-        int machine_offset_z_int = 510000;      // Z distance between the centerplane between the rods and the end of the spindle (51.0 * 10000)
-        int sensor_machine_z_int = -1153400;   // Z machine coordinate if the tool length would be 0 (-115.36 * 10000)
-        int refmz_int = (int)(THEKERNEL->eeprom_data->REFMZ * 10000.0f);                  
-        int TLO_int = (int)(THEKERNEL->eeprom_data->TLO * 10000.0f);
-        float interpolated_delta = 0.0;
-
-        // Convert target Z to integer for calculation
-        int target_z_int = (int)(target[Z_AXIS] * 10000.0f);
-        int triangle_z_int = abs(target_z_int) + machine_offset_z_int + TLO_int + refmz_int - sensor_machine_z_int;
-        float triangle_length_float = sqrtf((triangle_y_int / 10000.0f) * (triangle_y_int / 10000.0f) + (triangle_z_int / 10000.0f) * (triangle_z_int / 10000.0f));
-        float y_rot = 0.0;
-        float z_rot = 0.0;
-        float z_trans = 0.0;
-
-        // Check if target is within flex compensation range
-        if (target[X_AXIS] >= flex_x_start && target[X_AXIS] <= flex_x_start + flex_x_size) {
-            // Calculate grid spacing using integers
-            int flex_x_size_int = (int)(flex_x_size * 10000.0f);
-            int grid_spacing_int = flex_x_size_int / (flex_current_x_points - 1);
-            
-            // Find which grid segment the target falls into
-            int target_x_int = (int)(target[X_AXIS] * 10000.0f);
-            int flex_x_start_int = (int)(flex_x_start * 10000.0f);
-            int relative_x_int = target_x_int - flex_x_start_int;
-            int grid_index = relative_x_int / grid_spacing_int;
-            
-            // Clamp grid_index to valid range
-            if (grid_index >= flex_current_x_points - 1) {
-                grid_index = flex_current_x_points - 2;  // Use last segment
-            }
-            if (grid_index < 0) {
-                grid_index = 0;  // Use first segment
-            }
-            
-            // Calculate interpolation factor using integers
-            int grid_x_low_int = flex_x_start_int + grid_index * grid_spacing_int;
-            int grid_x_high_int = flex_x_start_int + (grid_index + 1) * grid_spacing_int;
-            int t_numerator = target_x_int - grid_x_low_int;
-            int t_denominator = grid_x_high_int - grid_x_low_int;
-            
-            // Calculate interpolation factor t (0 to 10000 for 0.0 to 1.0)
-            int t_int = 0;
-            if (t_denominator != 0) {
-                t_int = (t_numerator * 10000) / t_denominator;
-            }
-            
-            // Clamp t_int to [0, 10000] range
-            if (t_int < 0) t_int = 0;
-            if (t_int > 10000) t_int = 10000;
-            
-            // Linear interpolation between two grid points using integers
-            float delta_low = flex_compensation_data[grid_index];
-            float delta_high = flex_compensation_data[grid_index + 1];
-            interpolated_delta = delta_low + (t_int / 10000.0f) * (delta_high - delta_low);
-        }else{
-            if(target[X_AXIS] < this->x_start){
-                interpolated_delta = flex_compensation_data[0];
-            }else{
-                interpolated_delta = flex_compensation_data[flex_current_x_points - 1];
-            }
-        }
-
-        z_trans = 0.5f * interpolated_delta * (rod_distance_int / (2.0f *10000.0f));
-
-        // The data has been normalized to a radius of 1.0 so we need to multiply by the triangle length to get the actual distance for the rotational components
-        interpolated_delta = interpolated_delta * triangle_length_float;
-
-        // rotational component
-        y_rot = cos(atan((triangle_y_int / 10000.0f) / (triangle_z_int / 10000.0f))) * interpolated_delta;
-        z_rot = sin(atan((triangle_y_int / 10000.0f) / (triangle_z_int / 10000.0f))) * interpolated_delta;
-
+      // handle case where the grid was incomplete (should never happen)
+      if (!isnan(offset)) {
         if (inverse) {
-            target[Y_AXIS] = target[Y_AXIS] - y_rot;
-            target[Z_AXIS] = target[Z_AXIS] + z_rot + z_trans;
+          target[Z_AXIS] -= offset * scale;
         } else {
-            target[Y_AXIS] = target[Y_AXIS] + y_rot;
-            target[Z_AXIS] = target[Z_AXIS] - z_rot - z_trans;
-            if (this->force_debug) {
-                THEKERNEL->streams->printf("//DEBUG: FLEX COMPENSATION: X:%f, DeltaY:%f, DeltaZ: %f\n", target[0], y_rot, z_rot + z_trans);
-            }
+          target[Z_AXIS] += offset * scale;
         }
+      }
     }
+  }
 
-    // Then handle cartesian grid compensation if active (applied to flex-compensated coordinates)
-    if(cartesian_grid_active && !isnan(grid[0])) {
-        // Adjust print surface height by linear interpolation over the bed_level array.
-        // offset scale: 1 for default (use offset as is)
-        float scale = 1.0;
-        if (!isnan(this->damping_interval)) {
-            // if the height is below our compensation limit:
-            if(target[Z_AXIS] <= this->height_limit) {
-                // scale the offset as necessary:
-                if(target[Z_AXIS] >= this->dampening_start) {
-                    scale = (1.0 - ((target[Z_AXIS] - this->dampening_start) / this->damping_interval));
-                } // else leave scale at 1.0;
-            } else {
-                return; // if Z is higher than max, no compensation
-            }
-        }
-
-        // find min/maxes, and handle the case where size is negative (assuming this is possible? Legacy code supported this)
-        float min_x = std::min(this->x_start, this->x_start + this->x_size);
-        float max_x = std::max(this->x_start, this->x_start + this->x_size);
-        float min_y = std::min(this->y_start, this->y_start + this->y_size);
-        float max_y = std::max(this->y_start, this->y_start + this->y_size);
-
-        // clamp the input to the bounds of the compensation grid
-        // if a point is beyond the bounds of the grid, it will get the offset of the closest grid point
-        //    float x_target = std::min(std::max(target[X_AXIS], min_x), max_x);
-        //    float y_target = std::min(std::max(target[Y_AXIS], min_y), max_y);
-
-        // change to set offset = 0 if a point is beyond the bounds of the grid
-        float x_target = target[X_AXIS];
-        float y_target = target[Y_AXIS];
-        if (x_target < min_x - 0.001 || x_target > max_x + 0.001 || y_target < min_y - 0.001 || y_target > max_y + 0.001) {
-            // Continue to flex compensation even if cartesian grid is out of bounds
-        } else {
-            // we need to make sure that floor_x and floor_y are always < grid_size-1
-            float grid_x = std::max(0.001F, std::min(this->current_grid_x_size - 1.001F, (x_target - this->x_start) / (this->x_size / (this->current_grid_x_size - 1))));
-            float grid_y = std::max(0.001F, std::min(this->current_grid_y_size - 1.001F, (y_target - this->y_start) / (this->y_size / (this->current_grid_y_size - 1))));
-            int floor_x = floorf(grid_x);
-            int floor_y = floorf(grid_y);
-            float ratio_x = grid_x - floor_x;
-            float ratio_y = grid_y - floor_y;
-            float z1 = grid[(floor_x) + ((floor_y) * this->current_grid_x_size)];
-            float z2 = grid[(floor_x) + ((floor_y + 1) * this->current_grid_x_size)];
-            float z3 = grid[(floor_x + 1) + ((floor_y) * this->current_grid_x_size)];
-            float z4 = grid[(floor_x + 1) + ((floor_y + 1) * this->current_grid_x_size)];
-            float left = (1 - ratio_y) * z1 + ratio_y * z2;
-            float right = (1 - ratio_y) * z3 + ratio_y * z4;
-            float offset = (1 - ratio_x) * left + ratio_x * right;
-
-            // handle case where the grid was incomplete (should never happen)
-            if(!isnan(offset)) {
-                if (inverse) {
-                    target[Z_AXIS] -= offset * scale;
-                } else {
-                    target[Z_AXIS] += offset * scale;
-                }
-            }
-        }
+  if (debug) {
+    THEKERNEL->streams->printf("//DEBUG: NEW TARGET: %f, %f, %f\n", target[0], target[1], target[2]);
+    if (flex_compensation_active) {
+      THEKERNEL->streams->printf("//DEBUG: Flex compensation active (applied first)\n");
     }
-
-    if (debug) {
-        THEKERNEL->streams->printf("//DEBUG: NEW TARGET: %f, %f, %f\n", target[0], target[1], target[2]);
-        if(flex_compensation_active) {
-            THEKERNEL->streams->printf("//DEBUG: Flex compensation active (applied first)\n");
-        }
-        if(cartesian_grid_active && !isnan(grid[0])) {
-            THEKERNEL->streams->printf("//DEBUG: Cartesian grid compensation active (applied to flex-compensated coordinates)\n");
-        }
+    if (cartesian_grid_active && !isnan(grid[0])) {
+      THEKERNEL->streams->printf(
+          "//DEBUG: Cartesian grid compensation active (applied to flex-compensated coordinates)\n");
     }
+  }
 }
-
 
 // Print calibration results for plotting or manual frame adjustment.
-void CartGridStrategy::print_bed_level(StreamOutput *stream)
-{
-    if(!human_readable){
-        for (int y = 0; y < current_grid_y_size; y++) {
-            for (int x = 0; x < current_grid_x_size; x++) {
-                stream->printf("%1.4f ", grid[x + (current_grid_x_size * y)]);
-            }
-            stream->printf("\n");
-        }
-    } else {
-
-        int xStart = (x_size>0) ? 0 : (current_grid_x_size - 1);
-        int xStop = (x_size>0) ? current_grid_x_size : -1;
-        int xInc = (x_size>0) ? 1: -1;
-
-        int yStart = (y_size<0) ? 0 : (current_grid_y_size - 1);
-        int yStop = (y_size<0) ? current_grid_y_size : -1;
-        int yInc = (y_size<0) ? 1: -1;
-
-        for (int y = yStart; y != yStop; y += yInc) {
-            stream->printf("%10.4f|", y * (y_size / (current_grid_y_size - 1)));
-            for (int x = xStart; x != xStop; x += xInc) {
-                stream->printf("%10.4f ",  grid[x + (current_grid_x_size * y)]);
-            }
-            stream->printf("\n");
-        }
-        stream->printf("           ");
-        for (int x = xStart; x != xStop; x += xInc) {
-            stream->printf("-----+-----");
-        }
-        stream->printf("\n");
-        stream->printf("           ");
-        for (int x = xStart; x != xStop; x += xInc) {
-            stream->printf("%1.4f ",  x * (x_size / (current_grid_x_size - 1)));
-        }
-            stream->printf("\n");
-
+void CartGridStrategy::print_bed_level(StreamOutput* stream) {
+  if (!human_readable) {
+    for (int y = 0; y < current_grid_y_size; y++) {
+      for (int x = 0; x < current_grid_x_size; x++) {
+        stream->printf("%1.4f ", grid[x + (current_grid_x_size * y)]);
+      }
+      stream->printf("\n");
     }
+  } else {
+    int xStart = (x_size > 0) ? 0 : (current_grid_x_size - 1);
+    int xStop = (x_size > 0) ? current_grid_x_size : -1;
+    int xInc = (x_size > 0) ? 1 : -1;
 
+    int yStart = (y_size < 0) ? 0 : (current_grid_y_size - 1);
+    int yStop = (y_size < 0) ? current_grid_y_size : -1;
+    int yInc = (y_size < 0) ? 1 : -1;
+
+    for (int y = yStart; y != yStop; y += yInc) {
+      stream->printf("%10.4f|", y * (y_size / (current_grid_y_size - 1)));
+      for (int x = xStart; x != xStop; x += xInc) {
+        stream->printf("%10.4f ", grid[x + (current_grid_x_size * y)]);
+      }
+      stream->printf("\n");
+    }
+    stream->printf("           ");
+    for (int x = xStart; x != xStop; x += xInc) {
+      stream->printf("-----+-----");
+    }
+    stream->printf("\n");
+    stream->printf("           ");
+    for (int x = xStart; x != xStop; x += xInc) {
+      stream->printf("%1.4f ", x * (x_size / (current_grid_x_size - 1)));
+    }
+    stream->printf("\n");
+  }
 }
 
 // Reset calibration results to zero.
-void CartGridStrategy::reset_bed_level()
-{
-    for (int y = 0; y < current_grid_y_size; y++) {
-        for (int x = 0; x < current_grid_x_size; x++) {
-            grid[x + (current_grid_x_size * y)] = NAN;
-        }
+void CartGridStrategy::reset_bed_level() {
+  for (int y = 0; y < current_grid_y_size; y++) {
+    for (int x = 0; x < current_grid_x_size; x++) {
+      grid[x + (current_grid_x_size * y)] = NAN;
     }
-    THEROBOT->set_max_delta(0.0);
+  }
+  THEROBOT->set_max_delta(0.0);
 }
 
 // Flex compensation methods
-bool CartGridStrategy::doFlexMeasurement(Gcode *gc)
-{
-    gc->stream->printf("Reset old flex compensation data...\n");
-    reset_flex_compensation();
+bool CartGridStrategy::doFlexMeasurement(Gcode* gc) {
+  gc->stream->printf("Reset old flex compensation data...\n");
+  reset_flex_compensation();
 
-    // Parse G33 parameters
-    float y_coordinate = 0.0F;
-    int num_points = 0;
+  // Parse G33 parameters
+  float y_coordinate = 0.0F;
+  int num_points = 0;
 
-    if(gc->has_letter('Y')) {
-        y_coordinate = gc->get_value('Y');
-    } else {
-        gc->stream->printf("ERROR: Y parameter required for G33\n");
+  if (gc->has_letter('Y')) {
+    y_coordinate = gc->get_value('Y');
+  } else {
+    gc->stream->printf("ERROR: Y parameter required for G33\n");
+    return false;
+  }
+
+  if (gc->has_letter('X')) {
+    this->flex_x_size = gc->get_value('X');
+  } else {
+    gc->stream->printf("ERROR: X parameter required for G33\n");
+    return false;
+  }
+
+  if (gc->has_letter('I')) {
+    num_points = gc->get_value('I');
+    flex_current_x_points = num_points;
+  } else {
+    gc->stream->printf("ERROR: I parameter required for G33\n");
+    return false;
+  }
+
+  int repeat = 1;
+  if (gc->has_letter('L') && gc->get_int('L') > 1) {
+    repeat = gc->get_value('L');
+  }
+
+  bool debug = false;
+  if (gc->has_letter('D')) {
+    debug = true;
+  }
+
+  if (this->flex_x_size <= 0 || num_points <= 0) {
+    gc->stream->printf("ERROR: X and I parameters must be positive\n");
+    return false;
+  }
+
+  // Validate that num_points matches flex_x_points
+  if (num_points > flex_x_points) {
+    gc->stream->printf("ERROR: I parameter (%d) must not be greater than flex_x_points (%d)\n", num_points,
+                       flex_x_points);
+    return false;
+  }
+
+  // Get current machine position
+  float current_x = THEROBOT->get_axis_position(X_AXIS);
+  float current_y = THEROBOT->get_axis_position(Y_AXIS);
+  float current_z = THEROBOT->get_axis_position(Z_AXIS);
+
+  int rod_distance_int = 900000;
+  int machine_offset_z_int =
+      510000;  // Z distance between the centerplane between the rods and the end of the spindle (51.0 * 10000)
+  int sensor_machine_z_int = -1153400;  // Z machine coordinate if the tool length would be 0 (-115.36 * 10000)
+  int refmz_int = (int)(THEKERNEL->eeprom_data->REFMZ * 10000.0f);
+  int TLO_int = (int)(THEKERNEL->eeprom_data->TLO * 10000.0f);
+
+  int triangle_y_int =
+      900000;  // Y distance between the plane through both rods to the center of the spindle (90.0 * 10000)
+  int triangle_z_int = abs(current_z * 10000.0f) + machine_offset_z_int + TLO_int + refmz_int - sensor_machine_z_int;
+  float triangle_length_float = sqrtf((triangle_y_int / 10000.0f) * (triangle_y_int / 10000.0f) +
+                                      (triangle_z_int / 10000.0f) * (triangle_z_int / 10000.0f));
+
+  this->flex_x_start = current_x;
+
+  gc->stream->printf("Starting flex measurement at current position: X%1.3f Y%1.3f Z%1.3f\n", current_x, current_y,
+                     current_z);
+
+  // First measurement as reference
+  float reference_y = 0.0F;
+
+  // Calculate X step size
+  float x_step = this->flex_x_size / (num_points - 1);
+
+  zprobe->init_parameters_and_out_coords();
+  // Set up probe parameters for Y-axis probing
+  probe_parameters& params = zprobe->get_probe_parameters();
+  params.y_axis_distance = y_coordinate;
+  params.feed_rate = (gc->has_letter('F')) ? gc->get_value('F') : 600;
+  params.rapid_rate = (gc->has_letter('R')) ? gc->get_value('R') : 800;
+
+  for (int r = 1; r <= repeat; r++) {
+    zprobe->coordinated_move(current_x, current_y, NAN, params.rapid_rate / 60);
+    // Probe at each point along X-axis
+    for (int i = 0; i < num_points; i++) {
+      if (THEKERNEL->is_halted()) {
+        gc->stream->printf("ERROR: Halted during flex measurement\n");
         return false;
-    }
+      }
+      float probe_x = current_x + (i * x_step);
+      zprobe->coordinated_move(probe_x, NAN, NAN, params.rapid_rate / 60);
 
-    if(gc->has_letter('X')) {
-        this->flex_x_size = gc->get_value('X');
-    } else {
-        gc->stream->printf("ERROR: X parameter required for G33\n");
+      // Use ZProbe's internal fast_slow_probe_sequence for Y-axis
+      zprobe->fast_slow_probe_sequence_public(Y_AXIS, 1);  // Probe in positive Y direction
+
+      // Get the result from ZProbe's output coordinates
+      xy_output_coordinates& coords = zprobe->get_output_coordinates();
+      float measured_y = coords.y_positive_y_out;
+
+      if (isnan(measured_y)) {
+        gc->stream->printf("ERROR: Failed to probe at point %d\n", i);
         return false;
-    }
+      }
 
-    if(gc->has_letter('I')) {
-        num_points = gc->get_value('I');
-        flex_current_x_points = num_points;
-    } else {
-        gc->stream->printf("ERROR: I parameter required for G33\n");
-        return false;
-    }
+      if (i == 0) {
+        reference_y = measured_y;
+      }
+      // Calculate delta from reference
+      float delta = measured_y - reference_y;
+      if (r > 1) {
+        flex_compensation_data[i] =
+            (delta / (triangle_length_float * cos(atan((triangle_y_int / 10000.0f) / (triangle_z_int / 10000.0f))))) /
+                r +
+            flex_compensation_data[i] * (r - 1) / r;
+      } else {
+        flex_compensation_data[i] =
+            delta / (triangle_length_float * cos(atan((triangle_y_int / 10000.0f) / (triangle_z_int / 10000.0f))));
+      }
 
-    int repeat = 1;
-    if(gc->has_letter('L') && gc->get_int('L') > 1) {
-        repeat = gc->get_value('L');
+      gc->stream->printf("RUN: %d | POINT: %d | X: %1.3f | PROBED Y: %1.3f, DELTA Y: %1.3f\n", r, i, probe_x,
+                         measured_y, delta);
     }
+  }
+  if (repeat > 1) {
+    gc->stream->printf("--- Average flex compensation data (x, (y+z)) ---\n");
+  } else {
+    gc->stream->printf("--- Flex compensation data (x, (y+z)) ---\n");
+  }
+  for (int i = 0; i < flex_current_x_points; i++) {
+    gc->stream->printf("%1.3f, %1.3f\n", this->flex_x_start + (i * (this->flex_x_size / (num_points - 1))),
+                       flex_compensation_data[i] * triangle_length_float);
+  }
+  if (repeat > 1) {
+    gc->stream->printf("--- Average delta Y measurement (x, y) ---\n");
+  } else {
+    gc->stream->printf("--- Delta Y measurement (x, y) ---\n");
+  }
+  for (int i = 0; i < flex_current_x_points; i++) {
+    gc->stream->printf("%1.3f, %1.3f\n", this->flex_x_start + (i * (this->flex_x_size / (num_points - 1))),
+                       flex_compensation_data[i] *
+                           cos(atan((triangle_y_int / 10000.0f) / (triangle_z_int / 10000.0f))) *
+                           triangle_length_float);
+  }
+  if (repeat > 1) {
+    gc->stream->printf("--- Average delta Z calculation (x, z) ---\n");
+  } else {
+    gc->stream->printf("--- Delta Z calculation (x, z) ---\n");
+  }
+  for (int i = 0; i < flex_current_x_points; i++) {
+    gc->stream->printf("%1.3f, %1.3f\n", this->flex_x_start + (i * (this->flex_x_size / (num_points - 1))),
+                       flex_compensation_data[i] *
+                               sin(atan((triangle_y_int / 10000.0f) / (triangle_z_int / 10000.0f))) *
+                               triangle_length_float +
+                           (flex_compensation_data[i] * (rod_distance_int / 10000.0f)));
+  }
 
-    bool debug = false;
-    if(gc->has_letter('D')) {
-        debug = true;
+  flex_compensation_active = true;
+  updateCompensationTransform();
+  gc->stream->printf("Flex measurement completed and activated\n");
+  if (debug) {
+    this->force_debug = true;
+    for (int i = num_points - 1; i >= 0; i--) {
+      float probe_x = current_x + (i * x_step);
+      gc->stream->printf("Debug move to %1.3f\n", probe_x);
+      zprobe->coordinated_move(probe_x, NAN, NAN, params.rapid_rate / 60);
     }
-
-    if(this->flex_x_size <= 0 || num_points <= 0) {
-        gc->stream->printf("ERROR: X and I parameters must be positive\n");
-        return false;
-    }
-
-    // Validate that num_points matches flex_x_points
-    if(num_points > flex_x_points) {
-        gc->stream->printf("ERROR: I parameter (%d) must not be greater than flex_x_points (%d)\n", num_points, flex_x_points);
-        return false;
-    }
-
-    // Get current machine position
-    float current_x = THEROBOT->get_axis_position(X_AXIS);
-    float current_y = THEROBOT->get_axis_position(Y_AXIS);
-    float current_z = THEROBOT->get_axis_position(Z_AXIS);
-
-    int rod_distance_int = 900000;
-    int machine_offset_z_int = 510000;      // Z distance between the centerplane between the rods and the end of the spindle (51.0 * 10000)
-    int sensor_machine_z_int = -1153400;   // Z machine coordinate if the tool length would be 0 (-115.36 * 10000)
-    int refmz_int = (int)(THEKERNEL->eeprom_data->REFMZ * 10000.0f);                  
-    int TLO_int = (int)(THEKERNEL->eeprom_data->TLO * 10000.0f);
-
-    int triangle_y_int = 900000;            // Y distance between the plane through both rods to the center of the spindle (90.0 * 10000)
-    int triangle_z_int = abs(current_z * 10000.0f	) + machine_offset_z_int + TLO_int + refmz_int - sensor_machine_z_int;
-    float triangle_length_float = sqrtf((triangle_y_int / 10000.0f) * (triangle_y_int / 10000.0f) + (triangle_z_int / 10000.0f) * (triangle_z_int / 10000.0f));
-
-    this->flex_x_start = current_x;
-
-    gc->stream->printf("Starting flex measurement at current position: X%1.3f Y%1.3f Z%1.3f\n", current_x, current_y, current_z);
-
-    // First measurement as reference
-    float reference_y = 0.0F;
-
-    // Calculate X step size
-    float x_step = this->flex_x_size / (num_points - 1);
-
-    zprobe->init_parameters_and_out_coords();
-    // Set up probe parameters for Y-axis probing
-    probe_parameters& params = zprobe->get_probe_parameters();
-    params.y_axis_distance = y_coordinate;
-    params.feed_rate = (gc->has_letter('F')) ? gc->get_value('F') : 600;
-    params.rapid_rate = (gc->has_letter('R')) ? gc->get_value('R') : 800;
-    
-    for(int r = 1; r <= repeat; r++) {
-        zprobe->coordinated_move(current_x, current_y, NAN, params.rapid_rate / 60);
-        // Probe at each point along X-axis
-        for(int i = 0; i < num_points; i++) {
-            if(THEKERNEL->is_halted()) {
-                gc->stream->printf("ERROR: Halted during flex measurement\n");
-                return false;
-            }
-            float probe_x = current_x + (i * x_step);
-            zprobe->coordinated_move(probe_x, NAN, NAN, params.rapid_rate / 60);
-            
-            // Use ZProbe's internal fast_slow_probe_sequence for Y-axis
-            zprobe->fast_slow_probe_sequence_public(Y_AXIS, 1); // Probe in positive Y direction
-            
-            // Get the result from ZProbe's output coordinates
-            xy_output_coordinates& coords = zprobe->get_output_coordinates();
-            float measured_y = coords.y_positive_y_out;
-            
-            if(isnan(measured_y)) {
-                gc->stream->printf("ERROR: Failed to probe at point %d\n", i);
-                return false;
-            }
-            
-            if (i == 0){
-                reference_y = measured_y;
-            }
-            // Calculate delta from reference
-            float delta = measured_y - reference_y;
-            if (r > 1) {
-                flex_compensation_data[i] = (delta / (triangle_length_float * cos(atan((triangle_y_int / 10000.0f) / (triangle_z_int / 10000.0f))))) / r + flex_compensation_data[i] * (r - 1) / r;
-            }else{
-                flex_compensation_data[i] = delta / (triangle_length_float * cos(atan((triangle_y_int / 10000.0f) / (triangle_z_int / 10000.0f))));
-            }
-            
-            gc->stream->printf("RUN: %d | POINT: %d | X: %1.3f | PROBED Y: %1.3f, DELTA Y: %1.3f\n", r, i, probe_x, measured_y, delta);
-        }
-    }
-    if (repeat > 1) {
-        gc->stream->printf("--- Average flex compensation data (x, (y+z)) ---\n");
-    }else{
-        gc->stream->printf("--- Flex compensation data (x, (y+z)) ---\n");
-    }
-    for (int i = 0; i < flex_current_x_points; i++) {
-        gc->stream->printf("%1.3f, %1.3f\n", this->flex_x_start + (i * (this->flex_x_size / (num_points - 1))), flex_compensation_data[i] * triangle_length_float);
-    }
-    if (repeat > 1) {
-        gc->stream->printf("--- Average delta Y measurement (x, y) ---\n");
-    }else{
-        gc->stream->printf("--- Delta Y measurement (x, y) ---\n");
-    }
-    for (int i = 0; i < flex_current_x_points; i++) {
-        gc->stream->printf("%1.3f, %1.3f\n", this->flex_x_start + (i * (this->flex_x_size / (num_points - 1))), flex_compensation_data[i] * cos(atan((triangle_y_int / 10000.0f) / (triangle_z_int / 10000.0f))) * triangle_length_float);
-    }
-    if (repeat > 1) {
-        gc->stream->printf("--- Average delta Z calculation (x, z) ---\n");
-    }else{
-        gc->stream->printf("--- Delta Z calculation (x, z) ---\n");
-    }
-    for (int i = 0; i < flex_current_x_points; i++) {
-        gc->stream->printf("%1.3f, %1.3f\n", this->flex_x_start + (i * (this->flex_x_size / (num_points - 1))), flex_compensation_data[i] * sin(atan((triangle_y_int / 10000.0f) / (triangle_z_int / 10000.0f))) * triangle_length_float + (flex_compensation_data[i] * (rod_distance_int / 10000.0f)));
-    }
-
-    flex_compensation_active = true;
-    updateCompensationTransform();
-    gc->stream->printf("Flex measurement completed and activated\n");
-    if(debug) {
-        this->force_debug = true;
-        for (int i = num_points - 1; i >= 0; i--) {
-            float probe_x = current_x + (i * x_step);
-            gc->stream->printf("Debug move to %1.3f\n", probe_x);
-            zprobe->coordinated_move(probe_x, NAN, NAN, params.rapid_rate / 60);
-        }
-        this->force_debug = false;
-    }
-    return true;
+    this->force_debug = false;
+  }
+  return true;
 }
 
-void CartGridStrategy::print_flex_compensation_data(StreamOutput *stream)
-{
-    if (!flex_compensation_active) {
-        stream->printf("error: Flex compensation is not active\n");
-        return;
-    }
-
-    // Get current machine position
-    float current_z = THEROBOT->get_axis_position(Z_AXIS);
-    
-    int rod_distance_int = 900000;
-    int machine_offset_z_int = 510000;      // Z distance between the centerplane between the rods and the end of the spindle (51.0 * 10000)
-    int sensor_machine_z_int = -1153400;   // Z machine coordinate if the tool length would be 0 (-115.36 * 10000)
-    int refmz_int = (int)(THEKERNEL->eeprom_data->REFMZ * 10000.0f);                  
-    int TLO_int = (int)(THEKERNEL->eeprom_data->TLO * 10000.0f);
- 
-    int triangle_y_int = 900000;            // Y distance between the plane through both rods to the center of the spindle (90.0 * 10000)
-    int triangle_z_int = abs(current_z * 10000.0f	) + machine_offset_z_int + TLO_int + refmz_int - sensor_machine_z_int;
-
-    float triangle_length_float = sqrtf((triangle_y_int / 10000.0f) * (triangle_y_int / 10000.0f) + (triangle_z_int / 10000.0f) * (triangle_z_int / 10000.0f));
-
-    THEKERNEL->streams->printf("--- Average flex compensation data (x, (y+z)) ---\n");
-    for (int i = 0; i < flex_current_x_points; i++) {
-        THEKERNEL->streams->printf("%1.3f, %1.3f\n", this->flex_x_start + (i * (this->flex_x_size / (flex_current_x_points - 1))), flex_compensation_data[i] * triangle_length_float);
-    }
-    
-    THEKERNEL->streams->printf("--- Average delta Y measurement at current Z height (x, y) ---\n");
-
-    for (int i = 0; i < flex_current_x_points; i++) {
-        THEKERNEL->streams->printf("%1.3f, %1.3f\n", this->flex_x_start + (i * (this->flex_x_size / (flex_current_x_points - 1))), flex_compensation_data[i] * cos(atan((triangle_y_int / 10000.0f) / (triangle_z_int / 10000.0f))) * triangle_length_float);
-    }
-    
-    THEKERNEL->streams->printf("--- Average delta Z calculation at current Z height (x, z) ---\n");
-    for (int i = 0; i < flex_current_x_points; i++) {
-        THEKERNEL->streams->printf("%1.3f, %1.3f\n", this->flex_x_start + (i * (this->flex_x_size / (flex_current_x_points - 1))), flex_compensation_data[i] * sin(atan((triangle_y_int / 10000.0f) / (triangle_z_int / 10000.0f))) * triangle_length_float + (0.5 * flex_compensation_data[i] * (rod_distance_int / (2.0f * 10000.0f))));
-    }
+void CartGridStrategy::print_flex_compensation_data(StreamOutput* stream) {
+  if (!flex_compensation_active) {
+    stream->printf("error: Flex compensation is not active\n");
     return;
+  }
+
+  // Get current machine position
+  float current_z = THEROBOT->get_axis_position(Z_AXIS);
+
+  int rod_distance_int = 900000;
+  int machine_offset_z_int =
+      510000;  // Z distance between the centerplane between the rods and the end of the spindle (51.0 * 10000)
+  int sensor_machine_z_int = -1153400;  // Z machine coordinate if the tool length would be 0 (-115.36 * 10000)
+  int refmz_int = (int)(THEKERNEL->eeprom_data->REFMZ * 10000.0f);
+  int TLO_int = (int)(THEKERNEL->eeprom_data->TLO * 10000.0f);
+
+  int triangle_y_int =
+      900000;  // Y distance between the plane through both rods to the center of the spindle (90.0 * 10000)
+  int triangle_z_int = abs(current_z * 10000.0f) + machine_offset_z_int + TLO_int + refmz_int - sensor_machine_z_int;
+
+  float triangle_length_float = sqrtf((triangle_y_int / 10000.0f) * (triangle_y_int / 10000.0f) +
+                                      (triangle_z_int / 10000.0f) * (triangle_z_int / 10000.0f));
+
+  THEKERNEL->streams->printf("--- Average flex compensation data (x, (y+z)) ---\n");
+  for (int i = 0; i < flex_current_x_points; i++) {
+    THEKERNEL->streams->printf("%1.3f, %1.3f\n",
+                               this->flex_x_start + (i * (this->flex_x_size / (flex_current_x_points - 1))),
+                               flex_compensation_data[i] * triangle_length_float);
+  }
+
+  THEKERNEL->streams->printf("--- Average delta Y measurement at current Z height (x, y) ---\n");
+
+  for (int i = 0; i < flex_current_x_points; i++) {
+    THEKERNEL->streams->printf(
+        "%1.3f, %1.3f\n", this->flex_x_start + (i * (this->flex_x_size / (flex_current_x_points - 1))),
+        flex_compensation_data[i] * cos(atan((triangle_y_int / 10000.0f) / (triangle_z_int / 10000.0f))) *
+            triangle_length_float);
+  }
+
+  THEKERNEL->streams->printf("--- Average delta Z calculation at current Z height (x, z) ---\n");
+  for (int i = 0; i < flex_current_x_points; i++) {
+    THEKERNEL->streams->printf(
+        "%1.3f, %1.3f\n", this->flex_x_start + (i * (this->flex_x_size / (flex_current_x_points - 1))),
+        flex_compensation_data[i] * sin(atan((triangle_y_int / 10000.0f) / (triangle_z_int / 10000.0f))) *
+                triangle_length_float +
+            (0.5 * flex_compensation_data[i] * (rod_distance_int / (2.0f * 10000.0f))));
+  }
+  return;
 }
 
-void CartGridStrategy::save_flex_compensation_data(StreamOutput *stream)
-{
-    // Check if we have valid compensation data to save
-    if(flex_compensation_data == nullptr || flex_current_x_points == 0) {
-        stream->printf("error: No flex compensation data to save\n");
-        return;
-    }
+void CartGridStrategy::save_flex_compensation_data(StreamOutput* stream) {
+  // Check if we have valid compensation data to save
+  if (flex_compensation_data == nullptr || flex_current_x_points == 0) {
+    stream->printf("error: No flex compensation data to save\n");
+    return;
+  }
 
-    if(flex_current_x_points > flex_x_points) {
-        stream->printf("error: Invalid flex grid size\n");
-        return;
-    }
+  if (flex_current_x_points > flex_x_points) {
+    stream->printf("error: Invalid flex grid size\n");
+    return;
+  }
 
-    bool has_valid_data = false;
-    for(int i = 0; i < flex_current_x_points; i++) {
-        if(!isnan(flex_compensation_data[i])) {
-            has_valid_data = true;
-            break;
-        }
+  bool has_valid_data = false;
+  for (int i = 0; i < flex_current_x_points; i++) {
+    if (!isnan(flex_compensation_data[i])) {
+      has_valid_data = true;
+      break;
     }
-    
-    if(!has_valid_data) {
-        stream->printf("error: No valid flex compensation data to save\n");
-        return;
-    }
+  }
 
-    FILE *fp = fwfs::fopen(FLEX_COMPENSATION_FILE, "w");
-    if(fp == NULL) {
-        stream->printf("error: Failed to open flex compensation file %s\n", FLEX_COMPENSATION_FILE);
-        return;
-    }
+  if (!has_valid_data) {
+    stream->printf("error: No valid flex compensation data to save\n");
+    return;
+  }
 
-    float version = (float)(FLEX_COMPENSATION_VERSION);
+  FILE* fp = fwfs::fopen(FLEX_COMPENSATION_FILE, "w");
+  if (fp == NULL) {
+    stream->printf("error: Failed to open flex compensation file %s\n", FLEX_COMPENSATION_FILE);
+    return;
+  }
 
-    // Write version (float)
-    if(fwfs::fwrite(&version, sizeof(float), 1, fp) != 1) {
-        stream->printf("error: Failed to write version\n");
-        fwfs::fclose(fp);
-        return;
-    }
+  float version = (float)(FLEX_COMPENSATION_VERSION);
 
-    // Write flex_x_start (float)
-    if(fwfs::fwrite(&flex_x_start, sizeof(float), 1, fp) != 1) {
-        stream->printf("error: Failed to write flex_x_start\n");
-        fwfs::fclose(fp);
-        return;
-    }
-
-    // Write flex_current_grid_x_size (uint8_t)
-    if(fwfs::fwrite(&flex_current_x_points, sizeof(uint8_t), 1, fp) != 1) {
-        stream->printf("error: Failed to write flex_current_grid_x_size\n");
-        fwfs::fclose(fp);
-        return;
-    }
-
-    // Write flex_x_size (float)
-    if(fwfs::fwrite(&flex_x_size, sizeof(float), 1, fp) != 1) {
-        stream->printf("error: Failed to write flex_x_size\n");
-        fwfs::fclose(fp);
-        return;
-    }
-
-    // Write compensation data for the actual grid size used
-    for(int i = 0; i < flex_current_x_points; i++) {
-        if(fwfs::fwrite(&flex_compensation_data[i], sizeof(float), 1, fp) != 1) {
-            stream->printf("error: Failed to write flex compensation data at index %d\n", i);
-            fwfs::fclose(fp);
-            return;
-        }
-    }
-
-    stream->printf("Flex compensation data saved to %s\n", FLEX_COMPENSATION_FILE);
-    stream->printf("Saved: flex_x_start=%.3f, flex_grid_size=%d, flex_x_size=%.3f\n", 
-                   flex_x_start, flex_current_x_points, flex_x_size);
+  // Write version (float)
+  if (fwfs::fwrite(&version, sizeof(float), 1, fp) != 1) {
+    stream->printf("error: Failed to write version\n");
     fwfs::fclose(fp);
-}
+    return;
+  }
 
-bool CartGridStrategy::load_flex_compensation_data(StreamOutput *stream)
-{
-    FILE *fp = fwfs::fopen(FLEX_COMPENSATION_FILE, "r");
-    if(fp == NULL) {
-        stream->printf("error: Failed to open flex compensation file %s\n", FLEX_COMPENSATION_FILE);
-        return false;
-    }
-
-    float load_flex_x_start;
-    uint8_t load_flex_current_x_points;
-    float load_flex_x_size;
-
-    float version;
-
-    // Read version (float)
-    if(fwfs::fread(&version, sizeof(float), 1, fp) != 1) {
-        stream->printf("error: Failed to read version\n");
-        fwfs::fclose(fp);
-        return false;
-    }
-
-    if(version != (float)(FLEX_COMPENSATION_VERSION) || version < 0) {
-        if(version > 0) {
-            stream->printf("error: Invalid flex compensation version | Expected: %f, Found: %f\n", (float)(FLEX_COMPENSATION_VERSION), version);
-        }else{
-            stream->printf("error: Invalid flex compensation version\n");
-        }
-        stream->printf("error: Please delete the flex compensation file (M380.4) and run the flex compensation measurement again\n");
-        fwfs::fclose(fp);
-        return false;
-    }
-
-    // Read flex_x_start (float)
-    if(fwfs::fread(&load_flex_x_start, sizeof(float), 1, fp) != 1) {
-        stream->printf("error: Failed to read flex_x_start\n");
-        fwfs::fclose(fp);
-        return false;
-    }
-
-    // Read flex_current_grid_x_size (uint8_t)
-    if(fwfs::fread(&load_flex_current_x_points, sizeof(uint8_t), 1, fp) != 1) {
-        stream->printf("error: Failed to read flex_current_grid_x_size\n");
-        fwfs::fclose(fp);
-        return false;
-    }
-
-    // Validate grid size
-    if(load_flex_current_x_points > flex_x_points) {
-        stream->printf("error: Loaded flex grid size %d exceeds maximum configured size %d\n", 
-                      load_flex_current_x_points, flex_x_points);
-        fwfs::fclose(fp);
-        return false;
-    }
-
-    // Read flex_x_size (float)
-    if(fwfs::fread(&load_flex_x_size, sizeof(float), 1, fp) != 1) {
-        stream->printf("error: Failed to read flex_x_size\n");
-        fwfs::fclose(fp);
-        return false;
-    }
-
-    // Reset compensation data to NAN
-    reset_flex_compensation();
-
-    // Load compensation data for the actual grid size used
-    for(int i = 0; i < load_flex_current_x_points; i++) {
-        if(fwfs::fread(&flex_compensation_data[i], sizeof(float), 1, fp) != 1) {
-            stream->printf("error: Failed to read flex compensation data at index %d\n", i);
-            fwfs::fclose(fp);
-            return false;
-        }
-    }
-
-    // Set the loaded values
-    flex_x_start = load_flex_x_start;
-    flex_current_x_points = load_flex_current_x_points;
-    flex_x_size = load_flex_x_size;
-    flex_compensation_active = true;
-    updateCompensationTransform();
-
-    stream->printf("Flex compensation data loaded from %s\n", FLEX_COMPENSATION_FILE);
-    stream->printf("Loaded: flex_x_start=%.3f, flex_grid_size=%d, flex_x_size=%.3f\n", 
-                   flex_x_start, flex_current_x_points, flex_x_size);
+  // Write flex_x_start (float)
+  if (fwfs::fwrite(&flex_x_start, sizeof(float), 1, fp) != 1) {
+    stream->printf("error: Failed to write flex_x_start\n");
     fwfs::fclose(fp);
-    return true;
+    return;
+  }
+
+  // Write flex_current_grid_x_size (uint8_t)
+  if (fwfs::fwrite(&flex_current_x_points, sizeof(uint8_t), 1, fp) != 1) {
+    stream->printf("error: Failed to write flex_current_grid_x_size\n");
+    fwfs::fclose(fp);
+    return;
+  }
+
+  // Write flex_x_size (float)
+  if (fwfs::fwrite(&flex_x_size, sizeof(float), 1, fp) != 1) {
+    stream->printf("error: Failed to write flex_x_size\n");
+    fwfs::fclose(fp);
+    return;
+  }
+
+  // Write compensation data for the actual grid size used
+  for (int i = 0; i < flex_current_x_points; i++) {
+    if (fwfs::fwrite(&flex_compensation_data[i], sizeof(float), 1, fp) != 1) {
+      stream->printf("error: Failed to write flex compensation data at index %d\n", i);
+      fwfs::fclose(fp);
+      return;
+    }
+  }
+
+  stream->printf("Flex compensation data saved to %s\n", FLEX_COMPENSATION_FILE);
+  stream->printf("Saved: flex_x_start=%.3f, flex_grid_size=%d, flex_x_size=%.3f\n", flex_x_start, flex_current_x_points,
+                 flex_x_size);
+  fwfs::fclose(fp);
 }
 
-void CartGridStrategy::reset_flex_compensation()
-{
-    memset(flex_compensation_data, 0, flex_x_points * sizeof(float));
-    flex_compensation_active = false;
-    flex_current_x_points = 0;
-    updateCompensationTransform();
+bool CartGridStrategy::load_flex_compensation_data(StreamOutput* stream) {
+  FILE* fp = fwfs::fopen(FLEX_COMPENSATION_FILE, "r");
+  if (fp == NULL) {
+    stream->printf("error: Failed to open flex compensation file %s\n", FLEX_COMPENSATION_FILE);
+    return false;
+  }
+
+  float load_flex_x_start;
+  uint8_t load_flex_current_x_points;
+  float load_flex_x_size;
+
+  float version;
+
+  // Read version (float)
+  if (fwfs::fread(&version, sizeof(float), 1, fp) != 1) {
+    stream->printf("error: Failed to read version\n");
+    fwfs::fclose(fp);
+    return false;
+  }
+
+  if (version != (float)(FLEX_COMPENSATION_VERSION) || version < 0) {
+    if (version > 0) {
+      stream->printf("error: Invalid flex compensation version | Expected: %f, Found: %f\n",
+                     (float)(FLEX_COMPENSATION_VERSION), version);
+    } else {
+      stream->printf("error: Invalid flex compensation version\n");
+    }
+    stream->printf(
+        "error: Please delete the flex compensation file (M380.4) and run the flex compensation measurement again\n");
+    fwfs::fclose(fp);
+    return false;
+  }
+
+  // Read flex_x_start (float)
+  if (fwfs::fread(&load_flex_x_start, sizeof(float), 1, fp) != 1) {
+    stream->printf("error: Failed to read flex_x_start\n");
+    fwfs::fclose(fp);
+    return false;
+  }
+
+  // Read flex_current_grid_x_size (uint8_t)
+  if (fwfs::fread(&load_flex_current_x_points, sizeof(uint8_t), 1, fp) != 1) {
+    stream->printf("error: Failed to read flex_current_grid_x_size\n");
+    fwfs::fclose(fp);
+    return false;
+  }
+
+  // Validate grid size
+  if (load_flex_current_x_points > flex_x_points) {
+    stream->printf("error: Loaded flex grid size %d exceeds maximum configured size %d\n", load_flex_current_x_points,
+                   flex_x_points);
+    fwfs::fclose(fp);
+    return false;
+  }
+
+  // Read flex_x_size (float)
+  if (fwfs::fread(&load_flex_x_size, sizeof(float), 1, fp) != 1) {
+    stream->printf("error: Failed to read flex_x_size\n");
+    fwfs::fclose(fp);
+    return false;
+  }
+
+  // Reset compensation data to NAN
+  reset_flex_compensation();
+
+  // Load compensation data for the actual grid size used
+  for (int i = 0; i < load_flex_current_x_points; i++) {
+    if (fwfs::fread(&flex_compensation_data[i], sizeof(float), 1, fp) != 1) {
+      stream->printf("error: Failed to read flex compensation data at index %d\n", i);
+      fwfs::fclose(fp);
+      return false;
+    }
+  }
+
+  // Set the loaded values
+  flex_x_start = load_flex_x_start;
+  flex_current_x_points = load_flex_current_x_points;
+  flex_x_size = load_flex_x_size;
+  flex_compensation_active = true;
+  updateCompensationTransform();
+
+  stream->printf("Flex compensation data loaded from %s\n", FLEX_COMPENSATION_FILE);
+  stream->printf("Loaded: flex_x_start=%.3f, flex_grid_size=%d, flex_x_size=%.3f\n", flex_x_start,
+                 flex_current_x_points, flex_x_size);
+  fwfs::fclose(fp);
+  return true;
+}
+
+void CartGridStrategy::reset_flex_compensation() {
+  memset(flex_compensation_data, 0, flex_x_points * sizeof(float));
+  flex_compensation_active = false;
+  flex_current_x_points = 0;
+  updateCompensationTransform();
 }

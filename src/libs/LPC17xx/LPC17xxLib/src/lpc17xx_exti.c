@@ -1,8 +1,8 @@
 #ifdef __LPC17XX__
 
 /**********************************************************************
-* $Id$		lpc17xx_exti.c				2010-06-18
-*//**
+ * $Id$		lpc17xx_exti.c				2010-06-18
+ *//**
 * @file		lpc17xx_exti.c
 * @brief	Contains all functions support for External interrupt firmware
 * 			library on LPC17xx
@@ -44,7 +44,6 @@
 #include "lpc17xx_libcfg_default.h"
 #endif /* __BUILD_WITH_EXAMPLE__ */
 
-
 #ifdef _EXTI
 
 /* Public Functions ----------------------------------------------------------- */
@@ -52,106 +51,115 @@
  * @{
  */
 
-/*********************************************************************//**
- * @brief 		Initial for EXT
- * 				- Set EXTINT, EXTMODE, EXTPOLAR registers to default value
- * @param[in]	None
- * @return 		None
- **********************************************************************/
-void EXTI_Init(void)
-{
-	LPC_SC->EXTINT = 0xF;
-	LPC_SC->EXTMODE = 0x0;
-	LPC_SC->EXTPOLAR = 0x0;
+/*********************************************************************/ /**
+                                                                         * @brief 		Initial for EXT
+                                                                         * 				- Set EXTINT,
+                                                                         * EXTMODE, EXTPOLAR registers to default value
+                                                                         * @param[in]	None
+                                                                         * @return 		None
+                                                                         **********************************************************************/
+void EXTI_Init(void) {
+  LPC_SC->EXTINT = 0xF;
+  LPC_SC->EXTMODE = 0x0;
+  LPC_SC->EXTPOLAR = 0x0;
 }
 
+/*********************************************************************/ /**
+                                                                         * @brief 		Close EXT
+                                                                         * @param[in]	None
+                                                                         * @return 		None
+                                                                         **********************************************************************/
+void EXTI_DeInit(void) { ; }
 
-/*********************************************************************//**
-* @brief 		Close EXT
-* @param[in]	None
-* @return 		None
-**********************************************************************/
-void	EXTI_DeInit(void)
-{
-	;
+/*********************************************************************/ /**
+                                                                         * @brief 		Configuration for EXT
+                                                                         * 				- Set EXTINT,
+                                                                         * EXTMODE, EXTPOLAR register
+                                                                         * @param[in]	EXTICfg	Pointer to a
+                                                                         * EXTI_InitTypeDef structure that contains the
+                                                                         * configuration information for the specified
+                                                                         * external interrupt
+                                                                         * @return 		None
+                                                                         **********************************************************************/
+void EXTI_Config(EXTI_InitTypeDef* EXTICfg) {
+  LPC_SC->EXTINT = 0x0;
+  EXTI_SetMode(EXTICfg->EXTI_Line, EXTICfg->EXTI_Mode);
+  EXTI_SetPolarity(EXTICfg->EXTI_Line, EXTICfg->EXTI_polarity);
 }
 
-/*********************************************************************//**
- * @brief 		Configuration for EXT
- * 				- Set EXTINT, EXTMODE, EXTPOLAR register
- * @param[in]	EXTICfg	Pointer to a EXTI_InitTypeDef structure
- *              that contains the configuration information for the
- *              specified external interrupt
- * @return 		None
- **********************************************************************/
-void EXTI_Config(EXTI_InitTypeDef *EXTICfg)
-{
-	LPC_SC->EXTINT = 0x0;
-	EXTI_SetMode(EXTICfg->EXTI_Line, EXTICfg->EXTI_Mode);
-	EXTI_SetPolarity(EXTICfg->EXTI_Line, EXTICfg->EXTI_polarity);
+/*********************************************************************/ /**
+                                                                         * @brief 		Set mode for EXTI pin
+                                                                         * @param[in]	EXTILine	 external
+                                                                         * interrupt line, should be:
+                                                                         * 				- EXTI_EINT0:
+                                                                         * external interrupt line 0
+                                                                         * 				- EXTI_EINT1:
+                                                                         * external interrupt line 1
+                                                                         * 				- EXTI_EINT2:
+                                                                         * external interrupt line 2
+                                                                         * 				- EXTI_EINT3:
+                                                                         * external interrupt line 3
+                                                                         * @param[in]	mode 	external mode, should
+                                                                         * be:
+                                                                         * 				-
+                                                                         * EXTI_MODE_LEVEL_SENSITIVE
+                                                                         * 				-
+                                                                         * EXTI_MODE_EDGE_SENSITIVE
+                                                                         * @return 		None
+                                                                         *********************************************************************/
+void EXTI_SetMode(EXTI_LINE_ENUM EXTILine, EXTI_MODE_ENUM mode) {
+  if (mode == EXTI_MODE_EDGE_SENSITIVE) {
+    LPC_SC->EXTMODE |= (1 << EXTILine);
+  } else if (mode == EXTI_MODE_LEVEL_SENSITIVE) {
+    LPC_SC->EXTMODE &= ~(1 << EXTILine);
+  }
 }
 
-/*********************************************************************//**
-* @brief 		Set mode for EXTI pin
-* @param[in]	EXTILine	 external interrupt line, should be:
-* 				- EXTI_EINT0: external interrupt line 0
-* 				- EXTI_EINT1: external interrupt line 1
-* 				- EXTI_EINT2: external interrupt line 2
-* 				- EXTI_EINT3: external interrupt line 3
-* @param[in]	mode 	external mode, should be:
-* 				- EXTI_MODE_LEVEL_SENSITIVE
-* 				- EXTI_MODE_EDGE_SENSITIVE
-* @return 		None
-*********************************************************************/
-void EXTI_SetMode(EXTI_LINE_ENUM EXTILine, EXTI_MODE_ENUM mode)
-{
-	if(mode == EXTI_MODE_EDGE_SENSITIVE)
-	{
-		LPC_SC->EXTMODE |= (1 << EXTILine);
-	}
-	else if(mode == EXTI_MODE_LEVEL_SENSITIVE)
-	{
-		LPC_SC->EXTMODE &= ~(1 << EXTILine);
-	}
+/*********************************************************************/ /**
+                                                                         * @brief 		Set polarity for EXTI
+                                                                         * pin
+                                                                         * @param[in]	EXTILine	 external
+                                                                         * interrupt line, should be:
+                                                                         * 				- EXTI_EINT0:
+                                                                         * external interrupt line 0
+                                                                         * 				- EXTI_EINT1:
+                                                                         * external interrupt line 1
+                                                                         * 				- EXTI_EINT2:
+                                                                         * external interrupt line 2
+                                                                         * 				- EXTI_EINT3:
+                                                                         * external interrupt line 3
+                                                                         * @param[in]	polarity	 external
+                                                                         * polarity value, should be:
+                                                                         * 				-
+                                                                         * EXTI_POLARITY_LOW_ACTIVE_OR_FALLING_EDGE
+                                                                         * 				-
+                                                                         * EXTI_POLARITY_LOW_ACTIVE_OR_FALLING_EDGE
+                                                                         * @return 		None
+                                                                         *********************************************************************/
+void EXTI_SetPolarity(EXTI_LINE_ENUM EXTILine, EXTI_POLARITY_ENUM polarity) {
+  if (polarity == EXTI_POLARITY_HIGH_ACTIVE_OR_RISING_EDGE) {
+    LPC_SC->EXTPOLAR |= (1 << EXTILine);
+  } else if (polarity == EXTI_POLARITY_LOW_ACTIVE_OR_FALLING_EDGE) {
+    LPC_SC->EXTPOLAR &= ~(1 << EXTILine);
+  }
 }
 
-/*********************************************************************//**
-* @brief 		Set polarity for EXTI pin
-* @param[in]	EXTILine	 external interrupt line, should be:
-* 				- EXTI_EINT0: external interrupt line 0
-* 				- EXTI_EINT1: external interrupt line 1
-* 				- EXTI_EINT2: external interrupt line 2
-* 				- EXTI_EINT3: external interrupt line 3
-* @param[in]	polarity	 external polarity value, should be:
-* 				- EXTI_POLARITY_LOW_ACTIVE_OR_FALLING_EDGE
-* 				- EXTI_POLARITY_LOW_ACTIVE_OR_FALLING_EDGE
-* @return 		None
-*********************************************************************/
-void EXTI_SetPolarity(EXTI_LINE_ENUM EXTILine, EXTI_POLARITY_ENUM polarity)
-{
-	if(polarity == EXTI_POLARITY_HIGH_ACTIVE_OR_RISING_EDGE)
-	{
-		LPC_SC->EXTPOLAR |= (1 << EXTILine);
-	}
-	else if(polarity == EXTI_POLARITY_LOW_ACTIVE_OR_FALLING_EDGE)
-	{
-		LPC_SC->EXTPOLAR &= ~(1 << EXTILine);
-	}
-}
-
-/*********************************************************************//**
-* @brief 		Clear External interrupt flag
-* @param[in]	EXTILine	 external interrupt line, should be:
-* 				- EXTI_EINT0: external interrupt line 0
-* 				- EXTI_EINT1: external interrupt line 1
-* 				- EXTI_EINT2: external interrupt line 2
-* 				- EXTI_EINT3: external interrupt line 3
-* @return 		None
-*********************************************************************/
-void EXTI_ClearEXTIFlag(EXTI_LINE_ENUM EXTILine)
-{
-		LPC_SC->EXTINT |= (1 << EXTILine);
-}
+/*********************************************************************/ /**
+                                                                         * @brief 		Clear External interrupt
+                                                                         * flag
+                                                                         * @param[in]	EXTILine	 external
+                                                                         * interrupt line, should be:
+                                                                         * 				- EXTI_EINT0:
+                                                                         * external interrupt line 0
+                                                                         * 				- EXTI_EINT1:
+                                                                         * external interrupt line 1
+                                                                         * 				- EXTI_EINT2:
+                                                                         * external interrupt line 2
+                                                                         * 				- EXTI_EINT3:
+                                                                         * external interrupt line 3
+                                                                         * @return 		None
+                                                                         *********************************************************************/
+void EXTI_ClearEXTIFlag(EXTI_LINE_ENUM EXTILine) { LPC_SC->EXTINT |= (1 << EXTILine); }
 
 /**
  * @}

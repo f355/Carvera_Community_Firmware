@@ -14,18 +14,15 @@
  * limitations under the License.
  */
 #include "wait_api.h"
+
 #include "us_ticker_api.h"
 
-void wait(float s) {
-    wait_us(s * 1000000.0);
-}
+void wait(float s) { wait_us(s * 1000000.0); }
 
-void wait_ms(int ms) {
-    wait_us(ms * 1000);
-}
+void wait_ms(int ms) { wait_us(ms * 1000); }
 
 void wait_us(int us) {
-    if (us <= 0) return;
-    uint32_t start = us_ticker_read();
-    while ((us_ticker_read() - start) < (uint32_t)us);
+  if (us <= 0) return;
+  uint32_t start = us_ticker_read();
+  while ((us_ticker_read() - start) < (uint32_t)us);
 }

@@ -17,21 +17,19 @@
 
 namespace mbed {
 
-FunctionPointer::FunctionPointer(void (*function)(void)) {
-    attach(function);
-}
+FunctionPointer::FunctionPointer(void (*function)(void)) { attach(function); }
 
 void FunctionPointer::attach(void (*function)(void)) {
-    _function = function;
-    _object = 0;
+  _function = function;
+  _object = 0;
 }
 
 void FunctionPointer::call(void) {
-    if (_function) {
-        _function();
-    } else if (_object) {
-        _membercaller(_object, _member);
-    }
+  if (_function) {
+    _function();
+  } else if (_object) {
+    _membercaller(_object, _member);
+  }
 }
 
-} // namespace mbed
+}  // namespace mbed

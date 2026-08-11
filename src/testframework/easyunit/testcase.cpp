@@ -22,6 +22,7 @@ barthelemy@prologique.com
 */
 
 #include "testcase.h"
+
 #include "test.h"
 #include "testresult.h"
 
@@ -29,142 +30,95 @@ barthelemy@prologique.com
 #include <exception>
 #endif
 
+TestCase::TestCase(const SimpleString& name, TestResult* testResult) : name_(name), testResult_(testResult) {}
 
-TestCase::TestCase(const SimpleString& name, TestResult *testResult)
-: name_(name), testResult_(testResult)
-{
+TestCase::~TestCase() {}
+
+void TestCase::addTest(Test* test) {
+  Test* tmp;
+
+  if (tests_ == 0) {
+    tests_ = test;
+    tests_->setNext(tests_);
+  } else {
+    tmp = tests_;
+    tests_ = test;
+    tests_->setNext(tmp->getNext());
+    tmp->setNext(tests_);
+  }
+
+  testsCount_++;
 }
 
-TestCase::~TestCase()
-{
+Test* TestCase::getTests() const {
+  Test* test = tests_;
+
+  if (test != 0) {
+    test = test->getNext();
+  }
+
+  return test;
 }
 
-void TestCase::addTest(Test *test)
-{
-	Test *tmp;
+void TestCase::run() {
+  Test* test = tests_->getNext();
 
- 	if (tests_ == 0) {
-		tests_ = test;
-		tests_->setNext(tests_);
-	}
-	else {
-		tmp = tests_;
-		tests_ = test;
-		tests_->setNext(tmp->getNext());
-		tmp->setNext(tests_);
-	}
+  runTests(test);
 
-	testsCount_++;
+  ran_ = true;
+
+  testResult_->addResult(this);
 }
 
-Test* TestCase::getTests() const
-{
-	Test *test = tests_;
+int TestCase::getTestsCount() const { return testsCount_; }
 
-	if (test != 0) {
-		test = test->getNext();
-	}
+int TestCase::getFailuresCount() const { return failuresCount_; }
 
-	return test;
-}
+int TestCase::getSuccessesCount() const { return successesCount_; }
 
-void TestCase::run()
-{
-	Test *test = tests_->getNext();
+int TestCase::getErrorsCount() const { return errorsCount_; }
 
-	runTests(test);
+bool TestCase::ran() const { return ran_; }
 
-	ran_ = true;
+const SimpleString& TestCase::getName() const { return name_; }
 
-	testResult_->addResult(this);
-}
-
-int TestCase::getTestsCount() const
-{
-	return testsCount_;
-}
-
-int TestCase::getFailuresCount() const
-{
-  return failuresCount_;
-}
-
-int TestCase::getSuccessesCount() const
-{
-  return successesCount_;
-}
-
-int TestCase::getErrorsCount() const
-{
-	return errorsCount_;
-}
-
-bool TestCase::ran() const
-{
-	return ran_;
-}
-
-const SimpleString& TestCase::getName() const
-{
-	return name_;
-}
-
-void TestCase::updateCount(Test *test)
-{
+void TestCase::updateCount(Test* test) {
   if (test->getErrorsCount() > 0) {
-  	errorsCount_++;
-  }
-  else if (test->getFailuresCount() > 0) {
-  	failuresCount_++;
-  }
-  else {
-  	successesCount_++;
+    errorsCount_++;
+  } else if (test->getFailuresCount() > 0) {
+    failuresCount_++;
+  } else {
+    successesCount_++;
   }
 }
 
-TestCase* TestCase::getNext() const
-{
-	return nextTestCase_;
-}
+TestCase* TestCase::getNext() const { return nextTestCase_; }
 
-void TestCase::setNext(TestCase *testCase)
-{
-	nextTestCase_ = testCase;
-}
+void TestCase::setNext(TestCase* testCase) { nextTestCase_ = testCase; }
 
-void TestCase::runTests(Test *test)
-{
-
-	for (int i = 0; i<testsCount_; i++) {
-		test->setUp();
-		runTest(test);
-		test->tearDown();
-		updateCount(test);
-		test = test->getNext();
-	}
-
+void TestCase::runTests(Test* test) {
+  for (int i = 0; i < testsCount_; i++) {
+    test->setUp();
+    runTest(test);
+    test->tearDown();
+    updateCount(test);
+    test = test->getNext();
+  }
 }
 
 #ifdef ECPP
 
-void TestCase::runTest(Test *test)
-{
-	test->run();
-}
+void TestCase::runTest(Test* test) { test->run(); }
 
 #else
 
-void TestCase::runTest(Test *test)
-{
-	try {
-		test->run();
-	}
-	catch (std::exception &e) {
-		test->addTestPartResult(new TestPartResult(test,"",-1,e.what(),error));
-	}
-	catch (...) {
-		test->addTestPartResult(new TestPartResult(test,"",-1,"Unexpected error occured",error));
-	}
+void TestCase::runTest(Test* test) {
+  try {
+    test->run();
+  } catch (std::exception& e) {
+    test->addTestPartResult(new TestPartResult(test, "", -1, e.what(), error));
+  } catch (...) {
+    test->addTestPartResult(new TestPartResult(test, "", -1, "Unexpected error occured", error));
+  }
 }
 #endif
-

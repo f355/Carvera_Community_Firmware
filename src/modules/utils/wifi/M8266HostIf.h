@@ -26,4 +26,3 @@ u16 M8266HostIf_USART_RX_BUFFER_Data_count(void);
 u16 M8266HostIf_USART_get_data(u8* data, u16 len);
 
 #endif
-

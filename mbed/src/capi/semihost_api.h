@@ -28,54 +28,55 @@ extern "C" {
 #ifndef __CC_ARM
 
 #if defined(__ICCARM__)
-inline int __semihost(int reason, const void *arg) {
-    return __semihosting(reason, (void*)arg);
-}
+inline int __semihost(int reason, const void* arg) { return __semihosting(reason, (void*)arg); }
 #else
 
 #ifdef __thumb__
-#   define AngelSWI            0xAB
-#   define AngelSWIInsn        "bkpt"
-#   define AngelSWIAsm          bkpt
+#define AngelSWI 0xAB
+#define AngelSWIInsn "bkpt"
+#define AngelSWIAsm bkpt
 #else
-#   define AngelSWI            0x123456
-#   define AngelSWIInsn        "swi"
-#   define AngelSWIAsm          swi
+#define AngelSWI 0x123456
+#define AngelSWIInsn "swi"
+#define AngelSWIAsm swi
 #endif
 
-inline int __semihost(int reason, const void *arg) {
-    int value;
+inline int __semihost(int reason, const void* arg) {
+  int value;
 
-    asm volatile (
-       "mov r0, %1"          "\n\t"
-       "mov r1, %2"          "\n\t"
-       AngelSWIInsn " %a3"   "\n\t"
-       "mov %0, r0"
-       : "=r" (value)                                         /* output operands             */
-       : "r" (reason), "r" (arg), "i" (AngelSWI)              /* input operands              */
-       : "r0", "r1", "r2", "r3", "ip", "lr", "memory", "cc"   /* list of clobbered registers */
-    );
+  asm volatile(
+      "mov r0, %1"
+      "\n\t"
+      "mov r1, %2"
+      "\n\t" AngelSWIInsn
+      " %a3"
+      "\n\t"
+      "mov %0, r0"
+      : "=r"(value)                                        /* output operands             */
+      : "r"(reason), "r"(arg), "i"(AngelSWI)               /* input operands              */
+      : "r0", "r1", "r2", "r3", "ip", "lr", "memory", "cc" /* list of clobbered registers */
+  );
 
-    return value;
+  return value;
 }
 #endif
 #endif
 
 #if DEVICE_LOCALFILESYSTEM
 FILEHANDLE semihost_open(const char* name, int openmode);
-int semihost_close (FILEHANDLE fh);
-int semihost_read  (FILEHANDLE fh, unsigned char* buffer, unsigned int length, int mode);
-int semihost_write (FILEHANDLE fh, const unsigned char* buffer, unsigned int length, int mode);
+int semihost_close(FILEHANDLE fh);
+int semihost_read(FILEHANDLE fh, unsigned char* buffer, unsigned int length, int mode);
+int semihost_write(FILEHANDLE fh, const unsigned char* buffer, unsigned int length, int mode);
 int semihost_ensure(FILEHANDLE fh);
-long semihost_flen (FILEHANDLE fh);
-int semihost_seek  (FILEHANDLE fh, long position);
-int semihost_istty (FILEHANDLE fh);
+long semihost_flen(FILEHANDLE fh);
+int semihost_seek(FILEHANDLE fh, long position);
+int semihost_istty(FILEHANDLE fh);
 
-int semihost_remove(const char *name);
-int semihost_rename(const char *old_name, const char *new_name);
+int semihost_remove(const char* name);
+int semihost_rename(const char* old_name, const char* new_name);
 #endif
 
-int semihost_uid(char *uid);
+int semihost_uid(char* uid);
 int semihost_reset(void);
 int semihost_vbus(void);
 int semihost_powerdown(void);

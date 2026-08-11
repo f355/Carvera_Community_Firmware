@@ -36,19 +36,19 @@
  * without impacting if it is the case
  */
 void rtc_init(void) {
-    LPC_SC->PCONP |= 0x200; // Ensure power is on
-    LPC_RTC->CCR = 0x00;
+  LPC_SC->PCONP |= 0x200;  // Ensure power is on
+  LPC_RTC->CCR = 0x00;
 
 // clock source on 2368 is special test mode on 1768!
 #ifdef TARGET_LPC2368
-    LPC_RTC->CCR |= 1 << 4;  // Ensure clock source is 32KHz Xtal
+  LPC_RTC->CCR |= 1 << 4;  // Ensure clock source is 32KHz Xtal
 #endif
 
-    LPC_RTC->CCR |= 1 << 0; // Ensure the RTC is enabled
+  LPC_RTC->CCR |= 1 << 0;  // Ensure the RTC is enabled
 }
 
 void rtc_free(void) {
-    // [TODO]
+  // [TODO]
 }
 
 /*
@@ -59,9 +59,7 @@ void rtc_free(void) {
  *
  */
 
-int rtc_isenabled(void) {
-    return(((LPC_RTC->CCR) & 0x01) != 0);
-}
+int rtc_isenabled(void) { return (((LPC_RTC->CCR) & 0x01) != 0); }
 
 /*
  * RTC Registers
@@ -86,38 +84,38 @@ int rtc_isenabled(void) {
  *  tm_isdst    Daylight Saving Time flag
  */
 time_t rtc_read(void) {
-    // Setup a tm structure based on the RTC
-    struct tm timeinfo;
-    timeinfo.tm_sec = LPC_RTC->SEC;
-    timeinfo.tm_min = LPC_RTC->MIN;
-    timeinfo.tm_hour = LPC_RTC->HOUR;
-    timeinfo.tm_mday = LPC_RTC->DOM;
-    timeinfo.tm_mon = LPC_RTC->MONTH - 1;
-    timeinfo.tm_year = LPC_RTC->YEAR - 1900;
+  // Setup a tm structure based on the RTC
+  struct tm timeinfo;
+  timeinfo.tm_sec = LPC_RTC->SEC;
+  timeinfo.tm_min = LPC_RTC->MIN;
+  timeinfo.tm_hour = LPC_RTC->HOUR;
+  timeinfo.tm_mday = LPC_RTC->DOM;
+  timeinfo.tm_mon = LPC_RTC->MONTH - 1;
+  timeinfo.tm_year = LPC_RTC->YEAR - 1900;
 
-    // Convert to timestamp
-    time_t t = mktime(&timeinfo);
+  // Convert to timestamp
+  time_t t = mktime(&timeinfo);
 
-    return t;
+  return t;
 }
 
 void rtc_write(time_t t) {
-    // Convert the time in to a tm
-    struct tm *timeinfo = localtime(&t);
+  // Convert the time in to a tm
+  struct tm* timeinfo = localtime(&t);
 
-    // Pause clock, and clear counter register (clears us count)
-    LPC_RTC->CCR |= 2;
+  // Pause clock, and clear counter register (clears us count)
+  LPC_RTC->CCR |= 2;
 
-    // Set the RTC
-    LPC_RTC->SEC = timeinfo->tm_sec;
-    LPC_RTC->MIN = timeinfo->tm_min;
-    LPC_RTC->HOUR = timeinfo->tm_hour;
-    LPC_RTC->DOM = timeinfo->tm_mday;
-    LPC_RTC->MONTH = timeinfo->tm_mon + 1;
-    LPC_RTC->YEAR = timeinfo->tm_year + 1900;
+  // Set the RTC
+  LPC_RTC->SEC = timeinfo->tm_sec;
+  LPC_RTC->MIN = timeinfo->tm_min;
+  LPC_RTC->HOUR = timeinfo->tm_hour;
+  LPC_RTC->DOM = timeinfo->tm_mday;
+  LPC_RTC->MONTH = timeinfo->tm_mon + 1;
+  LPC_RTC->YEAR = timeinfo->tm_year + 1900;
 
-    // Restart clock
-    LPC_RTC->CCR &= ~((uint32_t)2);
+  // Restart clock
+  LPC_RTC->CCR &= ~((uint32_t)2);
 }
 
 #endif

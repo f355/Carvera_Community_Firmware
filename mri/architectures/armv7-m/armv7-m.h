@@ -17,28 +17,27 @@
 #ifndef CORTEXM_H_
 #define CORTEXM_H_
 
-
 /* Definitions used by C and Assembler code. */
 /* In some other build systems, MRI_DEVICE_HAS_FPU won't be passed in on compiler's command line so use the
    target Cortex-M type to determine if it has a FPU or not.
 */
 #ifndef MRI_DEVICE_HAS_FPU
-    #ifdef __ARM_ARCH_7EM__
-        #define MRI_DEVICE_HAS_FPU 1
-    #else
-        #define MRI_DEVICE_HAS_FPU 0
-    #endif
+#ifdef __ARM_ARCH_7EM__
+#define MRI_DEVICE_HAS_FPU 1
+#else
+#define MRI_DEVICE_HAS_FPU 0
+#endif
 #endif
 
 /* Flag bits used in mriCortexMFlags global. */
-#define CORTEXM_FLAGS_ACTIVE_DEBUG          (1 << 0)
-#define CORTEXM_FLAGS_FAULT_DURING_DEBUG    (1 << 1)
-#define CORTEXM_FLAGS_SINGLE_STEPPING       (1 << 2)
-#define CORTEXM_FLAGS_RESTORE_PRI           (1 << 3)
-#define CORTEXM_FLAGS_SVC_STEP              (1 << 4)
-#define CORTEXM_FLAGS_CTRL_C                (1 << 5)
-#define CORTEXM_FLAGS_NO_DEBUG_STACK        (1 << 6)
-#define CORTEXM_FLAGS_PEND_FROM_FAULT       (1 << 7)
+#define CORTEXM_FLAGS_ACTIVE_DEBUG (1 << 0)
+#define CORTEXM_FLAGS_FAULT_DURING_DEBUG (1 << 1)
+#define CORTEXM_FLAGS_SINGLE_STEPPING (1 << 2)
+#define CORTEXM_FLAGS_RESTORE_PRI (1 << 3)
+#define CORTEXM_FLAGS_SVC_STEP (1 << 4)
+#define CORTEXM_FLAGS_CTRL_C (1 << 5)
+#define CORTEXM_FLAGS_NO_DEBUG_STACK (1 << 6)
+#define CORTEXM_FLAGS_PEND_FROM_FAULT (1 << 7)
 
 /* Special memory area used by the debugger for its stack so that it doesn't interfere with the task's
    stack contents.
@@ -46,84 +45,78 @@
    The stack sizes below are based on actual test runs on LPC1768 (non-FPU) and LPC4330 (FPU) based boards with a
    roughly 25% reservation for future growth.
 */
-#define CORTEXM_DEBUGGER_STACK_FILL            0xDEADBEEF
+#define CORTEXM_DEBUGGER_STACK_FILL 0xDEADBEEF
 #if MRI_DEVICE_HAS_FPU
-    #define CORTEXM_DEBUGGER_STACK_SIZE        113
+#define CORTEXM_DEBUGGER_STACK_SIZE 113
 #else
-    #define CORTEXM_DEBUGGER_STACK_SIZE        58
+#define CORTEXM_DEBUGGER_STACK_SIZE 58
 #endif
-
-
 
 /* Definitions only required from C code. */
 #if !__ASSEMBLER__
 
-#include <stdint.h>
-#include <core/token.h>
 #include <core/context.h>
 #include <core/platforms.h>
-
+#include <core/token.h>
+#include <stdint.h>
 
 /* Give friendly names to the indices of important registers in the context scatter gather list. */
-#define R0      0
-#define R1      1
-#define R2      2
-#define R3      3
-#define R7      7
-#define SP      13
-#define LR      14
-#define PC      15
-#define CPSR    16
-#define MSP     17
-#define PSP     18
+#define R0 0
+#define R1 1
+#define R2 2
+#define R3 3
+#define R7 7
+#define SP 13
+#define LR 14
+#define PC 15
+#define CPSR 16
+#define MSP 17
+#define PSP 18
 #define PRIMASK 19
 #define BASEPRI 20
 
-
 #if MRI_THREAD_MRI
-    #define SPECIAL_REGISTER_COUNT      0
+#define SPECIAL_REGISTER_COUNT 0
 #else
-    #define SPECIAL_REGISTER_COUNT      6
+#define SPECIAL_REGISTER_COUNT 6
 #endif
 #if MRI_DEVICE_HAS_FPU
-    #define CONTEXT_SIZE    (17 + 33 + SPECIAL_REGISTER_COUNT)
+#define CONTEXT_SIZE (17 + 33 + SPECIAL_REGISTER_COUNT)
 #else
-    #define CONTEXT_SIZE    (17 + SPECIAL_REGISTER_COUNT)
+#define CONTEXT_SIZE (17 + SPECIAL_REGISTER_COUNT)
 #endif
 
 /* NOTE: The largest buffer is required for receiving the 'G' command which receives the contents of the registers from
    the debugger as two hex digits per byte.  Also need a character for the 'G' command itself and another 4 for the '$',
    '#', and 2-byte checksum. */
-#define CORTEXM_PACKET_BUFFER_SIZE  (1 + 2 * sizeof(uint32_t) * CONTEXT_SIZE + 4)
+#define CORTEXM_PACKET_BUFFER_SIZE (1 + 2 * sizeof(uint32_t) * CONTEXT_SIZE + 4)
 
-typedef struct
-{
-    MriContext          context;
-    PlatformTrapReason  reason;
-    uint32_t            taskSP;
-    uint32_t            sp;
-    uint32_t            exceptionNumber;
-    uint32_t            dfsr;
-    uint32_t            hfsr;
-    uint32_t            cfsr;
-    uint32_t            mmfar;
-    uint32_t            bfar;
-    uint32_t            originalPC;
-    uint32_t            basepri;
-    uint32_t            primask;
-    uint32_t            priorityBitShift;
-    int                 maxStackUsed;
-    char                packetBuffer[CORTEXM_PACKET_BUFFER_SIZE];
+typedef struct {
+  MriContext context;
+  PlatformTrapReason reason;
+  uint32_t taskSP;
+  uint32_t sp;
+  uint32_t exceptionNumber;
+  uint32_t dfsr;
+  uint32_t hfsr;
+  uint32_t cfsr;
+  uint32_t mmfar;
+  uint32_t bfar;
+  uint32_t originalPC;
+  uint32_t basepri;
+  uint32_t primask;
+  uint32_t priorityBitShift;
+  int maxStackUsed;
+  char packetBuffer[CORTEXM_PACKET_BUFFER_SIZE];
 } CortexMState;
 
-extern uint64_t             mriCortexMDebuggerStack[CORTEXM_DEBUGGER_STACK_SIZE];
-extern volatile uint32_t    mriCortexMFlags;
-extern CortexMState         mriCortexMState;
+extern uint64_t mriCortexMDebuggerStack[CORTEXM_DEBUGGER_STACK_SIZE];
+extern volatile uint32_t mriCortexMFlags;
+extern CortexMState mriCortexMState;
 
-void    mriCortexMInit(Token* pParameterTokens, uint8_t debugMonPriority, uint32_t highestExternalIrq);
-void    mriCortexMSetPriority(uint32_t irq, uint8_t priority, uint8_t subPriority);
+void mriCortexMInit(Token* pParameterTokens, uint8_t debugMonPriority, uint32_t highestExternalIrq);
+void mriCortexMSetPriority(uint32_t irq, uint8_t priority, uint8_t subPriority);
 uint8_t mriCortexMGetPriority(uint32_t irq);
-
 
 #endif /* !__ASSEMBLER__ */
 

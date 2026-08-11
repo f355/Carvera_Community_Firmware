@@ -3,28 +3,28 @@
 
 #include <stdint.h>
 
-#include "Pin.h"
 #include "Module.h"
+#include "Pin.h"
 
 class Pwm : public Module, public Pin {
-public:
-    Pwm();
+ public:
+  Pwm();
 
-    void     on_module_load(void);
-    uint32_t on_tick(uint32_t);
+  void on_module_load(void);
+  uint32_t on_tick(uint32_t);
 
-    Pwm*     max_pwm(int);
-    int      max_pwm(void);
+  Pwm* max_pwm(int);
+  int max_pwm(void);
 
-    void     pwm(int);
-    int      get_pwm() const { return _pwm; }
-    void     set(bool);
+  void pwm(int);
+  int get_pwm() const { return _pwm; }
+  void set(bool);
 
-private:
-    int  _max;
-    int  _pwm;
-    int  _sd_accumulator;
-    bool _sd_direction;
+ private:
+  int _max;
+  int _pwm;
+  int _sd_accumulator;
+  bool _sd_direction;
 };
 
 #endif /* _PWM_H */

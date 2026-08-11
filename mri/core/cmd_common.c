@@ -15,51 +15,33 @@
 /* Common functionality shared between gdb command handlers in mri. */
 #include <core/cmd_common.h>
 
-
-void ReadAddressAndLengthArguments(Buffer* pBuffer, AddressLength* pArguments)
-{
-    __try
-    {
-        __throwing_func( pArguments->address = ReadUIntegerArgument(pBuffer) );
-        __throwing_func( ThrowIfNextCharIsNotEqualTo(pBuffer, ',') );
-        __throwing_func( pArguments->length = ReadUIntegerArgument(pBuffer) );
-    }
-    __catch
-    {
-        __rethrow;
-    }
+void ReadAddressAndLengthArguments(Buffer* pBuffer, AddressLength* pArguments) {
+  __try {
+    __throwing_func(pArguments->address = ReadUIntegerArgument(pBuffer));
+    __throwing_func(ThrowIfNextCharIsNotEqualTo(pBuffer, ','));
+    __throwing_func(pArguments->length = ReadUIntegerArgument(pBuffer));
+  }
+  __catch { __rethrow; }
 }
 
-
-void ReadAddressAndLengthArgumentsWithColon(Buffer* pBuffer, AddressLength* pArguments)
-{
-    __try
-    {
-        __throwing_func( ReadAddressAndLengthArguments(pBuffer, pArguments) );
-        __throwing_func( ThrowIfNextCharIsNotEqualTo(pBuffer, ':') );
-    }
-    __catch
-    {
-        __rethrow;
-    }
+void ReadAddressAndLengthArgumentsWithColon(Buffer* pBuffer, AddressLength* pArguments) {
+  __try {
+    __throwing_func(ReadAddressAndLengthArguments(pBuffer, pArguments));
+    __throwing_func(ThrowIfNextCharIsNotEqualTo(pBuffer, ':'));
+  }
+  __catch { __rethrow; }
 }
 
+uintmri_t ReadUIntegerArgument(Buffer* pBuffer) {
+  uintmri_t value;
 
-uintmri_t ReadUIntegerArgument(Buffer* pBuffer)
-{
-    uintmri_t value;
+  __try
+    value = Buffer_ReadUIntegerAsHex(pBuffer);
+  __catch __rethrow_and_return(0);
 
-    __try
-        value = Buffer_ReadUIntegerAsHex(pBuffer);
-    __catch
-        __rethrow_and_return(0);
-
-    return value;
+  return value;
 }
 
-
-void ThrowIfNextCharIsNotEqualTo(Buffer* pBuffer, char thisChar)
-{
-    if (!Buffer_IsNextCharEqualTo(pBuffer, thisChar))
-        __throw(invalidArgumentException);
+void ThrowIfNextCharIsNotEqualTo(Buffer* pBuffer, char thisChar) {
+  if (!Buffer_IsNextCharEqualTo(pBuffer, thisChar)) __throw(invalidArgumentException);
 }

@@ -23,7 +23,7 @@
 #endif
 
 #ifndef SIGBUS
-#define SIGBUS  10
+#define SIGBUS 10
 #endif
 
 #ifndef SIGSTOP

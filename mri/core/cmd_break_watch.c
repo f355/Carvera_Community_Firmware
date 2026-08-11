@@ -13,17 +13,16 @@
    limitations under the License.
 */
 /* Handlers for gdb breakpoint and watchpoint commands. */
-#include <core/platforms.h>
+#include <core/cmd_break_watch.h>
+#include <core/cmd_common.h>
 #include <core/core.h>
 #include <core/mri.h>
-#include <core/cmd_common.h>
-#include <core/cmd_break_watch.h>
+#include <core/platforms.h>
 
-typedef struct
-{
-    uint32_t address;
-    uint32_t kind;
-    char     type;
+typedef struct {
+  uint32_t address;
+  uint32_t kind;
+  char type;
 } BreakpointWatchpointArguments;
 
 static void parseBreakpointWatchpointCommandArguments(BreakpointWatchpointArguments* pArguments);
@@ -44,113 +43,93 @@ static void handleWatchpointSetCommand(PlatformWatchpointType type, BreakpointWa
                       4: 32-bit ARM insruction.
                       value: byte size for data watchpoint.
 */
-uint32_t HandleBreakpointWatchpointSetCommand(void)
-{
-    BreakpointWatchpointArguments  arguments;
+uint32_t HandleBreakpointWatchpointSetCommand(void) {
+  BreakpointWatchpointArguments arguments;
 
-    __try
-    {
-        parseBreakpointWatchpointCommandArguments(&arguments);
-    }
-    __catch
-    {
-        PrepareStringResponse(MRI_ERROR_INVALID_ARGUMENT);
-        return 0;
-    }
-
-    switch(arguments.type)
-    {
-    case '1':
-        handleHardwareBreakpointSetCommand(&arguments);
-        break;
-    case '2':
-        handleWatchpointSetCommand(MRI_PLATFORM_WRITE_WATCHPOINT, &arguments);
-        break;
-    case '3':
-        handleWatchpointSetCommand(MRI_PLATFORM_READ_WATCHPOINT, &arguments);
-        break;
-    case '4':
-        handleWatchpointSetCommand(MRI_PLATFORM_READWRITE_WATCHPOINT, &arguments);
-        break;
-    default:
-        PrepareEmptyResponseForUnknownCommand();
-        break;
-    }
-
+  __try {
+    parseBreakpointWatchpointCommandArguments(&arguments);
+  }
+  __catch {
+    PrepareStringResponse(MRI_ERROR_INVALID_ARGUMENT);
     return 0;
+  }
+
+  switch (arguments.type) {
+    case '1':
+      handleHardwareBreakpointSetCommand(&arguments);
+      break;
+    case '2':
+      handleWatchpointSetCommand(MRI_PLATFORM_WRITE_WATCHPOINT, &arguments);
+      break;
+    case '3':
+      handleWatchpointSetCommand(MRI_PLATFORM_READ_WATCHPOINT, &arguments);
+      break;
+    case '4':
+      handleWatchpointSetCommand(MRI_PLATFORM_READWRITE_WATCHPOINT, &arguments);
+      break;
+    default:
+      PrepareEmptyResponseForUnknownCommand();
+      break;
+  }
+
+  return 0;
 }
 
-static void parseBreakpointWatchpointCommandArguments(BreakpointWatchpointArguments* pArguments)
-{
-    Buffer*    pBuffer = GetBuffer();
+static void parseBreakpointWatchpointCommandArguments(BreakpointWatchpointArguments* pArguments) {
+  Buffer* pBuffer = GetBuffer();
 
-    __try
-    {
-        __throwing_func( pArguments->type = Buffer_ReadChar(pBuffer) );
-        __throwing_func( ThrowIfNextCharIsNotEqualTo(pBuffer, ',') );
-        __throwing_func( pArguments->address = ReadUIntegerArgument(pBuffer) );
-        __throwing_func( ThrowIfNextCharIsNotEqualTo(pBuffer, ',') );
-        __throwing_func( pArguments->kind = ReadUIntegerArgument(pBuffer) );
-        if (MRI_ALWAYS_USE_HARDWARE_BREAKPOINT && pArguments->type == '0')
-        {
-            /* Assume soft breakpoint is really for FLASH on platforms that don't describe memory layout in XML. */
-            pArguments->type = '1';
-        }
-
+  __try {
+    __throwing_func(pArguments->type = Buffer_ReadChar(pBuffer));
+    __throwing_func(ThrowIfNextCharIsNotEqualTo(pBuffer, ','));
+    __throwing_func(pArguments->address = ReadUIntegerArgument(pBuffer));
+    __throwing_func(ThrowIfNextCharIsNotEqualTo(pBuffer, ','));
+    __throwing_func(pArguments->kind = ReadUIntegerArgument(pBuffer));
+    if (MRI_ALWAYS_USE_HARDWARE_BREAKPOINT && pArguments->type == '0') {
+      /* Assume soft breakpoint is really for FLASH on platforms that don't describe memory layout in XML. */
+      pArguments->type = '1';
     }
-    __catch
-    {
-        __rethrow;
-    }
+  }
+  __catch { __rethrow; }
 }
 
-static void handleHardwareBreakpointSetCommand(BreakpointWatchpointArguments* pArguments)
-{
-    __try
-    {
-        Platform_SetHardwareBreakpointOfGdbKind(pArguments->address, pArguments->kind);
-    }
-    __catch
-    {
-        handleBreakpointWatchpointException();
-        return;
-    }
-    PrepareStringResponse("OK");
+static void handleHardwareBreakpointSetCommand(BreakpointWatchpointArguments* pArguments) {
+  __try {
+    Platform_SetHardwareBreakpointOfGdbKind(pArguments->address, pArguments->kind);
+  }
+  __catch {
+    handleBreakpointWatchpointException();
+    return;
+  }
+  PrepareStringResponse("OK");
 }
 
-static void handleBreakpointWatchpointException(void)
-{
-    switch(getExceptionCode())
-    {
+static void handleBreakpointWatchpointException(void) {
+  switch (getExceptionCode()) {
     case invalidArgumentException:
-        PrepareStringResponse(MRI_ERROR_INVALID_ARGUMENT);
-        break;
+      PrepareStringResponse(MRI_ERROR_INVALID_ARGUMENT);
+      break;
     case exceededHardwareResourcesException:
     default:
-        PrepareStringResponse(MRI_ERROR_NO_FREE_BREAKPOINT);
-        break;
-    }
+      PrepareStringResponse(MRI_ERROR_NO_FREE_BREAKPOINT);
+      break;
+  }
 
+  return;
+}
+
+static void handleWatchpointSetCommand(PlatformWatchpointType type, BreakpointWatchpointArguments* pArguments) {
+  uint32_t address = pArguments->address;
+  uint32_t size = pArguments->kind;
+
+  __try {
+    Platform_SetHardwareWatchpoint(address, size, type);
+  }
+  __catch {
+    handleBreakpointWatchpointException();
     return;
+  }
+  PrepareStringResponse("OK");
 }
-
-static void handleWatchpointSetCommand(PlatformWatchpointType type, BreakpointWatchpointArguments* pArguments)
-{
-    uint32_t        address = pArguments->address;
-    uint32_t        size = pArguments->kind;
-
-    __try
-    {
-        Platform_SetHardwareWatchpoint(address, size, type);
-    }
-    __catch
-    {
-        handleBreakpointWatchpointException();
-        return;
-    }
-    PrepareStringResponse("OK");
-}
-
 
 static void handleHardwareBreakpointRemoveCommand(BreakpointWatchpointArguments* pArguments);
 static void handleWatchpointRemoveCommand(PlatformWatchpointType type, BreakpointWatchpointArguments* pArguments);
@@ -168,69 +147,59 @@ static void handleWatchpointRemoveCommand(PlatformWatchpointType type, Breakpoin
                       4: 32-bit ARM insruction.
                       value: byte size for data watchpoint.
 */
-uint32_t HandleBreakpointWatchpointRemoveCommand(void)
-{
-    BreakpointWatchpointArguments  arguments;
+uint32_t HandleBreakpointWatchpointRemoveCommand(void) {
+  BreakpointWatchpointArguments arguments;
 
-    __try
-    {
-        parseBreakpointWatchpointCommandArguments(&arguments);
-    }
-    __catch
-    {
-        PrepareStringResponse(MRI_ERROR_INVALID_ARGUMENT);
-        return 0;
-    }
-
-    switch(arguments.type)
-    {
-    case '1':
-        handleHardwareBreakpointRemoveCommand(&arguments);
-        break;
-    case '2':
-        handleWatchpointRemoveCommand(MRI_PLATFORM_WRITE_WATCHPOINT, &arguments);
-        break;
-    case '3':
-        handleWatchpointRemoveCommand(MRI_PLATFORM_READ_WATCHPOINT, &arguments);
-        break;
-    case '4':
-        handleWatchpointRemoveCommand(MRI_PLATFORM_READWRITE_WATCHPOINT, &arguments);
-        break;
-    default:
-        PrepareEmptyResponseForUnknownCommand();
-        break;
-    }
-
+  __try {
+    parseBreakpointWatchpointCommandArguments(&arguments);
+  }
+  __catch {
+    PrepareStringResponse(MRI_ERROR_INVALID_ARGUMENT);
     return 0;
+  }
+
+  switch (arguments.type) {
+    case '1':
+      handleHardwareBreakpointRemoveCommand(&arguments);
+      break;
+    case '2':
+      handleWatchpointRemoveCommand(MRI_PLATFORM_WRITE_WATCHPOINT, &arguments);
+      break;
+    case '3':
+      handleWatchpointRemoveCommand(MRI_PLATFORM_READ_WATCHPOINT, &arguments);
+      break;
+    case '4':
+      handleWatchpointRemoveCommand(MRI_PLATFORM_READWRITE_WATCHPOINT, &arguments);
+      break;
+    default:
+      PrepareEmptyResponseForUnknownCommand();
+      break;
+  }
+
+  return 0;
 }
 
-static void handleHardwareBreakpointRemoveCommand(BreakpointWatchpointArguments* pArguments)
-{
-    __try
-    {
-        Platform_ClearHardwareBreakpointOfGdbKind(pArguments->address, pArguments->kind);
-    }
-    __catch
-    {
-        handleBreakpointWatchpointException();
-        return;
-    }
-    PrepareStringResponse("OK");
+static void handleHardwareBreakpointRemoveCommand(BreakpointWatchpointArguments* pArguments) {
+  __try {
+    Platform_ClearHardwareBreakpointOfGdbKind(pArguments->address, pArguments->kind);
+  }
+  __catch {
+    handleBreakpointWatchpointException();
+    return;
+  }
+  PrepareStringResponse("OK");
 }
 
-static void handleWatchpointRemoveCommand(PlatformWatchpointType type, BreakpointWatchpointArguments* pArguments)
-{
-    uint32_t        address = pArguments->address;
-    uint32_t        size = pArguments->kind;
+static void handleWatchpointRemoveCommand(PlatformWatchpointType type, BreakpointWatchpointArguments* pArguments) {
+  uint32_t address = pArguments->address;
+  uint32_t size = pArguments->kind;
 
-    __try
-    {
-        Platform_ClearHardwareWatchpoint(address, size, type);
-    }
-    __catch
-    {
-        handleBreakpointWatchpointException();
-        return;
-    }
-    PrepareStringResponse("OK");
+  __try {
+    Platform_ClearHardwareWatchpoint(address, size, type);
+  }
+  __catch {
+    handleBreakpointWatchpointException();
+    return;
+  }
+  PrepareStringResponse("OK");
 }

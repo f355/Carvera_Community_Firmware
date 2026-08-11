@@ -15,25 +15,25 @@
  */
 #include "Ticker.h"
 
-#include "TimerEvent.h"
 #include "FunctionPointer.h"
+#include "TimerEvent.h"
 
 namespace mbed {
 
 void Ticker::detach() {
-    remove();
-    _function.attach(0);
+  remove();
+  _function.attach(0);
 }
 
 void Ticker::setup(unsigned int t) {
-    remove();
-    _delay = t;
-    insert(_delay + us_ticker_read());
+  remove();
+  _delay = t;
+  insert(_delay + us_ticker_read());
 }
 
 void Ticker::handler() {
-    insert(event.timestamp + _delay);
-    _function.call();
+  insert(event.timestamp + _delay);
+  _function.call();
 }
 
-} // namespace mbed
+}  // namespace mbed

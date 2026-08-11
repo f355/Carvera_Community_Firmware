@@ -1,88 +1,86 @@
 #pragma once
 
-#include "LevelingStrategy.h"
-
+#include <cstdint>
 #include <string>
 #include <tuple>
-#include <cstdint>
+
+#include "LevelingStrategy.h"
 
 #define cart_grid_leveling_strategy_checksum CHECKSUM("rectangular-grid")
 
 class StreamOutput;
 class Gcode;
 
-class CartGridStrategy : public LevelingStrategy
-{
-public:
-    CartGridStrategy(ZProbe *zprobe);
-    ~CartGridStrategy();
-    bool handleGcode(Gcode* gcode);
-    bool handleConfig();
-    void after_config_cache_clear() override;
+class CartGridStrategy : public LevelingStrategy {
+ public:
+  CartGridStrategy(ZProbe* zprobe);
+  ~CartGridStrategy();
+  bool handleGcode(Gcode* gcode);
+  bool handleConfig();
+  void after_config_cache_clear() override;
 
-private:
+ private:
+  bool doProbe(Gcode* gc);
+  bool scan_bed(Gcode* gc);
+  bool findBed(float x, float y, float z);
+  void setAdjustFunction(bool on);
+  void updateCompensationTransform();
+  void print_bed_level(StreamOutput* stream);
+  void doCompensation(float* target, bool inverse, bool debug);
+  void reset_bed_level();
+  void save_grid(StreamOutput* stream);
+  bool load_grid(StreamOutput* stream);
 
-    bool doProbe(Gcode *gc);
-    bool scan_bed(Gcode *gc);
-    bool findBed(float x, float y, float z);
-    void setAdjustFunction(bool on);
-    void updateCompensationTransform();
-    void print_bed_level(StreamOutput *stream);
-    void doCompensation(float *target, bool inverse, bool debug);
-    void reset_bed_level();
-    void save_grid(StreamOutput *stream);
-    bool load_grid(StreamOutput *stream);
+  // Flex compensation methods
+  bool doFlexMeasurement(Gcode* gc);
+  void print_flex_compensation_data(StreamOutput* stream);
+  void save_flex_compensation_data(StreamOutput* stream);
+  bool load_flex_compensation_data(StreamOutput* stream);
+  void reset_flex_compensation();
 
-    // Flex compensation methods
-    bool doFlexMeasurement(Gcode *gc);
-    void print_flex_compensation_data(StreamOutput *stream);
-    void save_flex_compensation_data(StreamOutput *stream);
-    bool load_flex_compensation_data(StreamOutput *stream);
-    void reset_flex_compensation();
+  float initial_height;
+  float tolerance;
 
-    float initial_height;
-    float tolerance;
+  float height_limit;
+  float dampening_start;
+  float damping_interval;
+  std::string before_probe, after_probe;
 
-    float height_limit;
-    float dampening_start;
-    float damping_interval;
-    std::string before_probe, after_probe;
+  float* grid;
+  std::tuple<float, float, float> probe_offsets;
+  float* m_attach;
+  float x_start, y_start;
+  float x_size, y_size;
 
-    float *grid;
-    std::tuple<float, float, float> probe_offsets;
-    float *m_attach;
-    float x_start,y_start;
-    float x_size,y_size;
+  struct {
+    uint8_t configured_grid_x_size : 8;
+    uint8_t configured_grid_y_size : 8;
+    uint8_t current_grid_x_size : 8;
+    uint8_t current_grid_y_size : 8;
+  };
 
-    struct {
-        uint8_t configured_grid_x_size:8;
-        uint8_t configured_grid_y_size:8;
-        uint8_t current_grid_x_size:8;
-        uint8_t current_grid_y_size:8;
-    };
+  struct {
+    bool save : 1;
+    bool do_home : 1;
+    bool do_manual_attach : 1;
+    bool only_by_two_corners : 1;
+    bool human_readable : 1;
+    bool new_file_format : 1;
+    bool force_debug : 1;
+  };
 
-    struct {
-        bool save:1;
-        bool do_home:1;
-        bool do_manual_attach:1;
-        bool only_by_two_corners:1;
-        bool human_readable:1;
-        bool new_file_format:1;
-        bool force_debug:1;
-    };
+  // Flex compensation data
+  float* flex_compensation_data;
+  uint8_t flex_x_points;
+  uint8_t flex_current_x_points;
+  float flex_x_start;
+  float flex_x_size;
+  bool flex_compensation_active;
+  size_t flex_data_size;
+  bool flex_compensation_always_active;
 
-    // Flex compensation data
-    float *flex_compensation_data;
-    uint8_t flex_x_points;
-    uint8_t flex_current_x_points;
-    float flex_x_start;
-    float flex_x_size;
-    bool flex_compensation_active;
-    size_t flex_data_size;
-    bool flex_compensation_always_active;
+  // Compensation state tracking
+  bool cartesian_grid_active;
 
-    // Compensation state tracking
-    bool cartesian_grid_active;
-
-    static const char* FLEX_COMPENSATION_FILE;
+  static const char* FLEX_COMPENSATION_FILE;
 };

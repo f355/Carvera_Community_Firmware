@@ -1,33 +1,27 @@
 #include "ahbmalloc.h"
 
-#include <cstring>
-
 #include <cstdint>
+#include <cstring>
 // #include <stdio.h>
 
 #include "platform_memory.h"
 
-void* ahbmalloc(size_t size, BANK bank)
-{
-	switch(bank)
-	{
-		case AHB_BANK_0:
-			return AHB.alloc(size);
-		default:
-			return NULL;
-	}
+void* ahbmalloc(size_t size, BANK bank) {
+  switch (bank) {
+    case AHB_BANK_0:
+      return AHB.alloc(size);
+    default:
+      return NULL;
+  }
 }
 
-void ahbfree(void* ptr, size_t size)
-{
-	MemoryPool* m = MemoryPool::first;
-	while (m)
-	{
-		if (m->has(ptr))
-		{
-			m->dealloc(ptr);
-			return;
-		}
-		m = m->next;
-	}
+void ahbfree(void* ptr, size_t size) {
+  MemoryPool* m = MemoryPool::first;
+  while (m) {
+    if (m->has(ptr)) {
+      m->dealloc(ptr);
+      return;
+    }
+    m = m->next;
+  }
 }

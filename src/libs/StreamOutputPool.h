@@ -1,66 +1,56 @@
 /*
-      This file is part of Smoothie (http://smoothieware.org/). The motion control part is heavily based on Grbl (https://github.com/simen/grbl).
-      Smoothie is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
-      Smoothie is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-      You should have received a copy of the GNU General Public License along with Smoothie. If not, see <http://www.gnu.org/licenses/>.
+      This file is part of Smoothie (http://smoothieware.org/). The motion control part is heavily based on Grbl
+   (https://github.com/simen/grbl). Smoothie is free software: you can redistribute it and/or modify it under the terms
+   of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version. Smoothie is distributed in the hope that it will be useful, but WITHOUT ANY
+   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+   General Public License for more details. You should have received a copy of the GNU General Public License along with
+   Smoothie. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef STREAMOUTPUTPOOL_H
 #define STREAMOUTPUTPOOL_H
 
 using namespace std;
+#include <cstdarg>
+#include <cstdio>
 #include <set>
 #include <string>
-#include <cstdio>
-#include <cstdarg>
 
 #include "libs/StreamOutput.h"
 
 class StreamOutputPool : public StreamOutput {
+ public:
+  StreamOutputPool() {}
 
-public:
-    StreamOutputPool(){
+  int puts(const char* s, int size) {
+    int r = 0;
+    for (set<StreamOutput*>::iterator i = this->streams.begin(); i != this->streams.end(); i++) {
+      int k;
+      if (communication_protocol == PROTOCOL_SMOOTHIE) {
+        k = (*i)->puts(s);
+      } else {
+        k = (*i)->puts(s, size);
+      }
+      if (k > r) r = k;
     }
+    return r;
+  }
 
-    int puts(const char* s, int size)
-    {
-        int r = 0;
-        for(set<StreamOutput*>::iterator i = this->streams.begin(); i != this->streams.end(); i++)
-        {   
-            int k;
-            if (communication_protocol == PROTOCOL_SMOOTHIE) {
-                k = (*i)->puts(s);
-            }
-            else {
-                k = (*i)->puts(s,size);
-            }
-            if (k > r)
-                r = k;
-        }
-        return r;
+  void append_stream(StreamOutput* stream) { this->streams.insert(stream); }
+
+  void remove_stream(StreamOutput* stream) { this->streams.erase(stream); }
+
+  bool frames_protocol_output() const { return true; }
+
+  void on_protocol_changed() {
+    for (set<StreamOutput*>::iterator i = this->streams.begin(); i != this->streams.end(); i++) {
+      (*i)->on_protocol_changed();
     }
+  }
 
-    void append_stream(StreamOutput* stream)
-    {
-        this->streams.insert(stream);
-    }
-
-    void remove_stream(StreamOutput* stream)
-    {
-        this->streams.erase(stream);
-    }
-
-    bool frames_protocol_output() const { return true; }
-
-    void on_protocol_changed()
-    {
-        for(set<StreamOutput*>::iterator i = this->streams.begin(); i != this->streams.end(); i++) {
-            (*i)->on_protocol_changed();
-        }
-    }
-
-private:
-    set<StreamOutput*> streams;
+ private:
+  set<StreamOutput*> streams;
 };
 
 #endif

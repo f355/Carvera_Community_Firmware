@@ -25,33 +25,27 @@ barthelemy@prologique.com
 
 #include "testcase.h"
 
-
-
 /**
  * Test runner used to determine which test to run.
- * 
+ *
  * User may extends this class to provide a custom test runner
  * to TestRegistry.
  */
-class TestRunner
-{
-public:
-	TestRunner();
-	virtual ~TestRunner();
-	
-	/**
-	 * Method used to run testcases by TestRegistry.
-	 * 
-	 * User should override this method in order to provide custom
-	 * behavior.
-	 *
-	 * @param testCase Linked list of testcases
-	 * @param size Size of the linked list
-	 */
-	virtual void run(TestCase *testCase, int size);
+class TestRunner {
+ public:
+  TestRunner();
+  virtual ~TestRunner();
 
+  /**
+   * Method used to run testcases by TestRegistry.
+   *
+   * User should override this method in order to provide custom
+   * behavior.
+   *
+   * @param testCase Linked list of testcases
+   * @param size Size of the linked list
+   */
+  virtual void run(TestCase* testCase, int size);
 };
 
-
-#endif	// TestRunner_H
-
+#endif  // TestRunner_H

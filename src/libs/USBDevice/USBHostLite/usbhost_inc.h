@@ -16,8 +16,8 @@
 **************************************************************************************************************
 */
 
-#ifndef  USBHOST_INC_H
-#define  USBHOST_INC_H
+#ifndef USBHOST_INC_H
+#define USBHOST_INC_H
 
 /*
 **************************************************************************************************************
@@ -25,12 +25,11 @@
 **************************************************************************************************************
 */
 
-#include  "usbhost_cpu.h"
-#include  "usbhost_err.h"
-#include  "usbhost_lpc17xx.h"
-#include  "usbhost_ms.h"
-#include  "mbed.h"
-
+#include "mbed.h"
+#include "usbhost_cpu.h"
+#include "usbhost_err.h"
+#include "usbhost_lpc17xx.h"
+#include "usbhost_ms.h"
 
 #ifdef TARGET_LPC2368
 #error "There is no USB host on the LPC2368!"

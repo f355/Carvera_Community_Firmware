@@ -24,8 +24,8 @@ size_t mriGdbConsole_WriteSizedString(const char* pString, size_t length);
 void mriGdbConsole_WriteHexValue(uint32_t value);
 
 /* Macroes which allow code to drop the mri namespace prefix. */
-#define WriteStringToGdbConsole      mriGdbConsole_WriteString
+#define WriteStringToGdbConsole mriGdbConsole_WriteString
 #define WriteSizedStringToGdbConsole mriGdbConsole_WriteSizedString
-#define WriteHexValueToGdbConsole    mriGdbConsole_WriteHexValue
+#define WriteHexValueToGdbConsole mriGdbConsole_WriteHexValue
 
 #endif /* GDB_CONSOLE_H_ */

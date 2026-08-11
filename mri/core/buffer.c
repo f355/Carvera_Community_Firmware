@@ -14,401 +14,291 @@
 */
 /*  'Class' which represents a text buffer.  Has routines to both extract and inject strings of various types into the
     buffer while verifying that no overflow takes place. */
-#include <limits.h>
-#include <core/libc.h>
 #include <core/buffer.h>
 #include <core/hex_convert.h>
+#include <core/libc.h>
 #include <core/try_catch.h>
+#include <limits.h>
 
-void Buffer_Init(Buffer* pBuffer, char* pBufferStart, size_t bufferSize)
-{
-    pBuffer->pStart = pBufferStart;
-    pBuffer->pEnd = pBufferStart + bufferSize;
-    Buffer_Reset(pBuffer);
+void Buffer_Init(Buffer* pBuffer, char* pBufferStart, size_t bufferSize) {
+  pBuffer->pStart = pBufferStart;
+  pBuffer->pEnd = pBufferStart + bufferSize;
+  Buffer_Reset(pBuffer);
 }
 
+void Buffer_Reset(Buffer* pBuffer) { pBuffer->pCurrent = pBuffer->pStart; }
 
-void Buffer_Reset(Buffer* pBuffer)
-{
-    pBuffer->pCurrent = pBuffer->pStart;
+void Buffer_SetEndOfBuffer(Buffer* pBuffer) {
+  if (pBuffer->pCurrent < pBuffer->pEnd) pBuffer->pEnd = pBuffer->pCurrent;
 }
 
-
-void Buffer_SetEndOfBuffer(Buffer* pBuffer)
-{
-    if (pBuffer->pCurrent < pBuffer->pEnd)
-        pBuffer->pEnd = pBuffer->pCurrent;
+void Buffer_Advance(Buffer* pBuffer, size_t amount) {
+  size_t bytesLeft = Buffer_BytesLeft(pBuffer);
+  if (amount > bytesLeft) amount = bytesLeft;
+  pBuffer->pCurrent += amount;
 }
 
+size_t Buffer_BytesLeft(Buffer* pBuffer) {
+  if (Buffer_OverrunDetected(pBuffer)) return 0;
 
-void Buffer_Advance(Buffer* pBuffer, size_t amount)
-{
-    size_t bytesLeft = Buffer_BytesLeft(pBuffer);
-    if (amount > bytesLeft)
-        amount = bytesLeft;
-    pBuffer->pCurrent += amount;
+  return (size_t)(pBuffer->pEnd - pBuffer->pCurrent);
 }
 
+size_t Buffer_GetLength(Buffer* pBuffer) {
+  if (pBuffer->pStart > pBuffer->pEnd) return 0;
 
-size_t Buffer_BytesLeft(Buffer* pBuffer)
-{
-    if (Buffer_OverrunDetected(pBuffer))
-        return 0;
-
-    return (size_t)(pBuffer->pEnd - pBuffer->pCurrent);
+  return (size_t)(pBuffer->pEnd - pBuffer->pStart);
 }
 
+char* Buffer_GetArray(Buffer* pBuffer) { return pBuffer->pStart; }
 
-size_t Buffer_GetLength(Buffer* pBuffer)
-{
-    if (pBuffer->pStart > pBuffer->pEnd)
-        return 0;
-
-    return (size_t)(pBuffer->pEnd - pBuffer->pStart);
-}
-
-
-char* Buffer_GetArray(Buffer* pBuffer)
-{
-    return pBuffer->pStart;
-}
-
-
-int Buffer_OverrunDetected(Buffer* pBuffer)
-{
-    return pBuffer->pCurrent > pBuffer->pEnd;
-}
-
+int Buffer_OverrunDetected(Buffer* pBuffer) { return pBuffer->pCurrent > pBuffer->pEnd; }
 
 static void throwExceptionAndFlagBufferOverrunIfBufferLeftIsSmallerThan(Buffer* pBuffer, size_t size);
 static void recordThatBufferOverrunHasOccurred(Buffer* pBuffer);
-void Buffer_WriteChar(Buffer* pBuffer, char character)
-{
-    __try
-        throwExceptionAndFlagBufferOverrunIfBufferLeftIsSmallerThan(pBuffer, 1);
-    __catch
-        __rethrow;
+void Buffer_WriteChar(Buffer* pBuffer, char character) {
+  __try
+    throwExceptionAndFlagBufferOverrunIfBufferLeftIsSmallerThan(pBuffer, 1);
+  __catch __rethrow;
 
-    *(pBuffer->pCurrent++) = character;
+  *(pBuffer->pCurrent++) = character;
 }
 
-static void throwExceptionAndFlagBufferOverrunIfBufferLeftIsSmallerThan(Buffer* pBuffer, size_t size)
-{
-    if (Buffer_BytesLeft(pBuffer) < size)
-    {
-        recordThatBufferOverrunHasOccurred(pBuffer);
-        __throw(bufferOverrunException);
-    }
+static void throwExceptionAndFlagBufferOverrunIfBufferLeftIsSmallerThan(Buffer* pBuffer, size_t size) {
+  if (Buffer_BytesLeft(pBuffer) < size) {
+    recordThatBufferOverrunHasOccurred(pBuffer);
+    __throw(bufferOverrunException);
+  }
 }
 
-static void recordThatBufferOverrunHasOccurred(Buffer* pBuffer)
-{
-    pBuffer->pCurrent = pBuffer->pEnd + 1;
+static void recordThatBufferOverrunHasOccurred(Buffer* pBuffer) { pBuffer->pCurrent = pBuffer->pEnd + 1; }
+
+char Buffer_ReadChar(Buffer* pBuffer) {
+  __try
+    throwExceptionAndFlagBufferOverrunIfBufferLeftIsSmallerThan(pBuffer, 1);
+  __catch __rethrow_and_return('\0');
+
+  return *(pBuffer->pCurrent++);
 }
 
+void Buffer_WriteByteAsHex(Buffer* pBuffer, uint8_t byte) {
+  __try
+    throwExceptionAndFlagBufferOverrunIfBufferLeftIsSmallerThan(pBuffer, 2);
+  __catch __rethrow;
 
-char Buffer_ReadChar(Buffer* pBuffer)
-{
-    __try
-        throwExceptionAndFlagBufferOverrunIfBufferLeftIsSmallerThan(pBuffer, 1);
-    __catch
-        __rethrow_and_return('\0');
-
-    return *(pBuffer->pCurrent++);
+  *(pBuffer->pCurrent++) = NibbleToHexChar[EXTRACT_HI_NIBBLE(byte)];
+  *(pBuffer->pCurrent++) = NibbleToHexChar[EXTRACT_LO_NIBBLE(byte)];
 }
 
+uint8_t Buffer_ReadByteAsHex(Buffer* pBuffer) {
+  unsigned char byte;
 
-void Buffer_WriteByteAsHex(Buffer* pBuffer, uint8_t byte)
-{
-    __try
-        throwExceptionAndFlagBufferOverrunIfBufferLeftIsSmallerThan(pBuffer, 2);
-    __catch
-        __rethrow;
+  __try
+    throwExceptionAndFlagBufferOverrunIfBufferLeftIsSmallerThan(pBuffer, 2);
+  __catch __rethrow_and_return(0);
 
-    *(pBuffer->pCurrent++) = NibbleToHexChar[EXTRACT_HI_NIBBLE(byte)];
-    *(pBuffer->pCurrent++) = NibbleToHexChar[EXTRACT_LO_NIBBLE(byte)];
+  __try {
+    __throwing_func(byte = HexCharToNibble(pBuffer->pCurrent[0]) << 4);
+    __throwing_func(byte |= HexCharToNibble(pBuffer->pCurrent[1]));
+  }
+  __catch { __rethrow_and_return(0x00); }
+  pBuffer->pCurrent += 2;
+
+  return byte;
 }
 
-
-uint8_t Buffer_ReadByteAsHex(Buffer* pBuffer)
-{
-    unsigned char byte;
-
-    __try
-        throwExceptionAndFlagBufferOverrunIfBufferLeftIsSmallerThan(pBuffer, 2);
-    __catch
-        __rethrow_and_return(0);
-
-    __try
-    {
-        __throwing_func( byte = HexCharToNibble(pBuffer->pCurrent[0]) << 4 );
-        __throwing_func( byte |= HexCharToNibble(pBuffer->pCurrent[1]) );
-    }
-    __catch
-    {
-        __rethrow_and_return(0x00);
-    }
-    pBuffer->pCurrent += 2;
-
-    return byte;
+void Buffer_WriteString(Buffer* pBuffer, const char* pString) {
+  Buffer_WriteSizedString(pBuffer, pString, mri_strlen(pString));
 }
 
+void Buffer_WriteSizedString(Buffer* pBuffer, const char* pString, size_t length) {
+  __try
+    throwExceptionAndFlagBufferOverrunIfBufferLeftIsSmallerThan(pBuffer, length);
+  __catch __rethrow;
 
-void Buffer_WriteString(Buffer* pBuffer, const char* pString)
-{
-    Buffer_WriteSizedString(pBuffer, pString, mri_strlen(pString));
+  while (length--) *(pBuffer->pCurrent++) = *pString++;
 }
 
-
-void Buffer_WriteSizedString(Buffer* pBuffer, const char* pString, size_t length)
-{
-    __try
-        throwExceptionAndFlagBufferOverrunIfBufferLeftIsSmallerThan(pBuffer, length);
-    __catch
-        __rethrow;
-
-    while (length--)
-        *(pBuffer->pCurrent++) = *pString++;
+size_t Buffer_WriteStringAsHex(Buffer* pBuffer, const char* pString) {
+  return Buffer_WriteSizedStringAsHex(pBuffer, pString, mri_strlen(pString));
 }
 
+size_t Buffer_WriteSizedStringAsHex(Buffer* pBuffer, const char* pString, size_t length) {
+  size_t charLimit = Buffer_BytesLeft(pBuffer) / 2;
+  size_t charsWritten;
 
-size_t Buffer_WriteStringAsHex(Buffer* pBuffer, const char* pString)
-{
-    return Buffer_WriteSizedStringAsHex(pBuffer, pString, mri_strlen(pString));
+  if (length > charLimit) length = charLimit;
+  charsWritten = length;
+  while (length--) Buffer_WriteByteAsHex(pBuffer, *pString++);
+
+  // Returns the number of source string characters consumed and not number of hex digits written to buffer.
+  return charsWritten;
 }
-
-
-size_t Buffer_WriteSizedStringAsHex(Buffer* pBuffer, const char* pString, size_t length)
-{
-    size_t charLimit = Buffer_BytesLeft(pBuffer) / 2;
-    size_t charsWritten;
-
-    if (length > charLimit)
-        length = charLimit;
-    charsWritten = length;
-    while (length--)
-        Buffer_WriteByteAsHex(pBuffer, *pString++);
-
-    // Returns the number of source string characters consumed and not number of hex digits written to buffer.
-    return charsWritten;
-}
-
 
 static uintmri_t parseNextHexDigitAndAddNibbleToValue(Buffer* pBuffer, uintmri_t currentValue);
-static void      pushBackLastChar(Buffer* pBuffer);
-static void      clearOverrun(Buffer* pBuffer);
-uintmri_t Buffer_ReadUIntegerAsHex(Buffer* pBuffer)
-{
-    int       hexDigitsParsed;
-    uintmri_t value = 0;
+static void pushBackLastChar(Buffer* pBuffer);
+static void clearOverrun(Buffer* pBuffer);
+uintmri_t Buffer_ReadUIntegerAsHex(Buffer* pBuffer) {
+  int hexDigitsParsed;
+  uintmri_t value = 0;
 
-    for (hexDigitsParsed = 0 ; ; hexDigitsParsed++)
-    {
-        __try
-            value = parseNextHexDigitAndAddNibbleToValue(pBuffer, value);
-        __catch
-            break;
-    }
-    /* Read buffer until non-hex digit or end of buffer was detected but don't want to return the invalid hex digit
-       or buffer overrun exception to the caller so clear out the exception code that might have gotten us out of
-       the above loop. */
-    clearExceptionCode();
-    clearOverrun(pBuffer);
-
-    if (hexDigitsParsed == 0)
-        __throw_and_return(invalidValueException, 0U);
-
-    return value;
-}
-
-static uintmri_t parseNextHexDigitAndAddNibbleToValue(Buffer* pBuffer, uintmri_t currentValue)
-{
-    char      nextChar;
-    uintmri_t nibbleValue;
-
+  for (hexDigitsParsed = 0;; hexDigitsParsed++) {
     __try
-        nextChar = Buffer_ReadChar(pBuffer);
-    __catch
-        __rethrow_and_return(currentValue);
+      value = parseNextHexDigitAndAddNibbleToValue(pBuffer, value);
+    __catch break;
+  }
+  /* Read buffer until non-hex digit or end of buffer was detected but don't want to return the invalid hex digit
+     or buffer overrun exception to the caller so clear out the exception code that might have gotten us out of
+     the above loop. */
+  clearExceptionCode();
+  clearOverrun(pBuffer);
 
-    __try
-    {
-        nibbleValue = HexCharToNibble(nextChar);
-    }
-    __catch
-    {
-        pushBackLastChar(pBuffer);
-        __rethrow_and_return(currentValue);
-    }
+  if (hexDigitsParsed == 0) __throw_and_return(invalidValueException, 0U);
 
-    return (currentValue << 4) + nibbleValue;
+  return value;
 }
 
-static void pushBackLastChar(Buffer* pBuffer)
-{
-    if (pBuffer->pCurrent > pBuffer->pStart)
-        pBuffer->pCurrent--;
+static uintmri_t parseNextHexDigitAndAddNibbleToValue(Buffer* pBuffer, uintmri_t currentValue) {
+  char nextChar;
+  uintmri_t nibbleValue;
+
+  __try
+    nextChar = Buffer_ReadChar(pBuffer);
+  __catch __rethrow_and_return(currentValue);
+
+  __try {
+    nibbleValue = HexCharToNibble(nextChar);
+  }
+  __catch {
+    pushBackLastChar(pBuffer);
+    __rethrow_and_return(currentValue);
+  }
+
+  return (currentValue << 4) + nibbleValue;
 }
 
-static void clearOverrun(Buffer* pBuffer)
-{
-    if (Buffer_OverrunDetected(pBuffer))
-        pBuffer->pCurrent = pBuffer->pEnd;
+static void pushBackLastChar(Buffer* pBuffer) {
+  if (pBuffer->pCurrent > pBuffer->pStart) pBuffer->pCurrent--;
 }
 
+static void clearOverrun(Buffer* pBuffer) {
+  if (Buffer_OverrunDetected(pBuffer)) pBuffer->pCurrent = pBuffer->pEnd;
+}
 
-static int     countLeadingZeroBytes(uintmri_t value);
+static int countLeadingZeroBytes(uintmri_t value);
 static uint8_t extractByteAtIndex(uintmri_t value, int index);
-void Buffer_WriteUIntegerAsHex(Buffer* pBuffer, uintmri_t value)
-{
-    int              leadingZeroBytes;
-    int              currentByteIndex;
+void Buffer_WriteUIntegerAsHex(Buffer* pBuffer, uintmri_t value) {
+  int leadingZeroBytes;
+  int currentByteIndex;
 
-    if (value == 0)
-    {
-        Buffer_WriteByteAsHex(pBuffer, 0);
-        return;
-    }
+  if (value == 0) {
+    Buffer_WriteByteAsHex(pBuffer, 0);
+    return;
+  }
 
-    leadingZeroBytes = countLeadingZeroBytes(value);
-    currentByteIndex = ((int)sizeof(value) - leadingZeroBytes) - 1;
-    while (currentByteIndex >= 0)
-    {
-        __try
-            Buffer_WriteByteAsHex(pBuffer, extractByteAtIndex(value, currentByteIndex--));
-        __catch
-            __rethrow;
-    }
+  leadingZeroBytes = countLeadingZeroBytes(value);
+  currentByteIndex = ((int)sizeof(value) - leadingZeroBytes) - 1;
+  while (currentByteIndex >= 0) {
+    __try
+      Buffer_WriteByteAsHex(pBuffer, extractByteAtIndex(value, currentByteIndex--));
+    __catch __rethrow;
+  }
 }
 
-static int countLeadingZeroBytes(uintmri_t value)
-{
-    static const int bitsPerByte = 8;
-    uintmri_t        mask = (uintmri_t)0xFF << ((sizeof(uintmri_t) - 1) * bitsPerByte);
-    int              count = 0;
+static int countLeadingZeroBytes(uintmri_t value) {
+  static const int bitsPerByte = 8;
+  uintmri_t mask = (uintmri_t)0xFF << ((sizeof(uintmri_t) - 1) * bitsPerByte);
+  int count = 0;
 
-    while (mask && 0 == (value & mask))
-    {
-        count++;
-        mask >>= 8;
-    }
+  while (mask && 0 == (value & mask)) {
+    count++;
+    mask >>= 8;
+  }
 
-    return count;
+  return count;
 }
 
-static uint8_t extractByteAtIndex(uintmri_t value, int index)
-{
-    static const int bitsPerByte = 8;
-    int              shiftAmount = index * bitsPerByte;
+static uint8_t extractByteAtIndex(uintmri_t value, int index) {
+  static const int bitsPerByte = 8;
+  int shiftAmount = index * bitsPerByte;
 
-    return (uint8_t)((value >> shiftAmount) & 0xFF);
+  return (uint8_t)((value >> shiftAmount) & 0xFF);
 }
-
 
 static intmri_t convertToIntegerAndThrowIfOutOfRange(int isNegative, uintmri_t value);
-intmri_t Buffer_ReadIntegerAsHex(Buffer* pBuffer)
-{
-    uintmri_t value = 0;
-    int       isNegative = 0;
+intmri_t Buffer_ReadIntegerAsHex(Buffer* pBuffer) {
+  uintmri_t value = 0;
+  int isNegative = 0;
 
-    __try
-    {
-        __throwing_func( isNegative = Buffer_IsNextCharEqualTo(pBuffer, '-') );
-        __throwing_func( value = Buffer_ReadUIntegerAsHex(pBuffer) );
-    }
-    __catch
-    {
-        __rethrow_and_return(0);
-    }
+  __try {
+    __throwing_func(isNegative = Buffer_IsNextCharEqualTo(pBuffer, '-'));
+    __throwing_func(value = Buffer_ReadUIntegerAsHex(pBuffer));
+  }
+  __catch { __rethrow_and_return(0); }
 
-    return convertToIntegerAndThrowIfOutOfRange(isNegative, value);
+  return convertToIntegerAndThrowIfOutOfRange(isNegative, value);
 }
 
-static intmri_t convertToIntegerAndThrowIfOutOfRange(int isNegative, uintmri_t value)
-{
-    const intmri_t intMax = ((uintmri_t)-1) >> 1;
-    const intmri_t intMin = -intMax - 1;
+static intmri_t convertToIntegerAndThrowIfOutOfRange(int isNegative, uintmri_t value) {
+  const intmri_t intMax = ((uintmri_t)-1) >> 1;
+  const intmri_t intMin = -intMax - 1;
 
-    if (!isNegative && value > (uintmri_t)intMax)
-    {
-        __throw_and_return(invalidValueException, intMax);
-    }
+  if (!isNegative && value > (uintmri_t)intMax) {
+    __throw_and_return(invalidValueException, intMax);
+  }
 
-    if (isNegative && value > ((uintmri_t)intMax + 1))
-    {
-        __throw_and_return(invalidValueException, intMin);
-    }
+  if (isNegative && value > ((uintmri_t)intMax + 1)) {
+    __throw_and_return(invalidValueException, intMin);
+  }
 
-    return isNegative ? -(int)value : (int)value;
+  return isNegative ? -(int)value : (int)value;
 }
-
 
 static intmri_t calculateAbsoluteValueAndWriteMinusSignForNegativeValue(Buffer* pBuffer, intmri_t value);
-void Buffer_WriteIntegerAsHex(Buffer* pBuffer, intmri_t value)
-{
-    __try
-    {
-        __throwing_func(value = calculateAbsoluteValueAndWriteMinusSignForNegativeValue(pBuffer, value));
-        __throwing_func(Buffer_WriteUIntegerAsHex(pBuffer, (uintmri_t)value));
-    }
-    __catch
-    {
-        __rethrow;
-    }
+void Buffer_WriteIntegerAsHex(Buffer* pBuffer, intmri_t value) {
+  __try {
+    __throwing_func(value = calculateAbsoluteValueAndWriteMinusSignForNegativeValue(pBuffer, value));
+    __throwing_func(Buffer_WriteUIntegerAsHex(pBuffer, (uintmri_t)value));
+  }
+  __catch { __rethrow; }
 }
 
-static intmri_t calculateAbsoluteValueAndWriteMinusSignForNegativeValue(Buffer* pBuffer, intmri_t value)
-{
-    if (value < 0)
-    {
-        value = -value;
-        Buffer_WriteChar(pBuffer, '-');
-    }
+static intmri_t calculateAbsoluteValueAndWriteMinusSignForNegativeValue(Buffer* pBuffer, intmri_t value) {
+  if (value < 0) {
+    value = -value;
+    Buffer_WriteChar(pBuffer, '-');
+  }
 
-    return value;
+  return value;
 }
-
 
 static void throwExceptionIfBufferLeftIsSmallerThan(Buffer* pBuffer, size_t size);
 static char peekAtNextChar(Buffer* pBuffer);
 static void advanceToNextChar(Buffer* pBuffer);
-int Buffer_IsNextCharEqualTo(Buffer* pBuffer, char thisChar)
-{
-    __try
-        throwExceptionIfBufferLeftIsSmallerThan(pBuffer, 1);
-    __catch
-        __rethrow_and_return(0);
+int Buffer_IsNextCharEqualTo(Buffer* pBuffer, char thisChar) {
+  __try
+    throwExceptionIfBufferLeftIsSmallerThan(pBuffer, 1);
+  __catch __rethrow_and_return(0);
 
-    if (peekAtNextChar(pBuffer) == thisChar)
-    {
-        advanceToNextChar(pBuffer);
-        return 1;
-    }
+  if (peekAtNextChar(pBuffer) == thisChar) {
+    advanceToNextChar(pBuffer);
+    return 1;
+  }
 
-    return 0;
+  return 0;
 }
 
-static void throwExceptionIfBufferLeftIsSmallerThan(Buffer* pBuffer, size_t size)
-{
-    if (Buffer_BytesLeft(pBuffer) < size)
-        __throw(bufferOverrunException);
+static void throwExceptionIfBufferLeftIsSmallerThan(Buffer* pBuffer, size_t size) {
+  if (Buffer_BytesLeft(pBuffer) < size) __throw(bufferOverrunException);
 }
 
-static char peekAtNextChar(Buffer* pBuffer)
-{
-    return *pBuffer->pCurrent;
-}
+static char peekAtNextChar(Buffer* pBuffer) { return *pBuffer->pCurrent; }
 
-static void advanceToNextChar(Buffer* pBuffer)
-{
-    pBuffer->pCurrent++;
-}
+static void advanceToNextChar(Buffer* pBuffer) { pBuffer->pCurrent++; }
 
-
-typedef struct CompareParams
-{
-    int     (*compareFuncPtr)(Buffer* pBuffer, const char* pDesiredString, size_t stringLength);
-    size_t  charLength;
+typedef struct CompareParams {
+  int (*compareFuncPtr)(Buffer* pBuffer, const char* pDesiredString, size_t stringLength);
+  size_t charLength;
 } CompareParams;
 
 static int matchesString(CompareParams* pParams, Buffer* pBuffer, const char* pString, size_t stringLength);
@@ -416,85 +306,67 @@ static int doesBufferContainThisString(Buffer* pBuffer, const char* pDesiredStri
 static int doesBufferContainThisHexString(Buffer* pBuffer, const char* pDesiredString, size_t stringLength);
 static int hexStringCompare(Buffer* pBuffer, const char* pDesiredString, size_t stringLength);
 static uint8_t toLower(uint8_t ch);
-int Buffer_MatchesString(Buffer* pBuffer, const char* pString, size_t stringLength)
-{
-    CompareParams params = { doesBufferContainThisString, 1 };
-    return matchesString(&params, pBuffer, pString, stringLength);
+int Buffer_MatchesString(Buffer* pBuffer, const char* pString, size_t stringLength) {
+  CompareParams params = {doesBufferContainThisString, 1};
+  return matchesString(&params, pBuffer, pString, stringLength);
 }
 
-static int matchesString(CompareParams* pParams, Buffer* pBuffer, const char* pString, size_t stringLength)
-{
-    __try
-        throwExceptionIfBufferLeftIsSmallerThan(pBuffer, stringLength * pParams->charLength);
-    __catch
-        __rethrow_and_return(0);
+static int matchesString(CompareParams* pParams, Buffer* pBuffer, const char* pString, size_t stringLength) {
+  __try
+    throwExceptionIfBufferLeftIsSmallerThan(pBuffer, stringLength * pParams->charLength);
+  __catch __rethrow_and_return(0);
 
-    if(pParams->compareFuncPtr(pBuffer, pString, stringLength))
-    {
-        pBuffer->pCurrent += stringLength * pParams->charLength;
-        return 1;
+  if (pParams->compareFuncPtr(pBuffer, pString, stringLength)) {
+    pBuffer->pCurrent += stringLength * pParams->charLength;
+    return 1;
+  }
+
+  return 0;
+}
+
+static int doesBufferContainThisString(Buffer* pBuffer, const char* pDesiredString, size_t stringLength) {
+  const char* pBufferString = pBuffer->pCurrent;
+
+  return (mri_strncmp(pBufferString, pDesiredString, stringLength) == 0) &&
+         (Buffer_BytesLeft(pBuffer) == stringLength || pBufferString[stringLength] == ':' ||
+          pBufferString[stringLength] == ';' || pBufferString[stringLength] == ',');
+}
+
+int Buffer_MatchesHexString(Buffer* pBuffer, const char* pString, size_t stringLength) {
+  CompareParams params = {doesBufferContainThisHexString, 2};
+  return matchesString(&params, pBuffer, pString, stringLength);
+}
+
+static int doesBufferContainThisHexString(Buffer* pBuffer, const char* pDesiredString, size_t stringLength) {
+  return (hexStringCompare(pBuffer, pDesiredString, stringLength) == 0) &&
+         (Buffer_BytesLeft(pBuffer) == stringLength * 2 ||
+          (Buffer_BytesLeft(pBuffer) >= (stringLength + 1) * 2 && pBuffer->pCurrent[stringLength * 2] == '2' &&
+           pBuffer->pCurrent[stringLength * 2 + 1] == '0'));
+}
+
+static int hexStringCompare(Buffer* pBuffer, const char* pDesiredString, size_t stringLength) {
+  char* pOrig = pBuffer->pCurrent;
+  int result = 0;
+  size_t i;
+  for (i = 0; i < stringLength; i++) {
+    uint8_t byte = toLower(Buffer_ReadByteAsHex(pBuffer));
+    uint8_t desiredByte = toLower(pDesiredString[i]);
+    if (byte < desiredByte) {
+      result = -1;
+      break;
     }
-
-    return 0;
-}
-
-static int doesBufferContainThisString(Buffer* pBuffer, const char* pDesiredString, size_t stringLength)
-{
-    const char* pBufferString = pBuffer->pCurrent;
-
-    return (mri_strncmp(pBufferString, pDesiredString, stringLength) == 0) &&
-           (Buffer_BytesLeft(pBuffer) == stringLength ||
-            pBufferString[stringLength] == ':' ||
-            pBufferString[stringLength] == ';' ||
-            pBufferString[stringLength] == ',');
-}
-
-
-int Buffer_MatchesHexString(Buffer* pBuffer, const char* pString, size_t stringLength)
-{
-    CompareParams params = { doesBufferContainThisHexString, 2 };
-    return matchesString(&params, pBuffer, pString, stringLength);
-}
-
-static int doesBufferContainThisHexString(Buffer* pBuffer, const char* pDesiredString, size_t stringLength)
-{
-    return (hexStringCompare(pBuffer, pDesiredString, stringLength) == 0) &&
-           (Buffer_BytesLeft(pBuffer) == stringLength*2 ||
-            (Buffer_BytesLeft(pBuffer) >= (stringLength+1)*2 &&
-             pBuffer->pCurrent[stringLength*2] == '2' &&
-             pBuffer->pCurrent[stringLength*2+1] == '0'));
-}
-
-static int hexStringCompare(Buffer* pBuffer, const char* pDesiredString, size_t stringLength)
-{
-    char* pOrig = pBuffer->pCurrent;
-    int   result = 0;
-    size_t i;
-    for (i = 0 ; i < stringLength ; i++)
-    {
-        uint8_t byte = toLower(Buffer_ReadByteAsHex(pBuffer));
-        uint8_t desiredByte = toLower(pDesiredString[i]);
-        if (byte < desiredByte)
-        {
-            result = -1;
-            break;
-        }
-        if (byte > desiredByte)
-        {
-            result = 1;
-            break;
-        }
+    if (byte > desiredByte) {
+      result = 1;
+      break;
     }
-    pBuffer->pCurrent = pOrig;
-    return result;
+  }
+  pBuffer->pCurrent = pOrig;
+  return result;
 }
 
-static uint8_t toLower(uint8_t ch)
-{
-    if (ch >= 'A' && ch <= 'Z')
-    {
-        ch = ch - 'A' + 'a';
-    }
-    return ch;
+static uint8_t toLower(uint8_t ch) {
+  if (ch >= 'A' && ch <= 'Z') {
+    ch = ch - 'A' + 'a';
+  }
+  return ch;
 }
-

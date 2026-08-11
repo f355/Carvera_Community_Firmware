@@ -21,25 +21,23 @@ extern "C" {
 #endif
 
 typedef struct {
-    PinName  pin;
-    uint32_t mask;
+  PinName pin;
+  uint32_t mask;
 
-    __IO uint32_t *reg_dir;
-    __IO uint32_t *reg_set;
-    __IO uint32_t *reg_clr;
-    __I  uint32_t *reg_in;
+  __IO uint32_t* reg_dir;
+  __IO uint32_t* reg_set;
+  __IO uint32_t* reg_clr;
+  __I uint32_t* reg_in;
 } gpio_t;
 
-static inline void gpio_write(gpio_t *obj, int value) {
-    if (value)
-        *obj->reg_set = obj->mask;
-    else
-        *obj->reg_clr = obj->mask;
+static inline void gpio_write(gpio_t* obj, int value) {
+  if (value)
+    *obj->reg_set = obj->mask;
+  else
+    *obj->reg_clr = obj->mask;
 }
 
-static inline int gpio_read(gpio_t *obj) {
-    return ((*obj->reg_in & obj->mask) ? 1 : 0);
-}
+static inline int gpio_read(gpio_t* obj) { return ((*obj->reg_in & obj->mask) ? 1 : 0); }
 
 #ifdef __cplusplus
 }

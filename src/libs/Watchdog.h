@@ -5,20 +5,18 @@
 
 #include "Module.h"
 
-typedef enum
-{
-    WDT_MRI,
-    WDT_RESET,
+typedef enum {
+  WDT_MRI,
+  WDT_RESET,
 } WDT_ACTION;
 
-class Watchdog : public Module
-{
-public:
-    Watchdog(uint32_t timeout, WDT_ACTION action);
-    void feed();
+class Watchdog : public Module {
+ public:
+  Watchdog(uint32_t timeout, WDT_ACTION action);
+  void feed();
 
-    void on_module_loaded();
-    void on_idle(void*);
+  void on_module_loaded();
+  void on_idle(void*);
 };
 
 #endif /* _WATCHDOG_H */

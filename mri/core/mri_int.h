@@ -21,13 +21,12 @@
 /* The MRI_UINT_TYPE and MRI_INT_TYP macros should be set when calling the compiler to indicate what type should be
    used for integers on your platform. This allows support for 16/32/64-bit integers. */
 #ifndef MRI_UINT_TYPE
-    #define MRI_UINT_TYPE uintptr_t
+#define MRI_UINT_TYPE uintptr_t
 #endif
 #ifndef MRI_INT_TYPE
-    #define MRI_INT_TYPE intptr_t
+#define MRI_INT_TYPE intptr_t
 #endif
 typedef MRI_UINT_TYPE uintmri_t;
 typedef MRI_INT_TYPE intmri_t;
-
 
 #endif /* MRI_INT_H_ */

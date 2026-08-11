@@ -22,96 +22,52 @@ barthelemy@prologique.com
 
 #include "testresult.h"
 
+TestResult::TestResult() {}
 
-TestResult::TestResult()
-{
+TestResult::~TestResult() {}
+
+int TestResult::getTotalSuccesses() const { return totalSuccesses_; }
+
+int TestResult::getTotalErrors() const { return totalErrors_; }
+
+int TestResult::getTotalFailures() const { return totalFailures_; }
+
+int TestResult::getSuccesses() const { return successes_; }
+
+int TestResult::getFailures() const { return failures_; }
+
+int TestResult::getErrors() const { return errors_; }
+
+int TestResult::getTestCaseCount() const { return testCaseCount_; }
+
+int TestResult::getTestRanCount() const { return testRanCount_; }
+
+int TestResult::getTestCaseRanCount() const { return testCaseRanCount_; }
+
+TestCase* TestResult::getTestCases() const { return testCases_; }
+
+void TestResult::setTestCases(TestCase* testCases, int testCaseCount) {
+  testCases_ = testCases;
+  testCaseCount_ = testCaseCount;
 }
 
+void TestResult::addResult(TestCase* testCase) {
+  int tcSuccesses = testCase->getSuccessesCount();
+  int tcErrors = testCase->getErrorsCount();
+  int tcFailures = testCase->getFailuresCount();
 
-TestResult::~TestResult()
-{
+  testCaseRanCount_++;
+
+  totalSuccesses_ += tcSuccesses;
+  totalErrors_ += tcErrors;
+  totalFailures_ += tcFailures;
+  testRanCount_ += testCase->getTestsCount();
+
+  if (tcErrors == 0 && tcFailures == 0) {
+    successes_++;
+  } else if (tcErrors > 0) {
+    errors_++;
+  } else {
+    failures_++;
+  }
 }
-
-int TestResult::getTotalSuccesses() const
-{
-	return totalSuccesses_;
-}
-
-int TestResult::getTotalErrors() const
-{
-	return totalErrors_;
-}
-
-int TestResult::getTotalFailures() const
-{
-	return totalFailures_;
-}
-
-
-int TestResult::getSuccesses() const
-{
-	return successes_;
-}
-
-int TestResult::getFailures() const
-{
-	return failures_;
-}
-
-int TestResult::getErrors() const
-{
-	return errors_;
-}
-
-int TestResult::getTestCaseCount() const
-{
-	return testCaseCount_;
-}
-
-int TestResult::getTestRanCount() const
-{
-	return testRanCount_;
-}
-
-int TestResult::getTestCaseRanCount() const
-{
-	return testCaseRanCount_;
-}
-
-TestCase* TestResult::getTestCases() const
-{
-	return testCases_;
-}
-
-void TestResult::setTestCases(TestCase *testCases, int testCaseCount)
-{
-	testCases_ = testCases;
-	testCaseCount_ = testCaseCount;
-}
-
-void TestResult::addResult(TestCase *testCase)
-{
-	int tcSuccesses = testCase->getSuccessesCount();
-	int tcErrors = testCase->getErrorsCount();
-	int tcFailures = testCase->getFailuresCount();
-
-	testCaseRanCount_++;
-
-	totalSuccesses_ += tcSuccesses;
-	totalErrors_ += tcErrors;
-	totalFailures_ += tcFailures;
-	testRanCount_ += testCase->getTestsCount();
-
-	if (tcErrors == 0 && tcFailures == 0) {
-		successes_++;
-	}
-	else if (tcErrors > 0) {
-		errors_++;
-	}
-	else {
-		failures_++;
-	}
-}
-
-
-

@@ -22,71 +22,71 @@
 
 void sleep(void) {
 #if DEVICE_SEMIHOST
-    // ensure debug is disconnected
-    mbed_interface_disconnect();
+  // ensure debug is disconnected
+  mbed_interface_disconnect();
 #endif
 
-    // PCON[PD] set to sleep
+  // PCON[PD] set to sleep
 #if defined(TARGET_LPC11U24)
-    LPC_PMU->PCON = 0x0;
+  LPC_PMU->PCON = 0x0;
 #elif defined(TARGET_LPC1768)
-    LPC_SC->PCON = 0x0;
+  LPC_SC->PCON = 0x0;
 #endif
 
-    // SRC[SLEEPDEEP] set to 0 = sleep
-    SCB->SCR &= ~SCB_SCR_SLEEPDEEP_Msk;
+  // SRC[SLEEPDEEP] set to 0 = sleep
+  SCB->SCR &= ~SCB_SCR_SLEEPDEEP_Msk;
 
-    // wait for interrupt
-    __WFI();
+  // wait for interrupt
+  __WFI();
 }
 
 /*
-* The mbed lpc1768 does not support the deepsleep mode
-* as a debugger is connected to it (the mbed interface).
-*
-* As mentionned in an application note from NXP:
-*
-*       http://www.po-star.com/public/uploads/20120319123122_141.pdf
-*
-*       {{{
-*       The user should be aware of certain limitations during debugging.
-*       The most important is that, due to limitations of the Cortex-M3
-*       integration, the LPC17xx cannot wake up in the usual manner from
-*       Deep Sleep and Power-down modes. It is recommended not to use these
-*       modes during debug. Once an application is downloaded via JTAG/SWD
-*       interface, the USB to SWD/JTAG debug adapter (Keil ULINK2 for example)
-*       should be removed from the target board, and thereafter, power cycle
-*       the LPC17xx to allow wake-up from deep sleep and power-down modes
-*       }}}
-*
-*       As the interface firmware does not reset the target when a
-*       mbed_interface_disconnect() semihosting call is made, the
-*       core cannot wake-up from deepsleep.
-*
-*       We treat a deepsleep() as a normal sleep().
-*/
+ * The mbed lpc1768 does not support the deepsleep mode
+ * as a debugger is connected to it (the mbed interface).
+ *
+ * As mentionned in an application note from NXP:
+ *
+ *       http://www.po-star.com/public/uploads/20120319123122_141.pdf
+ *
+ *       {{{
+ *       The user should be aware of certain limitations during debugging.
+ *       The most important is that, due to limitations of the Cortex-M3
+ *       integration, the LPC17xx cannot wake up in the usual manner from
+ *       Deep Sleep and Power-down modes. It is recommended not to use these
+ *       modes during debug. Once an application is downloaded via JTAG/SWD
+ *       interface, the USB to SWD/JTAG debug adapter (Keil ULINK2 for example)
+ *       should be removed from the target board, and thereafter, power cycle
+ *       the LPC17xx to allow wake-up from deep sleep and power-down modes
+ *       }}}
+ *
+ *       As the interface firmware does not reset the target when a
+ *       mbed_interface_disconnect() semihosting call is made, the
+ *       core cannot wake-up from deepsleep.
+ *
+ *       We treat a deepsleep() as a normal sleep().
+ */
 
 void deepsleep(void) {
 #if DEVICE_SEMIHOST
-    // ensure debug is disconnected
-    mbed_interface_disconnect();
+  // ensure debug is disconnected
+  mbed_interface_disconnect();
 #endif
 
-    // PCON[PD] set to deepsleep
+  // PCON[PD] set to deepsleep
 #if defined(TARGET_LPC11U24)
-    LPC_PMU->PCON = 0x1;
+  LPC_PMU->PCON = 0x1;
 
-    // SRC[SLEEPDEEP] set to 1 = deep sleep
-    SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
+  // SRC[SLEEPDEEP] set to 1 = deep sleep
+  SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
 
-    // Power up everything after powerdown
-    LPC_SYSCON->PDAWAKECFG &= 0xFFFFF800;
+  // Power up everything after powerdown
+  LPC_SYSCON->PDAWAKECFG &= 0xFFFFF800;
 
-    // wait for interrupt
-    __WFI();
+  // wait for interrupt
+  __WFI();
 
 #elif defined(TARGET_LPC1768)
-    sleep();
+  sleep();
 #endif
 }
 

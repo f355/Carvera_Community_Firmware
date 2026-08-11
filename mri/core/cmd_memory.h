@@ -24,8 +24,8 @@ uint32_t mriCmd_HandleMemoryWriteCommand(void);
 uint32_t mriCmd_HandleBinaryMemoryWriteCommand(void);
 
 /* Macroes which allow code to drop the mri namespace prefix. */
-#define HandleMemoryReadCommand         mriCmd_HandleMemoryReadCommand
-#define HandleMemoryWriteCommand        mriCmd_HandleMemoryWriteCommand
-#define HandleBinaryMemoryWriteCommand  mriCmd_HandleBinaryMemoryWriteCommand
+#define HandleMemoryReadCommand mriCmd_HandleMemoryReadCommand
+#define HandleMemoryWriteCommand mriCmd_HandleMemoryWriteCommand
+#define HandleBinaryMemoryWriteCommand mriCmd_HandleBinaryMemoryWriteCommand
 
 #endif /* CMD_MEMORY_H_ */

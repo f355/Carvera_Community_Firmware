@@ -22,18 +22,18 @@ extern "C" {
 #endif
 
 #ifdef DEVICE_STDIO_MESSAGES
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 /** Output a debug message
  *
  * @param format printf-style format string, followed by variables
  */
-static inline void debug(const char *format, ...) {
-    va_list args;
-    va_start(args, format);
-    vfprintf(stderr, format, args);
-    va_end(args);
+static inline void debug(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  vfprintf(stderr, format, args);
+  va_end(args);
 }
 
 /** Conditionally output a debug message
@@ -44,18 +44,18 @@ static inline void debug(const char *format, ...) {
  * @param condition output only if condition is true (== 1)
  * @param format printf-style format string, followed by variables
  */
-static inline void debug_if(int condition, const char *format, ...) {
-    if (condition == 1) {
-        va_list args;
-        va_start(args, format);
-        vfprintf(stderr, format, args);
-        va_end(args);
-    }
+static inline void debug_if(int condition, const char* format, ...) {
+  if (condition == 1) {
+    va_list args;
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+  }
 }
 
 #else
-static inline void debug(const char *format, ...) {}
-static inline void debug_if(int condition, const char *format, ...) {}
+static inline void debug(const char* format, ...) {}
+static inline void debug_if(int condition, const char* format, ...) {}
 
 #endif
 

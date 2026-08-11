@@ -16,8 +16,8 @@
 **************************************************************************************************************
 */
 
-#ifndef  USBHOST_CPU_H
-#define  USBHOST_CPU_H
+#ifndef USBHOST_CPU_H
+#define USBHOST_CPU_H
 
 /*
 **************************************************************************************************************
@@ -25,11 +25,11 @@
 **************************************************************************************************************
 */
 
-typedef  unsigned int    USB_INT32U;
-typedef  signed   int    USB_INT32S;
-typedef  unsigned short  USB_INT16U;
-typedef  signed   short  USB_INT16S;
-typedef  unsigned char   USB_INT08U;
-typedef  signed   char   USB_INT08S;
+typedef unsigned int USB_INT32U;
+typedef signed int USB_INT32S;
+typedef unsigned short USB_INT16U;
+typedef signed short USB_INT16S;
+typedef unsigned char USB_INT08U;
+typedef signed char USB_INT08S;
 
 #endif

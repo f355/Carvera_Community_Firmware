@@ -16,8 +16,8 @@
 #ifndef SEMIHOST_H_
 #define SEMIHOST_H_
 
-#include <core/platforms.h>
 #include <core/cmd_file.h>
+#include <core/platforms.h>
 
 /* Real name of functions are in mri namespace. */
 int mriSemihost_IsDebuggeeMakingSemihostCall(void);
@@ -27,10 +27,10 @@ int mriSemihost_HandleNewlibSemihostRequest(PlatformSemihostParameters* pSemihos
 int mriSemihost_HandleArmSemihostRequest(PlatformSemihostParameters* pParameters);
 
 /* Macroes which allow code to drop the mri namespace prefix. */
-#define Semihost_IsDebuggeeMakingSemihostCall   mriSemihost_IsDebuggeeMakingSemihostCall
-#define Semihost_HandleSemihostRequest          mriSemihost_HandleSemihostRequest
-#define Semihost_WriteToFileOrConsole           mriSemihost_WriteToFileOrConsole
-#define Semihost_HandleNewlibSemihostRequest    mriSemihost_HandleNewlibSemihostRequest
-#define Semihost_HandleArmSemihostRequest      mriSemihost_HandleArmSemihostRequest
+#define Semihost_IsDebuggeeMakingSemihostCall mriSemihost_IsDebuggeeMakingSemihostCall
+#define Semihost_HandleSemihostRequest mriSemihost_HandleSemihostRequest
+#define Semihost_WriteToFileOrConsole mriSemihost_WriteToFileOrConsole
+#define Semihost_HandleNewlibSemihostRequest mriSemihost_HandleNewlibSemihostRequest
+#define Semihost_HandleArmSemihostRequest mriSemihost_HandleArmSemihostRequest
 
 #endif /* SEMIHOST_H_ */

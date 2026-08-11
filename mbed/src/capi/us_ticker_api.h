@@ -28,13 +28,13 @@ typedef void (*ticker_event_handler)(uint32_t id);
 void us_ticker_set_handler(ticker_event_handler handler);
 
 typedef struct ticker_event_s {
-    uint32_t timestamp;
-    uint32_t id;
-    struct ticker_event_s *next;
+  uint32_t timestamp;
+  uint32_t id;
+  struct ticker_event_s* next;
 } ticker_event_t;
 
-void us_ticker_insert_event(ticker_event_t *obj, unsigned int timestamp, uint32_t id);
-void us_ticker_remove_event(ticker_event_t *obj);
+void us_ticker_insert_event(ticker_event_t* obj, unsigned int timestamp, uint32_t id);
+void us_ticker_remove_event(ticker_event_t* obj);
 
 #ifdef __cplusplus
 }
