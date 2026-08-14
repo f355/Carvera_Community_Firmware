@@ -32,7 +32,7 @@ class SerialConsole : public Module, public StreamOutput {
         void on_idle(void * argument);
         void on_set_public_data(void *argument);
         bool has_char(char letter);
-        void attach_irq(bool enable_irq);
+        void set_rx_enabled(bool enabled);
 
         int _putc(int c);
         int _getc(void);
@@ -59,6 +59,12 @@ class SerialConsole : public Module, public StreamOutput {
         makera::FrameDecoder makera_frame_decoder;
         std::string deferred_makera_command;
         bool processing_makera_input;
+#if defined(SERIAL_RX_DMA)
+        bool rx_dispatch_enabled;
+        int rx_lookahead;
+        bool handle_rx_error();
+#endif
+        int read_byte();
 
         enum FileParseState {
             FILE_WAIT_HEADER,
